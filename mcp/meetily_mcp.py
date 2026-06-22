@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
-"""Read-only MCP server for Meetily meeting data.
+"""MCP server for Meetily meeting data.
 
 The server speaks JSON-RPC over stdio and exposes local Meetily transcripts,
-summaries, and notes from the app's SQLite database. It intentionally avoids
-reading settings/API key tables.
+summaries, and notes from the app's SQLite database. Transcript trimming is the
+only write operation, and it requires explicit confirmation. The server
+intentionally avoids reading settings/API key tables.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import platform
 import sqlite3
@@ -56,9 +58,10 @@ class MeetilyDatabase:
             f"Meetily database not found. Set {DATABASE_ENV} or pass --database.\nChecked:\n{checked}"
         )
 
-    def connect(self) -> sqlite3.Connection:
+    def connect(self, readonly: bool = True) -> sqlite3.Connection:
         db_path = self.resolve_path()
-        uri = f"file:{db_path.as_posix()}?mode=ro"
+        mode = "ro" if readonly else "rw"
+        uri = f"file:{db_path.as_posix()}?mode={mode}"
         conn = sqlite3.connect(uri, uri=True)
         conn.row_factory = sqlite3.Row
         return conn
@@ -97,6 +100,61 @@ def clamp_limit(value: Any, default: int, maximum: int) -> int:
     except (TypeError, ValueError) as exc:
         raise McpServerError("limit must be an integer") from exc
     return max(1, min(limit, maximum))
+
+
+def parse_cutoff_seconds(args: dict[str, Any]) -> float:
+    value = args.get("cutoff_seconds")
+    if value is None:
+        value = args.get("cutoff_time")
+
+    if value is None:
+        raise McpServerError("cutoff_seconds or cutoff_time is required")
+
+    if isinstance(value, (int, float)):
+        seconds = float(value)
+    elif isinstance(value, str):
+        seconds = parse_cutoff_time(value)
+    else:
+        raise McpServerError("cutoff must be a number of seconds or a time string")
+
+    if not math.isfinite(seconds) or seconds < 0:
+        raise McpServerError("cutoff_seconds must be a finite non-negative number")
+
+    return seconds
+
+
+def parse_cutoff_time(value: str) -> float:
+    trimmed = value.strip()
+    if not trimmed:
+        raise McpServerError("cutoff_time cannot be empty")
+
+    try:
+        return float(trimmed)
+    except ValueError:
+        pass
+
+    parts = trimmed.split(":")
+    if len(parts) not in (2, 3):
+        raise McpServerError("cutoff_time must look like MM:SS or HH:MM:SS")
+
+    try:
+        numbers = [float(part) for part in parts]
+    except ValueError as exc:
+        raise McpServerError("cutoff_time contains a non-numeric part") from exc
+
+    if any(part < 0 for part in numbers):
+        raise McpServerError("cutoff_time cannot be negative")
+
+    if len(numbers) == 2:
+        hours = 0.0
+        minutes, seconds = numbers
+    else:
+        hours, minutes, seconds = numbers
+
+    if minutes >= 60 or seconds >= 60:
+        raise McpServerError("cutoff_time minutes and seconds must be less than 60")
+
+    return hours * 3600 + minutes * 60 + seconds
 
 
 def table_exists(conn: sqlite3.Connection, table_name: str) -> bool:
@@ -329,6 +387,150 @@ def get_action_items(db: MeetilyDatabase, args: dict[str, Any]) -> dict[str, Any
     }
 
 
+def preview_trim_transcript(db: MeetilyDatabase, args: dict[str, Any]) -> dict[str, Any]:
+    meeting_id = require_arg(args, "meeting_id")
+    cutoff_seconds = parse_cutoff_seconds(args)
+
+    with db.connect(readonly=True) as conn:
+        meeting = require_meeting(conn, meeting_id)
+        trim = build_trim_preview(conn, meeting_id, cutoff_seconds, applied=False)
+
+    return {"meeting": meeting, "trim": trim}
+
+
+def trim_transcript_after(db: MeetilyDatabase, args: dict[str, Any]) -> dict[str, Any]:
+    meeting_id = require_arg(args, "meeting_id")
+    cutoff_seconds = parse_cutoff_seconds(args)
+    if args.get("confirm") is not True:
+        raise McpServerError("trim_transcript_after requires confirm=true")
+
+    with db.connect(readonly=False) as conn:
+        conn.execute("BEGIN")
+        try:
+            meeting = require_meeting(conn, meeting_id)
+            preview = build_trim_preview(conn, meeting_id, cutoff_seconds, applied=False)
+
+            if preview["deleted_count"] > 0:
+                deleted = conn.execute(
+                    """
+                    DELETE FROM transcripts
+                    WHERE meeting_id = ?
+                      AND audio_start_time IS NOT NULL
+                      AND audio_start_time > ?
+                    """,
+                    (meeting_id, cutoff_seconds),
+                ).rowcount
+                summary_invalidated = (
+                    conn.execute(
+                        "DELETE FROM summary_processes WHERE meeting_id = ?",
+                        (meeting_id,),
+                    ).rowcount
+                    > 0
+                )
+                conn.execute(
+                    "DELETE FROM transcript_chunks WHERE meeting_id = ?",
+                    (meeting_id,),
+                )
+                conn.execute(
+                    "UPDATE meetings SET updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                    (meeting_id,),
+                )
+                preview["deleted_count"] = deleted
+                preview["remaining_count"] = preview["total_count"] - deleted
+                preview["summary_invalidated"] = summary_invalidated
+
+            preview["applied"] = True
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+
+    return {"meeting": meeting, "trim": preview}
+
+
+def build_trim_preview(
+    conn: sqlite3.Connection,
+    meeting_id: str,
+    cutoff_seconds: float,
+    applied: bool,
+) -> dict[str, Any]:
+    total_count = conn.execute(
+        "SELECT COUNT(*) AS count FROM transcripts WHERE meeting_id = ?",
+        (meeting_id,),
+    ).fetchone()["count"]
+    deleted_count = conn.execute(
+        """
+        SELECT COUNT(*) AS count
+        FROM transcripts
+        WHERE meeting_id = ?
+          AND audio_start_time IS NOT NULL
+          AND audio_start_time > ?
+        """,
+        (meeting_id, cutoff_seconds),
+    ).fetchone()["count"]
+    summary_count = conn.execute(
+        "SELECT COUNT(*) AS count FROM summary_processes WHERE meeting_id = ?",
+        (meeting_id,),
+    ).fetchone()["count"]
+
+    return {
+        "meeting_id": meeting_id,
+        "cutoff_seconds": cutoff_seconds,
+        "deleted_count": deleted_count,
+        "remaining_count": total_count - deleted_count,
+        "total_count": total_count,
+        "summary_invalidated": summary_count > 0 and deleted_count > 0,
+        "last_kept_segment": get_trim_boundary_segment(
+            conn,
+            meeting_id,
+            cutoff_seconds,
+            comparator="<=",
+            order="DESC",
+        ),
+        "first_removed_segment": get_trim_boundary_segment(
+            conn,
+            meeting_id,
+            cutoff_seconds,
+            comparator=">",
+            order="ASC",
+        ),
+        "last_removed_segment": get_trim_boundary_segment(
+            conn,
+            meeting_id,
+            cutoff_seconds,
+            comparator=">",
+            order="DESC",
+        ),
+        "applied": applied,
+    }
+
+
+def get_trim_boundary_segment(
+    conn: sqlite3.Connection,
+    meeting_id: str,
+    cutoff_seconds: float,
+    comparator: str,
+    order: str,
+) -> dict[str, Any] | None:
+    if comparator not in ("<=", ">") or order not in ("ASC", "DESC"):
+        raise McpServerError("Invalid trim boundary query")
+
+    row = conn.execute(
+        f"""
+        SELECT id, transcript AS text, timestamp, audio_start_time, audio_end_time
+        FROM transcripts
+        WHERE meeting_id = ?
+          AND audio_start_time IS NOT NULL
+          AND audio_start_time {comparator} ?
+        ORDER BY audio_start_time {order}
+        LIMIT 1
+        """,
+        (meeting_id, cutoff_seconds),
+    ).fetchone()
+
+    return row_to_dict(row) if row else None
+
+
 def require_arg(args: dict[str, Any], name: str) -> str:
     value = args.get(name)
     if not isinstance(value, str) or not value.strip():
@@ -450,6 +652,48 @@ TOOLS: dict[str, dict[str, Any]] = {
             "required": ["meeting_id"],
         },
         "handler": get_action_items,
+    },
+    "preview_trim_transcript": {
+        "description": "Preview removing transcript segments that start after a recording timestamp.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "meeting_id": {"type": "string"},
+                "cutoff_seconds": {
+                    "type": "number",
+                    "description": "Recording-relative cutoff in seconds. Segments with audio_start_time greater than this are removed.",
+                },
+                "cutoff_time": {
+                    "type": "string",
+                    "description": "Alternative cutoff format such as MM:SS, HH:MM:SS, or seconds as a string.",
+                },
+            },
+            "required": ["meeting_id"],
+        },
+        "handler": preview_trim_transcript,
+    },
+    "trim_transcript_after": {
+        "description": "Delete transcript segments that start after a recording timestamp and clear stale summary/cache data. Requires confirm=true.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "meeting_id": {"type": "string"},
+                "cutoff_seconds": {
+                    "type": "number",
+                    "description": "Recording-relative cutoff in seconds. Segments with audio_start_time greater than this are deleted.",
+                },
+                "cutoff_time": {
+                    "type": "string",
+                    "description": "Alternative cutoff format such as MM:SS, HH:MM:SS, or seconds as a string.",
+                },
+                "confirm": {
+                    "type": "boolean",
+                    "description": "Must be true to apply the destructive trim.",
+                },
+            },
+            "required": ["meeting_id", "confirm"],
+        },
+        "handler": trim_transcript_after,
     },
 }
 
@@ -641,7 +885,7 @@ def serve(server: MeetilyMcpServer) -> None:
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Read-only MCP server for Meetily local data")
+    parser = argparse.ArgumentParser(description="MCP server for Meetily local data")
     parser.add_argument(
         "--database",
         help=f"Path to {DATABASE_FILENAME}. Defaults to {DATABASE_ENV} or app data directory lookup.",

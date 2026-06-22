@@ -3,9 +3,10 @@
 import { useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { ButtonGroup } from '@/components/ui/button-group';
-import { Copy, FolderOpen, RefreshCw } from 'lucide-react';
+import { Copy, FolderOpen, RefreshCw, Scissors } from 'lucide-react';
 import Analytics from '@/lib/analytics';
 import { RetranscribeDialog } from './RetranscribeDialog';
+import { TrimTranscriptDialog } from './TrimTranscriptDialog';
 import { useConfig } from '@/contexts/ConfigContext';
 
 
@@ -29,6 +30,7 @@ export function TranscriptButtonGroup({
 }: TranscriptButtonGroupProps) {
   const { betaFeatures } = useConfig();
   const [showRetranscribeDialog, setShowRetranscribeDialog] = useState(false);
+  const [showTrimDialog, setShowTrimDialog] = useState(false);
 
   const handleRetranscribeComplete = useCallback(async () => {
     // Refetch transcripts to show the updated data
@@ -53,6 +55,23 @@ export function TranscriptButtonGroup({
           <Copy />
           <span className="hidden lg:inline">Copy</span>
         </Button>
+
+        {meetingId && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="xl:px-4"
+            onClick={() => {
+              Analytics.trackButtonClick('trim_transcript_tail', 'meeting_details');
+              setShowTrimDialog(true);
+            }}
+            disabled={transcriptCount === 0}
+            title={transcriptCount === 0 ? 'No transcript available' : 'Trim transcript after a timestamp'}
+          >
+            <Scissors className="xl:mr-2" size={18} />
+            <span className="hidden lg:inline">Trim</span>
+          </Button>
+        )}
 
         <Button
           size="sm"
@@ -91,6 +110,15 @@ export function TranscriptButtonGroup({
           onOpenChange={setShowRetranscribeDialog}
           meetingId={meetingId}
           meetingFolderPath={meetingFolderPath}
+          onComplete={handleRetranscribeComplete}
+        />
+      )}
+
+      {meetingId && (
+        <TrimTranscriptDialog
+          open={showTrimDialog}
+          onOpenChange={setShowTrimDialog}
+          meetingId={meetingId}
           onComplete={handleRetranscribeComplete}
         />
       )}

@@ -158,6 +158,34 @@ pub struct PaginatedTranscriptsResponse {
     pub has_more: bool,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TranscriptTrimSegment {
+    pub id: String,
+    pub text: String,
+    pub timestamp: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub audio_start_time: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub audio_end_time: Option<f64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TranscriptTrimResult {
+    pub meeting_id: String,
+    pub cutoff_seconds: f64,
+    pub deleted_count: i64,
+    pub remaining_count: i64,
+    pub total_count: i64,
+    pub summary_invalidated: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_kept_segment: Option<TranscriptTrimSegment>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub first_removed_segment: Option<TranscriptTrimSegment>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_removed_segment: Option<TranscriptTrimSegment>,
+    pub applied: bool,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SaveMeetingTitleRequest {
     pub meeting_id: String,
@@ -894,6 +922,64 @@ pub async fn api_get_meeting_transcripts<R: Runtime>(
             Err(format!("Failed to retrieve transcripts: {}", e))
         }
     }
+}
+
+#[tauri::command]
+pub async fn api_preview_trim_meeting_transcript<R: Runtime>(
+    _app: AppHandle<R>,
+    meeting_id: String,
+    cutoff_seconds: f64,
+    state: tauri::State<'_, AppState>,
+) -> Result<TranscriptTrimResult, String> {
+    log_info!(
+        "api_preview_trim_meeting_transcript called for meeting_id: {}, cutoff_seconds: {}",
+        meeting_id,
+        cutoff_seconds
+    );
+
+    let pool = state.db_manager.pool();
+    MeetingsRepository::preview_trim_transcript(pool, &meeting_id, cutoff_seconds)
+        .await
+        .map_err(|e| {
+            log_error!(
+                "Failed to preview transcript trim for meeting {}: {}",
+                meeting_id,
+                e
+            );
+            format!("Failed to preview transcript trim: {}", e)
+        })
+}
+
+#[tauri::command]
+pub async fn api_trim_meeting_transcript<R: Runtime>(
+    _app: AppHandle<R>,
+    meeting_id: String,
+    cutoff_seconds: f64,
+    confirm: bool,
+    state: tauri::State<'_, AppState>,
+) -> Result<TranscriptTrimResult, String> {
+    log_info!(
+        "api_trim_meeting_transcript called for meeting_id: {}, cutoff_seconds: {}, confirm: {}",
+        meeting_id,
+        cutoff_seconds,
+        confirm
+    );
+
+    if !confirm {
+        return Err("Transcript trim requires confirm=true.".to_string());
+    }
+
+    let pool = state.db_manager.pool();
+    MeetingsRepository::trim_transcript_after(pool, &meeting_id, cutoff_seconds)
+        .await
+        .map_err(|e| {
+            log_error!(
+                "Failed to trim transcript for meeting {}: {}",
+                meeting_id,
+                e
+            );
+            format!("Failed to trim transcript: {}", e)
+        })
 }
 
 #[tauri::command]

@@ -1,6 +1,6 @@
 # Meetily MCP Server
 
-Meetily includes a read-only MCP server for local meeting data. It lets agents inspect meetings, raw transcript segments, summaries, meeting notes, and action-item sections without starting the archived FastAPI backend.
+Meetily includes an MCP server for local meeting data. It lets agents inspect meetings, raw transcript segments, summaries, meeting notes, and action-item sections without starting the archived FastAPI backend. It can also trim transcript segments recorded after a known meeting end point when explicitly confirmed.
 
 ## What It Exposes
 
@@ -10,8 +10,33 @@ Meetily includes a read-only MCP server for local meeting data. It lets agents i
 - `get_summary` - stored summary status and summary JSON/Markdown.
 - `search_transcripts` - full-text substring search across raw transcript segments.
 - `get_action_items` - the action-items/todos section from the stored summary, when present.
+- `preview_trim_transcript` - preview transcript tail segments that would be removed after a cutoff.
+- `trim_transcript_after` - delete transcript segments after a cutoff and clear stale summary/cache data. Requires `confirm: true`.
 
-The server only reads meeting content tables. It does not read settings, API keys, or model-provider configuration.
+The server does not read settings, API keys, or model-provider configuration. All tools are read-only except `trim_transcript_after`, which only deletes timestamped transcript rows for the requested meeting after the requested cutoff.
+
+## Trim A Transcript Tail
+
+Use this when recording continued after the actual meeting ended.
+
+```json
+{
+  "meeting_id": "meeting-123",
+  "cutoff_time": "17:52"
+}
+```
+
+Preview first with `preview_trim_transcript`. To apply, call `trim_transcript_after` with the same cutoff and `confirm: true`.
+
+```json
+{
+  "meeting_id": "meeting-123",
+  "cutoff_time": "17:52",
+  "confirm": true
+}
+```
+
+The cutoff is recording-relative. Segments with `audio_start_time` greater than the cutoff are deleted; exact cutoff matches are kept. Segments without recording-relative timestamps are left untouched. Any stored summary for that meeting is cleared so it can be regenerated from the cleaned transcript.
 
 ## Run It
 

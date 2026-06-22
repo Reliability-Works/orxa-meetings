@@ -443,7 +443,7 @@ export function PreferenceSettings() {
             <div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">Agent MCP Access</h3>
               <p className="text-sm text-gray-600">
-                Read-only local access to meetings, raw transcripts, summaries, notes, and action items.
+                Local agent access to meetings, raw transcripts, summaries, notes, action items, and confirmed transcript trimming.
               </p>
             </div>
           </div>

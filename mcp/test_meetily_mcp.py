@@ -69,6 +69,17 @@ class MeetilyMcpTest(unittest.TestCase):
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL
             );
+
+            CREATE TABLE transcript_chunks (
+                meeting_id TEXT NOT NULL,
+                meeting_name TEXT,
+                transcript_text TEXT NOT NULL,
+                model TEXT NOT NULL,
+                model_name TEXT NOT NULL,
+                chunk_size INTEGER,
+                overlap INTEGER,
+                created_at TEXT NOT NULL
+            );
             """
         )
         conn.execute(
@@ -104,6 +115,10 @@ class MeetilyMcpTest(unittest.TestCase):
         conn.execute(
             "INSERT INTO meeting_notes VALUES (?, ?, ?, ?, ?)",
             ("meeting-1", "- Customer asked for timeline", None, "2026-06-22T09:00:00Z", "2026-06-22T09:05:00Z"),
+        )
+        conn.execute(
+            "INSERT INTO transcript_chunks VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            ("meeting-1", "Roadmap Sync", "Cached transcript content", "test", "test", None, None, "2026-06-22T09:05:00Z"),
         )
         conn.commit()
         conn.close()
@@ -154,6 +169,54 @@ class MeetilyMcpTest(unittest.TestCase):
 
         text = response["result"]["content"][0]["text"]
         self.assertIn("Roadmap Sync", text)
+
+    def test_preview_trim_transcript_reports_tail_without_deleting(self):
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute(
+                "INSERT INTO transcripts VALUES (?, ?, ?, ?, NULL, NULL, NULL, ?, ?, ?)",
+                ("transcript-junk", "meeting-1", "A video kept playing after the call.", "09:29:00", 1743.0, 1748.0, 5.0),
+            )
+
+        result = meetily_mcp.preview_trim_transcript(
+            self.db,
+            {"meeting_id": "meeting-1", "cutoff_time": "00:13"},
+        )
+
+        self.assertFalse(result["trim"]["applied"])
+        self.assertEqual(result["trim"]["deleted_count"], 1)
+        self.assertEqual(result["trim"]["remaining_count"], 2)
+        self.assertTrue(result["trim"]["summary_invalidated"])
+        self.assertIn("video kept playing", result["trim"]["first_removed_segment"]["text"])
+
+        with sqlite3.connect(self.db_path) as conn:
+            count = conn.execute("SELECT COUNT(*) FROM transcripts").fetchone()[0]
+        self.assertEqual(count, 3)
+
+    def test_trim_transcript_after_deletes_tail_and_invalidates_summary(self):
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute(
+                "INSERT INTO transcripts VALUES (?, ?, ?, ?, NULL, NULL, NULL, ?, ?, ?)",
+                ("transcript-junk", "meeting-1", "A video kept playing after the call.", "09:29:00", 1743.0, 1748.0, 5.0),
+            )
+
+        result = meetily_mcp.trim_transcript_after(
+            self.db,
+            {"meeting_id": "meeting-1", "cutoff_seconds": 13, "confirm": True},
+        )
+
+        self.assertTrue(result["trim"]["applied"])
+        self.assertEqual(result["trim"]["deleted_count"], 1)
+        self.assertEqual(result["trim"]["remaining_count"], 2)
+        self.assertTrue(result["trim"]["summary_invalidated"])
+
+        with sqlite3.connect(self.db_path) as conn:
+            transcript_count = conn.execute("SELECT COUNT(*) FROM transcripts").fetchone()[0]
+            summary_count = conn.execute("SELECT COUNT(*) FROM summary_processes").fetchone()[0]
+            chunk_count = conn.execute("SELECT COUNT(*) FROM transcript_chunks").fetchone()[0]
+
+        self.assertEqual(transcript_count, 2)
+        self.assertEqual(summary_count, 0)
+        self.assertEqual(chunk_count, 0)
 
 
 if __name__ == "__main__":

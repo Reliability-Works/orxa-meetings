@@ -173,7 +173,7 @@ All data stays on your machine. Transcription models, recordings, and transcript
 
 ### 🔌 Local MCP Access
 
-Agents can inspect local meetings through a read-only MCP server for raw transcripts, summaries, notes, and action items. See [Meetily MCP Server](docs/MCP_SERVER.md) for setup.
+Agents can inspect local meetings through an MCP server for raw transcripts, summaries, notes, and action items. The MCP server also supports confirmed cleanup of transcript tails recorded after a meeting ended. See [Meetily MCP Server](docs/MCP_SERVER.md) for setup.
 
 ### 🌐 Custom OpenAI Endpoint Support
 

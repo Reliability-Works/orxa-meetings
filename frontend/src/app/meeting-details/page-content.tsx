@@ -134,6 +134,12 @@ export default function PageContent({
     meeting,
   });
 
+  const handleTranscriptDataChanged = async () => {
+    await onRefetchTranscripts?.();
+    meetingData.setAiSummary(null);
+    await onMeetingUpdated?.();
+  };
+
   // Track page view
   useEffect(() => {
     Analytics.trackPageView('meeting_details');
@@ -190,7 +196,7 @@ export default function PageContent({
           // Retranscription props
           meetingId={meeting.id}
           meetingFolderPath={meeting.folder_path}
-          onRefetchTranscripts={onRefetchTranscripts}
+          onRefetchTranscripts={handleTranscriptDataChanged}
         />
         <SummaryPanel
           meeting={meeting}
