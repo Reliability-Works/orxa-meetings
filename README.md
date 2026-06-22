@@ -171,6 +171,10 @@ All data stays on your machine. Transcription models, recordings, and transcript
     <img src="docs/settings.png" width="650" style="border-radius: 10px;" alt="Local Transcription and storage" />
 </p>
 
+### 🔌 Local MCP Access
+
+Agents can inspect local meetings through a read-only MCP server for raw transcripts, summaries, notes, and action items. See [Meetily MCP Server](docs/MCP_SERVER.md) for setup.
+
 ### 🌐 Custom OpenAI Endpoint Support
 
 Use your own OpenAI-compatible endpoint for AI summaries. Perfect for organizations with custom AI infrastructure or preferred providers.
