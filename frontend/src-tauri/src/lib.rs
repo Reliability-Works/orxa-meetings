@@ -38,6 +38,7 @@ pub(crate) use perf_trace;
 pub mod analytics;
 pub mod api;
 pub mod audio;
+pub mod calendar;
 pub mod config;
 pub mod console_utils;
 pub mod database;
@@ -425,6 +426,8 @@ pub fn run() {
                 log::error!("Failed to create system tray: {}", e);
             }
 
+            calendar::start_calendar_auto_start_watcher(_app.handle().clone());
+
             // Initialize notification system with proper defaults
             log::info!("Initializing notification system...");
             let app_for_notif = _app.handle().clone();
@@ -690,6 +693,10 @@ pub fn run() {
             audio::recording_preferences::get_current_audio_backend,
             audio::recording_preferences::set_audio_backend,
             audio::recording_preferences::get_audio_backend_info,
+            calendar::get_calendar_auto_start_preferences,
+            calendar::set_calendar_auto_start_preferences,
+            calendar::get_calendar_permission_status,
+            calendar::request_calendar_permission,
             // Language preference commands
             set_language_preference,
             // Notification system commands

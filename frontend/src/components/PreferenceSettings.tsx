@@ -2,11 +2,55 @@
 
 import { useEffect, useState, useRef } from "react"
 import { Switch } from "./ui/switch"
-import { FolderOpen } from "lucide-react"
+import { Calendar, Clock, FolderOpen, ShieldCheck } from "lucide-react"
 import { invoke } from "@tauri-apps/api/core"
 import Analytics from "@/lib/analytics"
 import AnalyticsConsentSwitch from "./AnalyticsConsentSwitch"
 import { useConfig, NotificationSettings } from "@/contexts/ConfigContext"
+
+type CalendarPermissionStatus =
+  | 'not_determined'
+  | 'restricted'
+  | 'denied'
+  | 'full_access'
+  | 'write_only'
+  | 'unavailable'
+  | 'unknown';
+
+interface CalendarAutoStartPreferences {
+  enabled: boolean;
+  lead_time_minutes: number;
+  include_all_day_events: boolean;
+}
+
+const DEFAULT_CALENDAR_PREFS: CalendarAutoStartPreferences = {
+  enabled: false,
+  lead_time_minutes: 0,
+  include_all_day_events: false,
+};
+
+function canReadCalendar(status: CalendarPermissionStatus) {
+  return status === 'full_access';
+}
+
+function calendarPermissionLabel(status: CalendarPermissionStatus) {
+  switch (status) {
+    case 'full_access':
+      return 'Allowed';
+    case 'not_determined':
+      return 'Not requested';
+    case 'denied':
+      return 'Denied';
+    case 'restricted':
+      return 'Restricted';
+    case 'write_only':
+      return 'Write-only';
+    case 'unavailable':
+      return 'Unavailable';
+    default:
+      return 'Unknown';
+  }
+}
 
 export function PreferenceSettings() {
   const {
@@ -20,6 +64,10 @@ export function PreferenceSettings() {
   const [notificationsEnabled, setNotificationsEnabled] = useState<boolean | null>(null);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [previousNotificationsEnabled, setPreviousNotificationsEnabled] = useState<boolean | null>(null);
+  const [calendarPrefs, setCalendarPrefs] = useState<CalendarAutoStartPreferences | null>(null);
+  const [calendarPermissionStatus, setCalendarPermissionStatus] = useState<CalendarPermissionStatus>('unknown');
+  const [isCalendarSaving, setIsCalendarSaving] = useState(false);
+  const [calendarError, setCalendarError] = useState<string | null>(null);
   const hasTrackedViewRef = useRef(false);
 
   // Lazy load preferences on mount (only loads if not already cached)
@@ -110,6 +158,37 @@ export function PreferenceSettings() {
     handleUpdateNotificationSettings();
   }, [notificationsEnabled, notificationSettings, isInitialLoad, previousNotificationsEnabled, updateNotificationSettings])
 
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadCalendarAutoStart = async () => {
+      try {
+        const [preferences, permissionStatus] = await Promise.all([
+          invoke<CalendarAutoStartPreferences>('get_calendar_auto_start_preferences'),
+          invoke<CalendarPermissionStatus>('get_calendar_permission_status'),
+        ]);
+
+        if (!isMounted) return;
+
+        setCalendarPrefs(preferences);
+        setCalendarPermissionStatus(permissionStatus);
+      } catch (error) {
+        console.error('Failed to load calendar auto-start preferences:', error);
+        if (!isMounted) return;
+
+        setCalendarPrefs(DEFAULT_CALENDAR_PREFS);
+        setCalendarPermissionStatus('unknown');
+        setCalendarError('Calendar auto-start is not available in this build.');
+      }
+    };
+
+    loadCalendarAutoStart();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const handleOpenFolder = async (folderType: 'database' | 'models' | 'recordings') => {
     try {
       switch (folderType) {
@@ -131,6 +210,81 @@ export function PreferenceSettings() {
     } catch (error) {
       console.error(`Failed to open ${folderType} folder:`, error);
     }
+  };
+
+  const saveCalendarPreferences = async (nextPreferences: CalendarAutoStartPreferences) => {
+    setIsCalendarSaving(true);
+    try {
+      await invoke('set_calendar_auto_start_preferences', { preferences: nextPreferences });
+      setCalendarPrefs(nextPreferences);
+      setCalendarError(null);
+    } catch (error) {
+      console.error('Failed to save calendar auto-start preferences:', error);
+      setCalendarError('Could not save calendar auto-start settings.');
+    } finally {
+      setIsCalendarSaving(false);
+    }
+  };
+
+  const handleRequestCalendarPermission = async () => {
+    setIsCalendarSaving(true);
+    setCalendarError(null);
+    try {
+      const permissionStatus = await invoke<CalendarPermissionStatus>('request_calendar_permission');
+      setCalendarPermissionStatus(permissionStatus);
+
+      if (!canReadCalendar(permissionStatus)) {
+        setCalendarError('Calendar access is required before Meetily can auto-start meeting transcription.');
+      }
+    } catch (error) {
+      console.error('Failed to request calendar permission:', error);
+      setCalendarError('Could not request calendar access.');
+    } finally {
+      setIsCalendarSaving(false);
+    }
+  };
+
+  const handleCalendarAutoStartToggle = async (enabled: boolean) => {
+    if (!calendarPrefs) return;
+
+    let nextPermissionStatus = calendarPermissionStatus;
+    setCalendarError(null);
+
+    if (enabled && !canReadCalendar(nextPermissionStatus)) {
+      setIsCalendarSaving(true);
+      try {
+        nextPermissionStatus = await invoke<CalendarPermissionStatus>('request_calendar_permission');
+        setCalendarPermissionStatus(nextPermissionStatus);
+      } catch (error) {
+        console.error('Failed to request calendar permission:', error);
+        setCalendarError('Could not request calendar access.');
+        setIsCalendarSaving(false);
+        return;
+      } finally {
+        setIsCalendarSaving(false);
+      }
+
+      if (!canReadCalendar(nextPermissionStatus)) {
+        setCalendarError('Calendar access is required before Meetily can auto-start meeting transcription.');
+        return;
+      }
+    }
+
+    const nextPreferences = { ...calendarPrefs, enabled };
+    await saveCalendarPreferences(nextPreferences);
+
+    await Analytics.track('calendar_auto_start_changed', {
+      enabled: enabled.toString(),
+    });
+  };
+
+  const handleCalendarLeadTimeChange = async (leadTimeMinutes: number) => {
+    if (!calendarPrefs) return;
+
+    await saveCalendarPreferences({
+      ...calendarPrefs,
+      lead_time_minutes: leadTimeMinutes,
+    });
   };
 
   // Show loading only if we're actually loading and don't have cached data
@@ -157,6 +311,67 @@ export function PreferenceSettings() {
           </div>
           <Switch checked={notificationsEnabledValue} onCheckedChange={setNotificationsEnabled} />
         </div>
+      </div>
+
+      {/* Calendar Auto-Start Section */}
+      <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex gap-3">
+            <div className="mt-1 flex h-9 w-9 items-center justify-center rounded-md bg-blue-50 text-blue-700">
+              <Calendar className="h-4 w-4" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Calendar Auto-Start</h3>
+              <p className="text-sm text-gray-600">
+                Start transcription automatically when a calendar meeting begins.
+              </p>
+
+              <div className="mt-4 flex flex-wrap items-center gap-3">
+                <label className="flex items-center gap-2 text-sm text-gray-700">
+                  <Clock className="h-4 w-4 text-gray-500" />
+                  <span>Lead time</span>
+                  <select
+                    value={calendarPrefs?.lead_time_minutes ?? 0}
+                    onChange={(event) => handleCalendarLeadTimeChange(Number(event.target.value))}
+                    disabled={!calendarPrefs?.enabled || isCalendarSaving}
+                    className="rounded-md border border-gray-300 bg-white px-2 py-1 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <option value={0}>At start time</option>
+                    <option value={1}>1 minute early</option>
+                    <option value={2}>2 minutes early</option>
+                    <option value={5}>5 minutes early</option>
+                    <option value={10}>10 minutes early</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+          </div>
+          <Switch
+            checked={calendarPrefs?.enabled ?? false}
+            onCheckedChange={handleCalendarAutoStartToggle}
+            disabled={!calendarPrefs || isCalendarSaving}
+          />
+        </div>
+
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-md bg-gray-50 p-3">
+          <div className="flex items-center gap-2 text-sm text-gray-700">
+            <ShieldCheck className="h-4 w-4 text-gray-500" />
+            <span>Calendar access: {calendarPermissionLabel(calendarPermissionStatus)}</span>
+          </div>
+          {!canReadCalendar(calendarPermissionStatus) && calendarPermissionStatus !== 'unavailable' && (
+            <button
+              onClick={handleRequestCalendarPermission}
+              disabled={isCalendarSaving}
+              className="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-800 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Allow Access
+            </button>
+          )}
+        </div>
+
+        {calendarError && (
+          <p className="mt-3 text-sm text-red-600">{calendarError}</p>
+        )}
       </div>
 
       {/* Data Storage Locations Section */}

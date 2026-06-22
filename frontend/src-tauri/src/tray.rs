@@ -342,6 +342,11 @@ fn build_menu<R: Runtime>(
             }
             RecordingState::Recording => {
                 builder = builder
+                    .item(
+                        &MenuItemBuilder::new("Transcribing")
+                            .enabled(false)
+                            .build(app)?,
+                    )
                     .item(&MenuItemBuilder::with_id("pause_recording", "⏸ Pause Recording").build(app)?)
                     .item(&MenuItemBuilder::with_id("stop_recording", "⏹ Stop Recording").build(app)?);
             }
@@ -356,6 +361,11 @@ fn build_menu<R: Runtime>(
             }
             RecordingState::Paused => {
                 builder = builder
+                    .item(
+                        &MenuItemBuilder::new("Transcription paused")
+                            .enabled(false)
+                            .build(app)?,
+                    )
                     .item(
                         &MenuItemBuilder::with_id("resume_recording", "▶ Resume Recording")
                             .build(app)?,
