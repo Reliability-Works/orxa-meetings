@@ -8,6 +8,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { toast } from 'sonner';
 import { TranscriptPanel } from '@/components/MeetingDetails/TranscriptPanel';
 import { SummaryPanel } from '@/components/MeetingDetails/SummaryPanel';
+import { WorkHubPanel } from '@/components/MeetingDetails/WorkHubPanel';
 import { ModelConfig } from '@/components/ModelSettingsModal';
 
 // Custom hooks
@@ -57,6 +58,7 @@ export default function PageContent({
   const [customPrompt, setCustomPrompt] = useState<string>('');
   const [isRecording] = useState(false);
   const [summaryResponse] = useState<SummaryResponse | null>(null);
+  const [activeRightPanel, setActiveRightPanel] = useState<'summary' | 'workhub'>('summary');
 
   // Ref to store the modal open function from SummaryGeneratorButtonGroup
   const openModelSettingsRef = useRef<(() => void) | null>(null);
@@ -198,41 +200,74 @@ export default function PageContent({
           meetingFolderPath={meeting.folder_path}
           onRefetchTranscripts={handleTranscriptDataChanged}
         />
-        <SummaryPanel
-          meeting={meeting}
-          meetingTitle={meetingData.meetingTitle}
-          onTitleChange={meetingData.handleTitleChange}
-          isEditingTitle={meetingData.isEditingTitle}
-          onStartEditTitle={() => meetingData.setIsEditingTitle(true)}
-          onFinishEditTitle={() => meetingData.setIsEditingTitle(false)}
-          isTitleDirty={meetingData.isTitleDirty}
-          summaryRef={meetingData.blockNoteSummaryRef}
-          isSaving={meetingData.isSaving}
-          onSaveAll={meetingData.saveAllChanges}
-          onCopySummary={copyOperations.handleCopySummary}
-          onOpenFolder={meetingOperations.handleOpenMeetingFolder}
-          aiSummary={meetingData.aiSummary}
-          summaryStatus={summaryGeneration.summaryStatus}
-          transcripts={meetingData.transcripts}
-          modelConfig={modelConfig}
-          setModelConfig={setModelConfig}
-          onSaveModelConfig={handleSaveModelConfig}
-          onGenerateSummary={summaryGeneration.handleGenerateSummary}
-          onStopGeneration={summaryGeneration.handleStopGeneration}
-          customPrompt={customPrompt}
-          summaryResponse={summaryResponse}
-          onSaveSummary={meetingData.handleSaveSummary}
-          onSummaryChange={meetingData.handleSummaryChange}
-          onDirtyChange={meetingData.setIsSummaryDirty}
-          summaryError={summaryGeneration.summaryError}
-          onRegenerateSummary={summaryGeneration.handleRegenerateSummary}
-          getSummaryStatusMessage={summaryGeneration.getSummaryStatusMessage}
-          availableTemplates={templates.availableTemplates}
-          selectedTemplate={templates.selectedTemplate}
-          onTemplateSelect={templates.handleTemplateSelection}
-          isModelConfigLoading={false}
-          onOpenModelSettings={handleRegisterModalOpen}
-        />
+        <div className="flex-1 min-w-0 flex flex-col bg-white border-l border-gray-200">
+          <div className="flex-shrink-0 px-4 pt-3 bg-white border-b border-gray-200">
+            <div className="inline-flex rounded-md border border-gray-200 bg-gray-50 p-1">
+              <button
+                type="button"
+                onClick={() => setActiveRightPanel('summary')}
+                className={`px-3 py-1.5 text-sm font-medium rounded transition-colors ${
+                  activeRightPanel === 'summary'
+                    ? 'bg-white text-blue-700 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Summary
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveRightPanel('workhub')}
+                className={`px-3 py-1.5 text-sm font-medium rounded transition-colors ${
+                  activeRightPanel === 'workhub'
+                    ? 'bg-white text-blue-700 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Work Hub
+              </button>
+            </div>
+          </div>
+
+          {activeRightPanel === 'summary' ? (
+            <SummaryPanel
+              meeting={meeting}
+              meetingTitle={meetingData.meetingTitle}
+              onTitleChange={meetingData.handleTitleChange}
+              isEditingTitle={meetingData.isEditingTitle}
+              onStartEditTitle={() => meetingData.setIsEditingTitle(true)}
+              onFinishEditTitle={() => meetingData.setIsEditingTitle(false)}
+              isTitleDirty={meetingData.isTitleDirty}
+              summaryRef={meetingData.blockNoteSummaryRef}
+              isSaving={meetingData.isSaving}
+              onSaveAll={meetingData.saveAllChanges}
+              onCopySummary={copyOperations.handleCopySummary}
+              onOpenFolder={meetingOperations.handleOpenMeetingFolder}
+              aiSummary={meetingData.aiSummary}
+              summaryStatus={summaryGeneration.summaryStatus}
+              transcripts={meetingData.transcripts}
+              modelConfig={modelConfig}
+              setModelConfig={setModelConfig}
+              onSaveModelConfig={handleSaveModelConfig}
+              onGenerateSummary={summaryGeneration.handleGenerateSummary}
+              onStopGeneration={summaryGeneration.handleStopGeneration}
+              customPrompt={customPrompt}
+              summaryResponse={summaryResponse}
+              onSaveSummary={meetingData.handleSaveSummary}
+              onSummaryChange={meetingData.handleSummaryChange}
+              onDirtyChange={meetingData.setIsSummaryDirty}
+              summaryError={summaryGeneration.summaryError}
+              onRegenerateSummary={summaryGeneration.handleRegenerateSummary}
+              getSummaryStatusMessage={summaryGeneration.getSummaryStatusMessage}
+              availableTemplates={templates.availableTemplates}
+              selectedTemplate={templates.selectedTemplate}
+              onTemplateSelect={templates.handleTemplateSelection}
+              isModelConfigLoading={false}
+              onOpenModelSettings={handleRegisterModalOpen}
+            />
+          ) : (
+            <WorkHubPanel meetingId={meeting.id} meetingTitle={meetingData.meetingTitle} />
+          )}
+        </div>
       </div>
     </motion.div>
   );
