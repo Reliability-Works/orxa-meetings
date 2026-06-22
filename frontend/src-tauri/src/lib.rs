@@ -42,6 +42,7 @@ pub mod calendar;
 pub mod config;
 pub mod console_utils;
 pub mod database;
+pub mod mcp;
 pub mod notifications;
 pub mod ollama;
 pub mod onboarding;
@@ -697,6 +698,8 @@ pub fn run() {
             calendar::set_calendar_auto_start_preferences,
             calendar::get_calendar_permission_status,
             calendar::request_calendar_permission,
+            mcp::get_mcp_setup_info,
+            mcp::open_mcp_server_folder,
             // Language preference commands
             set_language_preference,
             // Notification system commands

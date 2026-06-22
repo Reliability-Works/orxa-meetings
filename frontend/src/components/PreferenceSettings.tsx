@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from "react"
 import { Switch } from "./ui/switch"
-import { Calendar, Clock, FolderOpen, ShieldCheck } from "lucide-react"
+import { Bot, Calendar, Check, Clock, Copy, FolderOpen, Server, ShieldCheck } from "lucide-react"
 import { invoke } from "@tauri-apps/api/core"
 import Analytics from "@/lib/analytics"
 import AnalyticsConsentSwitch from "./AnalyticsConsentSwitch"
@@ -21,6 +21,15 @@ interface CalendarAutoStartPreferences {
   enabled: boolean;
   lead_time_minutes: number;
   include_all_day_events: boolean;
+}
+
+interface McpSetupInfo {
+  command: string;
+  server_script_path: string;
+  server_script_exists: boolean;
+  database_path: string;
+  database_exists: boolean;
+  client_config_json: string;
 }
 
 const DEFAULT_CALENDAR_PREFS: CalendarAutoStartPreferences = {
@@ -68,6 +77,9 @@ export function PreferenceSettings() {
   const [calendarPermissionStatus, setCalendarPermissionStatus] = useState<CalendarPermissionStatus>('unknown');
   const [isCalendarSaving, setIsCalendarSaving] = useState(false);
   const [calendarError, setCalendarError] = useState<string | null>(null);
+  const [mcpSetupInfo, setMcpSetupInfo] = useState<McpSetupInfo | null>(null);
+  const [mcpError, setMcpError] = useState<string | null>(null);
+  const [isMcpConfigCopied, setIsMcpConfigCopied] = useState(false);
   const hasTrackedViewRef = useRef(false);
 
   // Lazy load preferences on mount (only loads if not already cached)
@@ -189,6 +201,31 @@ export function PreferenceSettings() {
     };
   }, []);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadMcpSetupInfo = async () => {
+      try {
+        const setupInfo = await invoke<McpSetupInfo>('get_mcp_setup_info');
+        if (!isMounted) return;
+
+        setMcpSetupInfo(setupInfo);
+        setMcpError(null);
+      } catch (error) {
+        console.error('Failed to load MCP setup info:', error);
+        if (!isMounted) return;
+
+        setMcpError('MCP setup details are not available in this build.');
+      }
+    };
+
+    loadMcpSetupInfo();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const handleOpenFolder = async (folderType: 'database' | 'models' | 'recordings') => {
     try {
       switch (folderType) {
@@ -209,6 +246,28 @@ export function PreferenceSettings() {
       });
     } catch (error) {
       console.error(`Failed to open ${folderType} folder:`, error);
+    }
+  };
+
+  const handleOpenMcpServerFolder = async () => {
+    try {
+      await invoke('open_mcp_server_folder');
+    } catch (error) {
+      console.error('Failed to open MCP server folder:', error);
+      setMcpError('Could not open the MCP server folder.');
+    }
+  };
+
+  const handleCopyMcpConfig = async () => {
+    if (!mcpSetupInfo) return;
+
+    try {
+      await navigator.clipboard.writeText(mcpSetupInfo.client_config_json);
+      setIsMcpConfigCopied(true);
+      window.setTimeout(() => setIsMcpConfigCopied(false), 2000);
+    } catch (error) {
+      console.error('Failed to copy MCP config:', error);
+      setMcpError('Could not copy the MCP config.');
     }
   };
 
@@ -371,6 +430,85 @@ export function PreferenceSettings() {
 
         {calendarError && (
           <p className="mt-3 text-sm text-red-600">{calendarError}</p>
+        )}
+      </div>
+
+      {/* MCP Section */}
+      <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex gap-3">
+            <div className="mt-1 flex h-9 w-9 items-center justify-center rounded-md bg-purple-50 text-purple-700">
+              <Bot className="h-4 w-4" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Agent MCP Access</h3>
+              <p className="text-sm text-gray-600">
+                Read-only local access to meetings, raw transcripts, summaries, notes, and action items.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={handleCopyMcpConfig}
+            disabled={!mcpSetupInfo}
+            className="flex items-center gap-2 rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-800 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isMcpConfigCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+            {isMcpConfigCopied ? 'Copied' : 'Copy Config'}
+          </button>
+        </div>
+
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          <div className="rounded-md bg-gray-50 p-3">
+            <div className="flex items-center gap-2 text-sm font-medium text-gray-800">
+              <Server className="h-4 w-4 text-gray-500" />
+              MCP server
+            </div>
+            <div className="mt-2 break-all font-mono text-xs text-gray-600">
+              {mcpSetupInfo?.server_script_path || 'Loading...'}
+            </div>
+            <div className="mt-2 text-xs text-gray-500">
+              {mcpSetupInfo?.server_script_exists ? 'Available' : 'Not found'}
+            </div>
+          </div>
+
+          <div className="rounded-md bg-gray-50 p-3">
+            <div className="flex items-center gap-2 text-sm font-medium text-gray-800">
+              <FolderOpen className="h-4 w-4 text-gray-500" />
+              Meeting database
+            </div>
+            <div className="mt-2 break-all font-mono text-xs text-gray-600">
+              {mcpSetupInfo?.database_path || storageLocations?.database || 'Loading...'}
+            </div>
+            <div className="mt-2 text-xs text-gray-500">
+              {mcpSetupInfo?.database_exists ? 'Available' : 'Created after meetings are saved'}
+            </div>
+          </div>
+        </div>
+
+        <pre className="mt-4 max-h-56 overflow-auto rounded-md border border-gray-200 bg-gray-950 p-3 text-xs text-gray-100">
+          {mcpSetupInfo?.client_config_json || 'Loading MCP config...'}
+        </pre>
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button
+            onClick={handleOpenMcpServerFolder}
+            disabled={!mcpSetupInfo}
+            className="flex items-center gap-2 rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-800 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <FolderOpen className="h-4 w-4" />
+            Open Server Folder
+          </button>
+          <button
+            onClick={() => handleOpenFolder('database')}
+            className="flex items-center gap-2 rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-800 transition-colors hover:bg-gray-100"
+          >
+            <FolderOpen className="h-4 w-4" />
+            Open Database Folder
+          </button>
+        </div>
+
+        {mcpError && (
+          <p className="mt-3 text-sm text-red-600">{mcpError}</p>
         )}
       </div>
 
