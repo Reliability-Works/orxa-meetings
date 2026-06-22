@@ -10,13 +10,16 @@ intentionally avoids reading settings/API key tables.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import os
 import platform
+import re
 import sqlite3
 import sys
 import traceback
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from urllib.parse import unquote, urlparse
@@ -612,6 +615,692 @@ def extract_action_section(markdown: str) -> str | None:
     return value or None
 
 
+def now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def ensure_workhub_schema(conn: sqlite3.Connection) -> None:
+    conn.executescript(
+        """
+        CREATE TABLE IF NOT EXISTS work_items (
+            id TEXT PRIMARY KEY,
+            meeting_id TEXT NOT NULL,
+            kind TEXT NOT NULL CHECK (kind IN ('action', 'decision', 'risk', 'question')),
+            title TEXT NOT NULL,
+            details TEXT,
+            owner TEXT,
+            due_date TEXT,
+            status TEXT NOT NULL DEFAULT 'open',
+            role_scope TEXT,
+            evidence TEXT,
+            agent_notes TEXT,
+            source TEXT NOT NULL DEFAULT 'manual',
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            completed_at TEXT,
+            FOREIGN KEY (meeting_id) REFERENCES meetings(id) ON DELETE CASCADE
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_work_items_kind_status
+            ON work_items(kind, status, updated_at);
+        CREATE INDEX IF NOT EXISTS idx_work_items_meeting
+            ON work_items(meeting_id, updated_at);
+        CREATE INDEX IF NOT EXISTS idx_work_items_owner
+            ON work_items(owner, status);
+
+        CREATE TABLE IF NOT EXISTS work_context_packs (
+            id TEXT PRIMARY KEY,
+            meeting_id TEXT NOT NULL,
+            work_item_id TEXT,
+            title TEXT NOT NULL,
+            role_scope TEXT NOT NULL,
+            pack_markdown TEXT NOT NULL,
+            source_kind TEXT NOT NULL DEFAULT 'generated',
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            FOREIGN KEY (meeting_id) REFERENCES meetings(id) ON DELETE CASCADE,
+            FOREIGN KEY (work_item_id) REFERENCES work_items(id) ON DELETE SET NULL
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_work_context_packs_meeting
+            ON work_context_packs(meeting_id, created_at);
+        CREATE INDEX IF NOT EXISTS idx_work_context_packs_item
+            ON work_context_packs(work_item_id, created_at);
+
+        CREATE TABLE IF NOT EXISTS work_pre_meeting_briefs (
+            id TEXT PRIMARY KEY,
+            meeting_id TEXT,
+            title TEXT NOT NULL,
+            starts_at TEXT,
+            attendee_hint TEXT,
+            brief_markdown TEXT NOT NULL,
+            source TEXT NOT NULL DEFAULT 'generated',
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            FOREIGN KEY (meeting_id) REFERENCES meetings(id) ON DELETE SET NULL
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_work_pre_meeting_briefs_meeting
+            ON work_pre_meeting_briefs(meeting_id, created_at);
+        CREATE INDEX IF NOT EXISTS idx_work_pre_meeting_briefs_starts_at
+            ON work_pre_meeting_briefs(starts_at);
+        """
+    )
+
+
+def workhub_available(conn: sqlite3.Connection) -> bool:
+    return table_exists(conn, "work_items")
+
+
+def format_seconds(value: Any) -> str:
+    try:
+        seconds = max(0, int(float(value)))
+    except (TypeError, ValueError):
+        return str(value or "")
+    return f"{seconds // 60:02d}:{seconds % 60:02d}"
+
+
+def clean_work_line(line: str) -> str:
+    value = line.strip().strip("|").strip()
+    value = re.sub(r"^\s*[-*]\s+", "", value)
+    value = re.sub(r"^\s*\d+[.)]\s+", "", value)
+    value = re.sub(r"\*\*", "", value)
+    value = re.sub(r"\s+", " ", value)
+    return value.strip()
+
+
+def is_section_heading(line: str) -> bool:
+    stripped = line.strip()
+    return stripped.startswith("#") or (stripped.startswith("**") and stripped.endswith("**"))
+
+
+def is_action_like(lower: str) -> bool:
+    return any(
+        marker in lower
+        for marker in (
+            "todo",
+            "action item",
+            "follow up",
+            "needs to",
+            "need to",
+            "should ",
+            "will ",
+            "assigned",
+            "owner",
+            " due ",
+        )
+    )
+
+
+def is_decision_like(lower: str) -> bool:
+    return any(marker in lower for marker in ("decided", "decision", "agreed", "approved", "confirmed", "finalized"))
+
+
+def is_risk_like(lower: str) -> bool:
+    return any(marker in lower for marker in ("risk", "concern", "blocked", "blocker", "issue", "problem", "uncertain"))
+
+
+def is_question_like(lower: str) -> bool:
+    return any(marker in lower for marker in ("open question", "question", "unclear", "clarify", "tbd"))
+
+
+def role_scope_for(text: str) -> str:
+    lower = text.lower()
+    if any(word in lower for word in ("deploy", "api", "bug", "code", "frontend", "backend", "kubernetes", "pull request", "documentation")):
+        return "engineering"
+    if any(word in lower for word in ("customer", "sales", "account", "renewal", "support")):
+        return "sales_cs"
+    if any(word in lower for word in ("roadmap", "feature", "user story", "launch", "priority")):
+        return "product"
+    if any(word in lower for word in ("hire", "people", "team", "onboarding", "workshop")):
+        return "people"
+    if any(word in lower for word in ("strategy", "budget", "revenue", "risk", "decision")):
+        return "leadership"
+    return "general"
+
+
+def parse_owner_due_title(text: str) -> tuple[str | None, str | None, str]:
+    parts = [part.strip() for part in text.split("|") if part.strip() and not set(part.strip()) <= {"-", ":"}]
+    owner = None
+    due = None
+    title = text
+
+    if len(parts) >= 4 and not parts[0].lower().startswith("owner"):
+        owner = None if parts[0].lower() in ("unknown", "tbd", "none") else parts[0]
+        title = parts[1]
+        due = None if parts[2].lower() in ("unknown", "tbd", "none") else parts[2]
+
+    owner_match = re.search(r"\bowner\s*:\s*([^;,.|]+)", text, flags=re.IGNORECASE)
+    if owner_match:
+        owner = owner_match.group(1).strip()
+
+    due_match = re.search(r"\bdue\s*:\s*([^;,.|]+)", text, flags=re.IGNORECASE)
+    if due_match:
+        due = due_match.group(1).strip()
+
+    if re.search(r"\bI\b|\bI'm\b|\bme\b|Me:", text):
+        owner = owner or "Me"
+
+    title = re.sub(r"\bowner\s*:\s*[^;,.|]+", "", title, flags=re.IGNORECASE)
+    title = re.sub(r"\bdue\s*:\s*[^;,.|]+", "", title, flags=re.IGNORECASE)
+    title = clean_work_line(title)
+    return owner, due, title[:220] or clean_work_line(text)[:220]
+
+
+def work_item_id(meeting_id: str, kind: str, title: str) -> str:
+    digest = hashlib.sha1(f"{meeting_id}:{kind}:{title.lower()}".encode("utf-8")).hexdigest()[:16]
+    return f"work-{meeting_id}-{kind}-{digest}"
+
+
+def load_workhub_context(conn: sqlite3.Connection, meeting_id: str) -> dict[str, Any]:
+    meeting = require_meeting(conn, meeting_id)
+    speaker_expr = transcript_speaker_expr(conn)
+    rows = conn.execute(
+        f"""
+        SELECT transcript AS text, timestamp, {speaker_expr}, audio_start_time
+        FROM transcripts
+        WHERE meeting_id = ?
+        ORDER BY
+            CASE WHEN audio_start_time IS NULL THEN 1 ELSE 0 END,
+            audio_start_time ASC,
+            timestamp ASC
+        LIMIT 3000
+        """,
+        (meeting_id,),
+    ).fetchall()
+
+    transcript_lines = []
+    for row in rows:
+        data = row_to_dict(row)
+        timestamp = format_seconds(data.get("audio_start_time")) if data.get("audio_start_time") is not None else data["timestamp"]
+        prefix = "Me: " if data.get("speaker") == "me" else ""
+        transcript_lines.append(f"[{timestamp}] {prefix}{data['text'].strip()}")
+
+    summary = get_summary_row(conn, meeting_id)
+    return {
+        "meeting": meeting,
+        "transcript_lines": transcript_lines,
+        "transcript_text": "\n".join(transcript_lines),
+        "summary_markdown": summary_markdown(summary.get("data") if summary else None),
+    }
+
+
+def find_evidence(context: dict[str, Any], title: str) -> str:
+    words = [word.lower() for word in re.findall(r"[a-zA-Z0-9]{4,}", title)[:6]]
+    for line in context["transcript_lines"]:
+        lower = line.lower()
+        if words and any(word in lower for word in words):
+            return line
+    return context["transcript_lines"][0] if context["transcript_lines"] else title
+
+
+def extract_work_candidates(context: dict[str, Any]) -> list[dict[str, Any]]:
+    candidates = []
+    source_text = context.get("summary_markdown") or context["transcript_text"]
+
+    for raw_line in source_text.splitlines():
+        line = clean_work_line(raw_line)
+        lower = line.lower()
+        if len(line) < 6 or is_section_heading(raw_line) or set(line) <= {"-", "|", ":"}:
+            continue
+
+        kind = None
+        if is_action_like(lower):
+            kind = "action"
+        elif is_decision_like(lower):
+            kind = "decision"
+        elif is_risk_like(lower):
+            kind = "risk"
+        elif is_question_like(lower):
+            kind = "question"
+
+        if kind:
+            owner, due, title = parse_owner_due_title(line)
+            candidates.append(
+                {
+                    "kind": kind,
+                    "title": title,
+                    "details": line,
+                    "owner": owner,
+                    "due_date": due,
+                    "role_scope": role_scope_for(line),
+                    "evidence": find_evidence(context, title),
+                    "source": "summary-sync",
+                }
+            )
+
+    for line in context["transcript_lines"][:500]:
+        lower = line.lower()
+        kind = "decision" if is_decision_like(lower) else "risk" if is_risk_like(lower) else "question" if is_question_like(lower) else None
+        if kind:
+            owner, due, title = parse_owner_due_title(line)
+            candidates.append(
+                {
+                    "kind": kind,
+                    "title": title,
+                    "details": line,
+                    "owner": owner,
+                    "due_date": due,
+                    "role_scope": role_scope_for(line),
+                    "evidence": line,
+                    "source": "transcript-heuristic",
+                }
+            )
+
+    seen = set()
+    unique = []
+    for candidate in candidates:
+        key = (candidate["kind"], candidate["title"].lower())
+        if key not in seen:
+            seen.add(key)
+            unique.append(candidate)
+    return unique[:80]
+
+
+def sync_work_items(db: MeetilyDatabase, args: dict[str, Any]) -> dict[str, Any]:
+    meeting_id = require_arg(args, "meeting_id")
+    with db.connect(readonly=False) as conn:
+        conn.execute("BEGIN")
+        try:
+            ensure_workhub_schema(conn)
+            context = load_workhub_context(conn, meeting_id)
+            candidates = extract_work_candidates(context)
+            changed = 0
+            for candidate in candidates:
+                item_id = work_item_id(meeting_id, candidate["kind"], candidate["title"])
+                stamp = now_iso()
+                changed += conn.execute(
+                    """
+                    INSERT INTO work_items
+                        (id, meeting_id, kind, title, details, owner, due_date, status, role_scope, evidence, source, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, 'open', ?, ?, ?, ?, ?)
+                    ON CONFLICT(id) DO UPDATE SET
+                        title = excluded.title,
+                        details = excluded.details,
+                        owner = COALESCE(work_items.owner, excluded.owner),
+                        due_date = COALESCE(work_items.due_date, excluded.due_date),
+                        role_scope = COALESCE(work_items.role_scope, excluded.role_scope),
+                        evidence = excluded.evidence,
+                        source = excluded.source,
+                        updated_at = excluded.updated_at
+                    """,
+                    (
+                        item_id,
+                        meeting_id,
+                        candidate["kind"],
+                        candidate["title"],
+                        candidate["details"],
+                        candidate["owner"],
+                        candidate["due_date"],
+                        candidate["role_scope"],
+                        candidate["evidence"],
+                        candidate["source"],
+                        stamp,
+                        stamp,
+                    ),
+                ).rowcount
+            items = query_work_items(conn, meeting_id=meeting_id, limit=200)
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+
+    return {"meeting_id": meeting_id, "inserted_or_updated": changed, "item_count": len(items), "items": items}
+
+
+def query_work_items(
+    conn: sqlite3.Connection,
+    *,
+    kind: str | None = None,
+    status: str | None = None,
+    meeting_id: str | None = None,
+    limit: int = 100,
+) -> list[dict[str, Any]]:
+    if not workhub_available(conn):
+        return []
+    rows = conn.execute(
+        """
+        SELECT wi.id, wi.meeting_id, m.title AS meeting_title, wi.kind, wi.title, wi.details,
+               wi.owner, wi.due_date, wi.status, wi.role_scope, wi.evidence, wi.agent_notes,
+               wi.source, wi.created_at, wi.updated_at, wi.completed_at
+        FROM work_items wi
+        JOIN meetings m ON m.id = wi.meeting_id
+        WHERE (? IS NULL OR wi.kind = ?)
+          AND (? IS NULL OR wi.status = ?)
+          AND (? IS NULL OR wi.meeting_id = ?)
+        ORDER BY
+          CASE wi.status
+            WHEN 'blocked' THEN 0
+            WHEN 'open' THEN 1
+            WHEN 'in_progress' THEN 2
+            WHEN 'done' THEN 3
+            ELSE 4
+          END,
+          wi.updated_at DESC
+        LIMIT ?
+        """,
+        (kind, kind, status, status, meeting_id, meeting_id, limit),
+    ).fetchall()
+    return [row_to_dict(row) for row in rows]
+
+
+def list_work_items(db: MeetilyDatabase, args: dict[str, Any]) -> dict[str, Any]:
+    limit = clamp_limit(args.get("limit"), default=100, maximum=500)
+    with db.connect(readonly=True) as conn:
+        items = query_work_items(
+            conn,
+            kind=args.get("kind"),
+            status=args.get("status"),
+            meeting_id=args.get("meeting_id"),
+            limit=limit,
+        )
+    return {"items": items}
+
+
+def update_work_item_status(db: MeetilyDatabase, args: dict[str, Any]) -> dict[str, Any]:
+    item_id = require_arg(args, "item_id")
+    status = require_arg(args, "status")
+    if status not in ("open", "in_progress", "blocked", "done", "dismissed"):
+        raise McpServerError("status must be open, in_progress, blocked, done, or dismissed")
+    agent_notes = args.get("agent_notes")
+    if agent_notes is not None and not isinstance(agent_notes, str):
+        raise McpServerError("agent_notes must be a string")
+
+    stamp = now_iso()
+    completed_at = stamp if status == "done" else None
+    with db.connect(readonly=False) as conn:
+        ensure_workhub_schema(conn)
+        changed = conn.execute(
+            """
+            UPDATE work_items
+            SET status = ?,
+                agent_notes = COALESCE(?, agent_notes),
+                updated_at = ?,
+                completed_at = CASE WHEN ? = 'done' THEN ? ELSE NULL END
+            WHERE id = ?
+            """,
+            (status, agent_notes, stamp, status, completed_at, item_id),
+        ).rowcount
+        if changed == 0:
+            raise McpServerError(f"Work item not found: {item_id}")
+        row = conn.execute(
+            """
+            SELECT wi.id, wi.meeting_id, m.title AS meeting_title, wi.kind, wi.title, wi.details,
+                   wi.owner, wi.due_date, wi.status, wi.role_scope, wi.evidence, wi.agent_notes,
+                   wi.source, wi.created_at, wi.updated_at, wi.completed_at
+            FROM work_items wi
+            JOIN meetings m ON m.id = wi.meeting_id
+            WHERE wi.id = ?
+            """,
+            (item_id,),
+        ).fetchone()
+    return {"item": row_to_dict(row)}
+
+
+def item_list_markdown(items: list[dict[str, Any]], kind: str, only_active: bool = True) -> str:
+    filtered = [
+        item
+        for item in items
+        if item["kind"] == kind and (not only_active or item["status"] not in ("done", "dismissed"))
+    ]
+    if not filtered:
+        return "- None captured yet.\n"
+    return "\n".join(
+        f"- [{item['status']}] {item['title']} - owner: {item.get('owner') or 'Unknown'}; due: {item.get('due_date') or 'TBD'}; evidence: {item.get('evidence') or 'Not captured'}"
+        for item in filtered
+    ) + "\n"
+
+
+def relevant_transcript_excerpt(context: dict[str, Any], focus: str | None = None) -> str:
+    source = focus or context["meeting"]["title"]
+    words = [word.lower() for word in re.findall(r"[a-zA-Z0-9]{4,}", source)[:6]]
+    excerpts = []
+    for line in context["transcript_lines"]:
+        lower = line.lower()
+        if not words or any(word in lower for word in words):
+            excerpts.append(f"- {line}")
+        if len(excerpts) >= 8:
+            break
+    if not excerpts:
+        excerpts = [f"- {line}" for line in context["transcript_lines"][:8]]
+    return "\n".join(excerpts) or "- No transcript excerpts available."
+
+
+def acceptance_for_role(role_scope: str) -> str:
+    return {
+        "engineering": "- Link code changes to evidence.\n- Include test commands and outcomes.\n- Call out rollout and rollback notes.",
+        "product": "- State user impact.\n- Separate committed decisions from open questions.\n- Identify success metrics.",
+        "sales_cs": "- Convert asks into customer-safe follow-ups.\n- Keep dates and owners explicit.\n- Note risks that affect commitments.",
+        "people": "- Capture owners, attendees, and follow-up timing.\n- Separate policy/process decisions from suggestions.",
+        "leadership": "- Summarize decisions, risks, owners, and deadlines.\n- Highlight blockers needing escalation.",
+        "general": "- Keep owner, due date, source evidence, and status explicit.",
+    }.get(role_scope, "- Keep owner, due date, source evidence, and status explicit.")
+
+
+def role_guidance(role_scope: str) -> str:
+    return {
+        "engineering": "Focus on implementation tasks, technical risks, dependencies, and verification evidence.",
+        "product": "Focus on decisions, open questions, customer impact, and roadmap implications.",
+        "sales_cs": "Focus on customer commitments, relationship risks, and follow-up messages.",
+        "people": "Focus on people/process actions, workshops, enablement, and ownership clarity.",
+        "leadership": "Focus on decisions, risks, deadlines, and items needing escalation.",
+        "general": "Focus on clear actions, decisions, risks, and useful context.",
+    }.get(role_scope, "Focus on clear actions, decisions, risks, and useful context.")
+
+
+def build_context_pack_markdown(
+    context: dict[str, Any],
+    selected_item: dict[str, Any] | None,
+    items: list[dict[str, Any]],
+    role_scope: str,
+) -> str:
+    meeting = context["meeting"]
+    sections = [
+        f"# Agent Context Pack: {meeting['title']}",
+        f"- Meeting: {meeting['id']}\n- Created: {meeting['created_at']}\n- Role lens: {role_scope}",
+        f"## Acceptance Criteria\n{acceptance_for_role(role_scope)}",
+    ]
+    if selected_item:
+        sections.insert(
+            2,
+            (
+                "## Target Work Item\n"
+                f"- ID: {selected_item['id']}\n"
+                f"- Type: {selected_item['kind']}\n"
+                f"- Status: {selected_item['status']}\n"
+                f"- Owner: {selected_item.get('owner') or 'Unknown'}\n"
+                f"- Due: {selected_item.get('due_date') or 'TBD'}\n\n"
+                f"{selected_item.get('details') or selected_item['title']}"
+            ),
+        )
+    sections.extend(
+        [
+            "## Open Actions\n" + item_list_markdown(items, "action"),
+            "## Decisions\n" + item_list_markdown(items, "decision", only_active=False),
+            "## Risks And Questions\n" + item_list_markdown(items, "risk") + item_list_markdown(items, "question"),
+            "## Relevant Transcript Excerpts\n" + relevant_transcript_excerpt(context, selected_item["title"] if selected_item else None),
+        ]
+    )
+    return "\n\n".join(sections)
+
+
+def create_context_pack(db: MeetilyDatabase, args: dict[str, Any]) -> dict[str, Any]:
+    meeting_id = require_arg(args, "meeting_id")
+    work_item_id = args.get("work_item_id")
+    role_scope = str(args.get("role_scope") or "engineering")
+    sync_work_items(db, {"meeting_id": meeting_id})
+
+    with db.connect(readonly=False) as conn:
+        ensure_workhub_schema(conn)
+        context = load_workhub_context(conn, meeting_id)
+        items = query_work_items(conn, meeting_id=meeting_id, limit=500)
+        selected_item = None
+        if work_item_id:
+            selected_item = next((item for item in items if item["id"] == work_item_id), None)
+            if selected_item is None:
+                raise McpServerError(f"Work item not found for meeting: {work_item_id}")
+
+        markdown = build_context_pack_markdown(context, selected_item, items, role_scope)
+        stamp = now_iso()
+        pack_id = f"context-{hashlib.sha1((meeting_id + role_scope + stamp).encode('utf-8')).hexdigest()[:16]}"
+        title = selected_item["title"] if selected_item else f"{context['meeting']['title']} context pack"
+        conn.execute(
+            """
+            INSERT INTO work_context_packs
+                (id, meeting_id, work_item_id, title, role_scope, pack_markdown, source_kind, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, 'generated', ?, ?)
+            """,
+            (pack_id, meeting_id, work_item_id, title, role_scope, markdown, stamp, stamp),
+        )
+
+    return {
+        "context_pack": {
+            "id": pack_id,
+            "meeting_id": meeting_id,
+            "work_item_id": work_item_id,
+            "title": title,
+            "role_scope": role_scope,
+            "pack_markdown": markdown,
+            "source_kind": "generated",
+            "created_at": stamp,
+            "updated_at": stamp,
+        }
+    }
+
+
+def get_role_output(db: MeetilyDatabase, args: dict[str, Any]) -> dict[str, Any]:
+    meeting_id = require_arg(args, "meeting_id")
+    role_scope = str(args.get("role_scope") or "general")
+    sync_work_items(db, {"meeting_id": meeting_id})
+    with db.connect(readonly=True) as conn:
+        context = load_workhub_context(conn, meeting_id)
+        items = query_work_items(conn, meeting_id=meeting_id, limit=500)
+    markdown = "\n\n".join(
+        [
+            f"# {role_scope.replace('_', ' ').title()} Output: {context['meeting']['title']}",
+            role_guidance(role_scope),
+            "## Actions\n" + item_list_markdown(items, "action"),
+            "## Decisions\n" + item_list_markdown(items, "decision", only_active=False),
+            "## Risks\n" + item_list_markdown(items, "risk"),
+            "## Open Questions\n" + item_list_markdown(items, "question"),
+            "## Evidence\n" + relevant_transcript_excerpt(context),
+        ]
+    )
+    return {"meeting_id": meeting_id, "role_scope": role_scope, "markdown": markdown}
+
+
+def title_pattern(title: str) -> str:
+    cleaned = re.sub(r"\b\d{4}-\d{2}-\d{2}\b|\b\d{1,2}[:.]\d{2}\b", "", title.lower())
+    words = [word for word in re.findall(r"[a-z0-9]+", cleaned) if len(word) > 2]
+    return " ".join(words[:5]) or title.lower().strip()
+
+
+def get_recurring_memory(db: MeetilyDatabase, args: dict[str, Any]) -> dict[str, Any]:
+    meeting_id = require_arg(args, "meeting_id")
+    sync_work_items(db, {"meeting_id": meeting_id})
+    with db.connect(readonly=False) as conn:
+        ensure_workhub_schema(conn)
+        context = load_workhub_context(conn, meeting_id)
+        pattern = title_pattern(context["meeting"]["title"])
+        rows = conn.execute(
+            """
+            SELECT id, title, created_at
+            FROM meetings
+            WHERE id != ?
+              AND LOWER(title) LIKE LOWER(?)
+            ORDER BY created_at DESC
+            LIMIT 8
+            """,
+            (meeting_id, f"%{pattern}%"),
+        ).fetchall()
+        related_meetings = [row_to_dict(row) for row in rows]
+        related_items: list[dict[str, Any]] = []
+        for meeting in related_meetings:
+            try:
+                sync_work_items(db, {"meeting_id": meeting["id"]})
+            except McpServerError:
+                pass
+            related_items.extend(query_work_items(conn, meeting_id=meeting["id"], limit=50))
+
+    markdown = "\n\n".join(
+        [
+            f"# Recurring Meeting Memory: {context['meeting']['title']}",
+            "## Related Meetings\n"
+            + ("\n".join(f"- {meeting['title']} ({meeting['created_at']})" for meeting in related_meetings) or "- None found yet."),
+            "## Carry-Forward Open Items\n" + item_list_markdown(related_items, "action"),
+            "## Prior Decisions\n" + item_list_markdown(related_items, "decision", only_active=False),
+            "## Prior Risks And Questions\n" + item_list_markdown(related_items, "risk") + item_list_markdown(related_items, "question"),
+        ]
+    )
+    return {"meeting_id": meeting_id, "title_pattern": pattern, "related_meetings": related_meetings, "markdown": markdown}
+
+
+def create_pre_meeting_brief(db: MeetilyDatabase, args: dict[str, Any]) -> dict[str, Any]:
+    title = require_arg(args, "title")
+    starts_at = args.get("starts_at")
+    attendee_hint = args.get("attendee_hint")
+    related_meeting_id = args.get("related_meeting_id")
+    pattern = title_pattern(title)
+
+    with db.connect(readonly=False) as conn:
+        ensure_workhub_schema(conn)
+        rows = conn.execute(
+            """
+            SELECT id, title, created_at
+            FROM meetings
+            WHERE (? IS NULL OR id = ?)
+               OR LOWER(title) LIKE LOWER(?)
+            ORDER BY created_at DESC
+            LIMIT 8
+            """,
+            (related_meeting_id, related_meeting_id, f"%{pattern}%"),
+        ).fetchall()
+        related_meetings = [row_to_dict(row) for row in rows]
+        related_items: list[dict[str, Any]] = []
+        for meeting in related_meetings:
+            try:
+                sync_work_items(db, {"meeting_id": meeting["id"]})
+            except McpServerError:
+                pass
+            related_items.extend(query_work_items(conn, meeting_id=meeting["id"], limit=50))
+
+        markdown = "\n\n".join(
+            [
+                f"# Pre-Meeting Brief: {title}",
+                f"- Starts: {starts_at or 'TBD'}\n- Attendees/context: {attendee_hint or 'Not provided'}",
+                "## Open Follow-Ups To Review\n" + item_list_markdown(related_items, "action"),
+                "## Decisions To Carry Forward\n" + item_list_markdown(related_items, "decision", only_active=False),
+                "## Risks / Open Questions\n" + item_list_markdown(related_items, "risk") + item_list_markdown(related_items, "question"),
+                "## Related Meetings\n"
+                + ("\n".join(f"- {meeting['title']} ({meeting['created_at']})" for meeting in related_meetings) or "- None found."),
+            ]
+        )
+        stamp = now_iso()
+        brief_id = f"brief-{hashlib.sha1((title + stamp).encode('utf-8')).hexdigest()[:16]}"
+        conn.execute(
+            """
+            INSERT INTO work_pre_meeting_briefs
+                (id, meeting_id, title, starts_at, attendee_hint, brief_markdown, source, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, 'generated', ?, ?)
+            """,
+            (brief_id, related_meeting_id, title, starts_at, attendee_hint, markdown, stamp, stamp),
+        )
+
+    return {
+        "brief": {
+            "id": brief_id,
+            "meeting_id": related_meeting_id,
+            "title": title,
+            "starts_at": starts_at,
+            "attendee_hint": attendee_hint,
+            "brief_markdown": markdown,
+            "source": "generated",
+            "created_at": stamp,
+            "updated_at": stamp,
+        }
+    }
+
+
 TOOLS: dict[str, dict[str, Any]] = {
     "list_meetings": {
         "description": "List local Meetily meetings with transcript and summary status.",
@@ -676,6 +1365,95 @@ TOOLS: dict[str, dict[str, Any]] = {
             "required": ["meeting_id"],
         },
         "handler": get_action_items,
+    },
+    "sync_work_items": {
+        "description": "Sync local Work Hub items for a meeting from its summary/transcript into action, decision, risk, and question records.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"meeting_id": {"type": "string"}},
+            "required": ["meeting_id"],
+        },
+        "handler": sync_work_items,
+    },
+    "list_work_items": {
+        "description": "List Work Hub items for agents to pick up, filtered by kind, status, or meeting.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "kind": {"type": "string", "enum": ["action", "decision", "risk", "question"]},
+                "status": {"type": "string", "enum": ["open", "in_progress", "blocked", "done", "dismissed"]},
+                "meeting_id": {"type": "string"},
+                "limit": {"type": "integer", "minimum": 1, "maximum": 500},
+            },
+        },
+        "handler": list_work_items,
+    },
+    "update_work_item_status": {
+        "description": "Let an agent mark a Work Hub item open, in_progress, blocked, done, or dismissed with optional notes.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "item_id": {"type": "string"},
+                "status": {"type": "string", "enum": ["open", "in_progress", "blocked", "done", "dismissed"]},
+                "agent_notes": {"type": "string"},
+            },
+            "required": ["item_id", "status"],
+        },
+        "handler": update_work_item_status,
+    },
+    "create_context_pack": {
+        "description": "Generate a markdown context pack for a meeting or specific Work Hub item for a coding/business agent.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "meeting_id": {"type": "string"},
+                "work_item_id": {"type": "string"},
+                "role_scope": {
+                    "type": "string",
+                    "enum": ["engineering", "product", "sales_cs", "people", "leadership", "general"],
+                },
+            },
+            "required": ["meeting_id"],
+        },
+        "handler": create_context_pack,
+    },
+    "get_role_output": {
+        "description": "Generate a role-specific meeting output for engineering, product, sales/customer success, people, leadership, or general use.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "meeting_id": {"type": "string"},
+                "role_scope": {
+                    "type": "string",
+                    "enum": ["engineering", "product", "sales_cs", "people", "leadership", "general"],
+                },
+            },
+            "required": ["meeting_id"],
+        },
+        "handler": get_role_output,
+    },
+    "get_recurring_memory": {
+        "description": "Build local recurring-meeting memory from similarly titled prior meetings and their Work Hub items.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"meeting_id": {"type": "string"}},
+            "required": ["meeting_id"],
+        },
+        "handler": get_recurring_memory,
+    },
+    "create_pre_meeting_brief": {
+        "description": "Generate and store a local pre-meeting brief from prior matching meetings and open Work Hub items.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "title": {"type": "string"},
+                "starts_at": {"type": "string"},
+                "attendee_hint": {"type": "string"},
+                "related_meeting_id": {"type": "string"},
+            },
+            "required": ["title"],
+        },
+        "handler": create_pre_meeting_brief,
     },
     "preview_trim_transcript": {
         "description": "Preview removing transcript segments that start after a recording timestamp.",

@@ -153,6 +153,52 @@ class MeetilyMcpTest(unittest.TestCase):
         self.assertIn("**Action Items / Todos**", result["action_items_markdown"])
         self.assertIn("Send the deck", result["action_items_markdown"])
 
+    def test_sync_work_items_extracts_agent_ready_records(self):
+        result = meetily_mcp.sync_work_items(self.db, {"meeting_id": "meeting-1"})
+
+        self.assertGreaterEqual(result["item_count"], 1)
+        actions = [item for item in result["items"] if item["kind"] == "action"]
+        self.assertTrue(actions)
+        self.assertIn("Send the deck", actions[0]["title"])
+        self.assertEqual(actions[0]["status"], "open")
+
+    def test_update_work_item_status_records_agent_notes(self):
+        sync_result = meetily_mcp.sync_work_items(self.db, {"meeting_id": "meeting-1"})
+        item_id = sync_result["items"][0]["id"]
+
+        result = meetily_mcp.update_work_item_status(
+            self.db,
+            {"item_id": item_id, "status": "in_progress", "agent_notes": "Picked up by Codex"},
+        )
+
+        self.assertEqual(result["item"]["status"], "in_progress")
+        self.assertEqual(result["item"]["agent_notes"], "Picked up by Codex")
+
+    def test_create_context_pack_includes_actions_and_evidence(self):
+        result = meetily_mcp.create_context_pack(
+            self.db,
+            {"meeting_id": "meeting-1", "role_scope": "engineering"},
+        )
+
+        markdown = result["context_pack"]["pack_markdown"]
+        self.assertIn("Agent Context Pack", markdown)
+        self.assertIn("Open Actions", markdown)
+        self.assertIn("Alice said Bob should send the deck", markdown)
+
+    def test_role_output_and_pre_meeting_brief_use_work_items(self):
+        role_output = meetily_mcp.get_role_output(
+            self.db,
+            {"meeting_id": "meeting-1", "role_scope": "product"},
+        )
+        brief = meetily_mcp.create_pre_meeting_brief(
+            self.db,
+            {"title": "Roadmap Sync", "related_meeting_id": "meeting-1"},
+        )
+
+        self.assertIn("Product Output", role_output["markdown"])
+        self.assertIn("Open Follow-Ups", brief["brief"]["brief_markdown"])
+        self.assertIn("Send the deck", brief["brief"]["brief_markdown"])
+
     def test_search_transcripts_returns_context(self):
         result = meetily_mcp.search_transcripts(self.db, {"query": "Legal"})
 

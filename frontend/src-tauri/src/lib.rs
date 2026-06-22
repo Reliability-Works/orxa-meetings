@@ -56,6 +56,7 @@ pub mod summary;
 pub mod tray;
 pub mod utils;
 pub mod whisper_engine;
+pub mod workhub;
 
 use audio::{list_audio_devices, AudioDevice, trigger_audio_permission};
 use log::{error as log_error, info as log_info};
@@ -702,6 +703,15 @@ pub fn run() {
             calendar::request_calendar_permission,
             mcp::get_mcp_setup_info,
             mcp::open_mcp_server_folder,
+            workhub::workhub_sync_meeting,
+            workhub::workhub_get_overview,
+            workhub::workhub_list_items,
+            workhub::workhub_update_item_status,
+            workhub::workhub_create_context_pack,
+            workhub::workhub_list_context_packs,
+            workhub::workhub_get_role_output,
+            workhub::workhub_get_recurring_memory,
+            workhub::workhub_create_pre_meeting_brief,
             // Language preference commands
             set_language_preference,
             // Notification system commands
