@@ -15,6 +15,11 @@ static THINKING_TAG_REGEX: Lazy<Regex> = Lazy::new(|| {
 const ENGLISH_BASE_SUMMARY_INSTRUCTION: &str =
     "**Write the summary/report in English regardless of transcript language; non-English prose is invalid.**";
 
+const ACTION_ITEMS_SUMMARY_INSTRUCTION: &str =
+    "For any Action Items, Todos, or Action Items / Todos section, extract concrete follow-ups only. \
+Include owner, todo, due date, status, and evidence when the template supports it; use Unknown for \
+missing owners, TBD for missing due dates, and Open for unresolved tasks.";
+
 fn resolve_cached_english<'a>(
     cached: Option<&'a str>,
     summary_language: Option<&str>,
@@ -161,6 +166,7 @@ fn build_final_report_system_prompt(
 5. If a section has no relevant info, write "None noted in this section."
 6. Output **only** the completed Markdown report.
 7. If unsure about something, omit it.
+8. {ACTION_ITEMS_SUMMARY_INSTRUCTION}
 
 **SECTION-SPECIFIC INSTRUCTIONS:**
 {section_instructions}
@@ -731,6 +737,15 @@ mod tests {
 
         assert!(prompt.contains(ENGLISH_BASE_SUMMARY_INSTRUCTION));
         assert!(prompt.contains("SECTION-SPECIFIC INSTRUCTIONS"));
+    }
+
+    #[test]
+    fn final_report_prompt_requires_concrete_action_items() {
+        let prompt = build_final_report_system_prompt("Fill the section", "# <Add Title here>");
+
+        assert!(prompt.contains(ACTION_ITEMS_SUMMARY_INSTRUCTION));
+        assert!(prompt.contains("Unknown for missing owners"));
+        assert!(prompt.contains("TBD for missing due dates"));
     }
 
     #[test]

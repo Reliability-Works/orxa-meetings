@@ -13,10 +13,10 @@
       "format": "list"
     },
     {
-      "title": "Action Items",
-      "instruction": "List all assigned tasks with their owners and due date. Always add reference transcript segment and timestamp in the table.",
+      "title": "Action Items / Todos",
+      "instruction": "Extract every concrete follow-up, task, commitment, decision follow-through, or todo mentioned in the meeting. Include explicit assignments and implicit follow-ups. Use Unknown when the owner is not stated, TBD when the due date is not stated, and Open unless the transcript clearly says the task is done. Include transcript evidence or timestamp when available. Do not include vague discussion topics.",
       "format": "list",
-      "item_format": "| **Owner** | Task | Due | Reference Transcript Segment | Segment Time stamp |\n| --- | --- | --- | --- | --- |"
+      "item_format": "| **Owner** | Todo | Due | Status | Evidence |\n| --- | --- | --- | --- | --- |"
     },
     {
       "title": "Discussion Highlights",

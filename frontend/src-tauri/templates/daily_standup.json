@@ -25,6 +25,12 @@
       "example_item_format": "| **Owner** | **Planned Work** |\n| --- | --- |"
     },
     {
+      "title": "Action Items / Todos",
+      "instruction": "Extract every concrete follow-up, task, or commitment from the standup. Include carry-over tasks and blocker follow-ups. Use Unknown when the owner is not stated, TBD when the due date is not stated, and Open unless the transcript clearly says the task is done. Include transcript evidence or timestamp when available. Do not include vague discussion topics.",
+      "format": "list",
+      "item_format": "| **Owner** | Todo | Due | Status | Evidence |\n| --- | --- | --- | --- | --- |"
+    },
+    {
       "title": "Blockers",
       "instruction": "Any impediments and owner if known",
       "format": "list",
