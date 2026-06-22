@@ -127,6 +127,16 @@ pnpm run tauri:dev
 pnpm run tauri:build
 ```
 
+To build and replace the locally installed macOS app in `/Applications`:
+```bash
+pnpm run install:mac
+```
+
+To reinstall the newest existing Tauri `.app` bundle without rebuilding:
+```bash
+./install-macos.sh --skip-build
+```
+
 ## Local Transcription
 
 Current Meetily does not require a separate FastAPI service, Docker backend, or manually started whisper-server process. Local transcription is handled by the Rust/Tauri desktop app.

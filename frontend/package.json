@@ -25,6 +25,7 @@
         "tauri:build:coreml": "tauri build -- --features coreml",
         "tauri:build:openblas": "tauri build -- --features openblas",
         "tauri:build:hipblas": "tauri build -- --features hipblas",
+        "install:mac": "./install-macos.sh",
         "lint": "next lint"
     },
     "dependencies": {
