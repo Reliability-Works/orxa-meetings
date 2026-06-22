@@ -18,7 +18,8 @@ const ENGLISH_BASE_SUMMARY_INSTRUCTION: &str =
 const ACTION_ITEMS_SUMMARY_INSTRUCTION: &str =
     "For any Action Items, Todos, or Action Items / Todos section, extract concrete follow-ups only. \
 Include owner, todo, due date, status, and evidence when the template supports it; use Unknown for \
-missing owners, TBD for missing due dates, and Open for unresolved tasks.";
+missing owners, TBD for missing due dates, and Open for unresolved tasks. Treat transcript lines with \
+a \"Me:\" speaker prefix as owned by Me when the action is phrased in first person or as a local commitment.";
 
 fn resolve_cached_english<'a>(
     cached: Option<&'a str>,

@@ -165,6 +165,19 @@ def table_exists(conn: sqlite3.Connection, table_name: str) -> bool:
     return row is not None
 
 
+def table_has_column(conn: sqlite3.Connection, table_name: str, column_name: str) -> bool:
+    rows = conn.execute(f"PRAGMA table_info({table_name})").fetchall()
+    return any(row["name"] == column_name for row in rows)
+
+
+def transcript_speaker_expr(conn: sqlite3.Connection, alias: str | None = None) -> str:
+    if not table_has_column(conn, "transcripts", "speaker"):
+        return "NULL AS speaker"
+
+    prefix = f"{alias}." if alias else ""
+    return f"{prefix}speaker AS speaker"
+
+
 def parse_summary_result(raw: str | None) -> dict[str, Any] | None:
     if not raw:
         return None
@@ -189,6 +202,11 @@ def summary_markdown(summary_data: dict[str, Any] | None) -> str | None:
     if isinstance(raw, str):
         return raw
     return None
+
+
+def format_transcript_text_line(segment: dict[str, Any]) -> str:
+    prefix = "Me: " if segment.get("speaker") == "me" else ""
+    return f"{prefix}{segment['text']}"
 
 
 def get_notes(conn: sqlite3.Connection, meeting_id: str) -> dict[str, Any] | None:
@@ -309,9 +327,11 @@ def get_transcript(db: MeetilyDatabase, args: dict[str, Any]) -> dict[str, Any]:
 
     with db.connect() as conn:
         meeting = require_meeting(conn, meeting_id)
+        speaker_expr = transcript_speaker_expr(conn)
         rows = conn.execute(
             f"""
-            SELECT id, transcript AS text, timestamp, audio_start_time,
+            SELECT id, transcript AS text, timestamp, {speaker_expr},
+                   audio_start_time,
                    audio_end_time, duration
             FROM transcripts
             WHERE meeting_id = ?
@@ -329,7 +349,7 @@ def get_transcript(db: MeetilyDatabase, args: dict[str, Any]) -> dict[str, Any]:
     if include_segments:
         result["segments"] = segments
     if include_raw_text:
-        result["raw_text"] = "\n".join(segment["text"] for segment in segments)
+        result["raw_text"] = "\n".join(format_transcript_text_line(segment) for segment in segments)
     return result
 
 
@@ -349,10 +369,12 @@ def search_transcripts(db: MeetilyDatabase, args: dict[str, Any]) -> dict[str, A
 
     search = f"%{query.lower()}%"
     with db.connect() as conn:
+        speaker_expr = transcript_speaker_expr(conn, "t")
         rows = conn.execute(
-            """
+            f"""
             SELECT m.id AS meeting_id, m.title, t.id AS transcript_id,
-                   t.transcript AS text, t.timestamp, t.audio_start_time,
+                   t.transcript AS text, t.timestamp, {speaker_expr},
+                   t.audio_start_time,
                    t.audio_end_time, t.duration
             FROM meetings m
             JOIN transcripts t ON t.meeting_id = m.id
@@ -515,9 +537,11 @@ def get_trim_boundary_segment(
     if comparator not in ("<=", ">") or order not in ("ASC", "DESC"):
         raise McpServerError("Invalid trim boundary query")
 
+    speaker_expr = transcript_speaker_expr(conn)
     row = conn.execute(
         f"""
-        SELECT id, transcript AS text, timestamp, audio_start_time, audio_end_time
+        SELECT id, transcript AS text, timestamp, {speaker_expr},
+               audio_start_time, audio_end_time
         FROM transcripts
         WHERE meeting_id = ?
           AND audio_start_time IS NOT NULL

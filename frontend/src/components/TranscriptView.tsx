@@ -104,6 +104,10 @@ function cleanStopWords(text: string): string {
   return cleanedText;
 }
 
+function formatSpeakerLabel(speaker?: string | null): string | null {
+  return speaker === 'me' ? 'Me' : null;
+}
+
 export const TranscriptView: React.FC<TranscriptViewProps> = ({ transcripts, isRecording = false, isPaused = false, isProcessing = false, isStopping = false, enableStreaming = false }) => {
   const [speechDetected, setSpeechDetected] = useState(false);
 
@@ -272,6 +276,7 @@ export const TranscriptView: React.FC<TranscriptViewProps> = ({ transcripts, isR
         // Sizer text: use cleaned version for proper sizing, fallback to [Silence] only if original was empty
         const sizerText = cleanStopWords(isStreaming ? streamingTranscript.fullText : transcript.text)
           || (originalWasEmpty && !isStreaming ? '[Silence]' : '');
+        const speakerLabel = formatSpeakerLabel(transcript.speaker);
 
         return (
           <motion.div
@@ -304,6 +309,11 @@ export const TranscriptView: React.FC<TranscriptViewProps> = ({ transcripts, isR
                   )}
                 </TooltipContent>
               </Tooltip>
+              {speakerLabel && (
+                <span className="mt-0.5 rounded border border-blue-200 bg-blue-50 px-1.5 py-0.5 text-[11px] font-medium text-blue-700">
+                  {speakerLabel}
+                </span>
+              )}
               <div className="flex-1">
                 {isStreaming ? (
                   // Streaming transcript - show in bubble (full width)

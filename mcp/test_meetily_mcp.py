@@ -45,7 +45,8 @@ class MeetilyMcpTest(unittest.TestCase):
                 key_points TEXT,
                 audio_start_time REAL,
                 audio_end_time REAL,
-                duration REAL
+                duration REAL,
+                speaker TEXT
             );
 
             CREATE TABLE summary_processes (
@@ -87,12 +88,12 @@ class MeetilyMcpTest(unittest.TestCase):
             ("meeting-1", "Roadmap Sync", "2026-06-22T09:00:00Z", "2026-06-22T10:00:00Z", "/tmp/meeting-1"),
         )
         conn.execute(
-            "INSERT INTO transcripts VALUES (?, ?, ?, ?, NULL, NULL, NULL, ?, ?, ?)",
-            ("transcript-1", "meeting-1", "Alice said Bob should send the deck by Friday.", "09:01:00", 5.0, 9.5, 4.5),
+            "INSERT INTO transcripts VALUES (?, ?, ?, ?, NULL, NULL, NULL, ?, ?, ?, ?)",
+            ("transcript-1", "meeting-1", "Alice said Bob should send the deck by Friday.", "09:01:00", 5.0, 9.5, 4.5, "me"),
         )
         conn.execute(
-            "INSERT INTO transcripts VALUES (?, ?, ?, ?, NULL, NULL, NULL, ?, ?, ?)",
-            ("transcript-2", "meeting-1", "Bob confirmed he will follow up with Legal.", "09:02:00", 10.0, 13.0, 3.0),
+            "INSERT INTO transcripts VALUES (?, ?, ?, ?, NULL, NULL, NULL, ?, ?, ?, ?)",
+            ("transcript-2", "meeting-1", "Bob confirmed he will follow up with Legal.", "09:02:00", 10.0, 13.0, 3.0, None),
         )
         conn.execute(
             "INSERT INTO summary_processes VALUES (?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, NULL)",
@@ -136,7 +137,9 @@ class MeetilyMcpTest(unittest.TestCase):
 
         self.assertEqual(result["segment_count"], 2)
         self.assertIn("Alice said Bob should send the deck", result["raw_text"])
+        self.assertIn("Me: Alice said Bob should send the deck", result["raw_text"])
         self.assertEqual(result["segments"][0]["audio_start_time"], 5.0)
+        self.assertEqual(result["segments"][0]["speaker"], "me")
 
     def test_get_summary_parses_stored_summary_json(self):
         result = meetily_mcp.get_summary(self.db, {"meeting_id": "meeting-1"})
@@ -173,8 +176,8 @@ class MeetilyMcpTest(unittest.TestCase):
     def test_preview_trim_transcript_reports_tail_without_deleting(self):
         with sqlite3.connect(self.db_path) as conn:
             conn.execute(
-                "INSERT INTO transcripts VALUES (?, ?, ?, ?, NULL, NULL, NULL, ?, ?, ?)",
-                ("transcript-junk", "meeting-1", "A video kept playing after the call.", "09:29:00", 1743.0, 1748.0, 5.0),
+                "INSERT INTO transcripts VALUES (?, ?, ?, ?, NULL, NULL, NULL, ?, ?, ?, ?)",
+                ("transcript-junk", "meeting-1", "A video kept playing after the call.", "09:29:00", 1743.0, 1748.0, 5.0, None),
             )
 
         result = meetily_mcp.preview_trim_transcript(
@@ -195,8 +198,8 @@ class MeetilyMcpTest(unittest.TestCase):
     def test_trim_transcript_after_deletes_tail_and_invalidates_summary(self):
         with sqlite3.connect(self.db_path) as conn:
             conn.execute(
-                "INSERT INTO transcripts VALUES (?, ?, ?, ?, NULL, NULL, NULL, ?, ?, ?)",
-                ("transcript-junk", "meeting-1", "A video kept playing after the call.", "09:29:00", 1743.0, 1748.0, 5.0),
+                "INSERT INTO transcripts VALUES (?, ?, ?, ?, NULL, NULL, NULL, ?, ?, ?, ?)",
+                ("transcript-junk", "meeting-1", "A video kept playing after the call.", "09:29:00", 1743.0, 1748.0, 5.0, None),
             )
 
         result = meetily_mcp.trim_transcript_after(

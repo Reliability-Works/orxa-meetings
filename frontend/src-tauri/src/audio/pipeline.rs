@@ -189,6 +189,51 @@ impl ProfessionalAudioMixer {
     }
 }
 
+#[derive(Debug, Clone)]
+struct SpeakerActivityWindow {
+    start_ms: f64,
+    end_ms: f64,
+    mic_rms: f64,
+    system_rms: f64,
+    local_mic_active: bool,
+}
+
+impl SpeakerActivityWindow {
+    fn from_windows(start_ms: f64, end_ms: f64, mic_window: &[f32], sys_window: &[f32]) -> Self {
+        let mic_rms = calculate_rms(mic_window);
+        let system_rms = calculate_rms(sys_window);
+
+        // Source attribution only, not biometric speaker ID. Keep this conservative
+        // so remote/system audio is not casually labelled as the local user.
+        let local_mic_active =
+            mic_rms >= 0.006 && (system_rms < 0.002 || mic_rms >= system_rms * 0.45);
+
+        Self {
+            start_ms,
+            end_ms,
+            mic_rms,
+            system_rms,
+            local_mic_active,
+        }
+    }
+}
+
+fn calculate_rms(samples: &[f32]) -> f64 {
+    if samples.is_empty() {
+        return 0.0;
+    }
+
+    let sum: f64 = samples
+        .iter()
+        .map(|sample| {
+            let value = *sample as f64;
+            value * value
+        })
+        .sum();
+
+    (sum / samples.len() as f64).sqrt()
+}
+
 /// Simplified audio capture without broadcast channels
 #[derive(Clone)]
 pub struct AudioCapture {
@@ -613,6 +658,7 @@ impl AudioCapture {
             timestamp,
             chunk_id,
             device_type: self.device_type.clone(),
+            speaker: None,
         };
 
         // NOTE: Raw audio is NOT sent to recording saver to prevent echo
@@ -692,6 +738,8 @@ pub struct AudioPipeline {
     // PROFESSIONAL AUDIO MIXING: Ring buffer + RMS-based mixer
     ring_buffer: AudioMixerRingBuffer,
     mixer: ProfessionalAudioMixer,
+    speaker_activity_windows: VecDeque<SpeakerActivityWindow>,
+    mixed_audio_position_ms: f64,
     // Recording sender for pre-mixed audio
     recording_sender_for_mixed: Option<mpsc::UnboundedSender<AudioChunk>>,
 }
@@ -759,6 +807,8 @@ impl AudioPipeline {
             // Initialize professional audio mixing
             ring_buffer,
             mixer,
+            speaker_activity_windows: VecDeque::new(),
+            mixed_audio_position_ms: 0.0,
             recording_sender_for_mixed: None,  // Will be set by manager
         }
     }
@@ -822,6 +872,20 @@ impl AudioPipeline {
                     // STEP 2: Mix audio in fixed windows when both streams have sufficient data
                     while self.ring_buffer.can_mix() {
                         if let Some((mic_window, sys_window)) = self.ring_buffer.extract_window() {
+                            let window_start_ms = self.mixed_audio_position_ms;
+                            let window_duration_ms =
+                                mic_window.len() as f64 / self.sample_rate as f64 * 1000.0;
+                            let window_end_ms = window_start_ms + window_duration_ms;
+                            self.mixed_audio_position_ms = window_end_ms;
+                            self.speaker_activity_windows.push_back(
+                                SpeakerActivityWindow::from_windows(
+                                    window_start_ms,
+                                    window_end_ms,
+                                    &mic_window,
+                                    &sys_window,
+                                )
+                            );
+
                             // Simple mixing without aggressive ducking
                             let mixed_clean = self.mixer.mix_window(&mic_window, &sys_window);
 
@@ -841,12 +905,17 @@ impl AudioPipeline {
                                             info!("📤 Sending VAD segment: {:.1}ms, {} samples",
                                                   duration_ms, segment.samples.len());
 
+                                            let speaker = self.infer_speaker_for_segment(
+                                                segment.start_timestamp_ms,
+                                                segment.end_timestamp_ms,
+                                            );
                                             let transcription_chunk = AudioChunk {
                                                 data: segment.samples,
                                                 sample_rate: 16000,
                                                 timestamp: segment.start_timestamp_ms / 1000.0,
                                                 chunk_id: self.chunk_id_counter,
                                                 device_type: DeviceType::Microphone,  // Mixed audio
+                                                speaker,
                                             };
 
                                             if let Err(e) = self.transcription_sender.send(transcription_chunk) {
@@ -873,6 +942,7 @@ impl AudioPipeline {
                                     timestamp: chunk.timestamp,
                                     chunk_id: self.chunk_id_counter,
                                     device_type: DeviceType::Microphone,  // Mixed audio
+                                    speaker: None,
                                 };
                                 let _ = sender.send(recording_chunk);
                             }
@@ -897,6 +967,56 @@ impl AudioPipeline {
         Ok(())
     }
 
+    fn infer_speaker_for_segment(&mut self, start_ms: f64, end_ms: f64) -> Option<String> {
+        let mut total_overlap_ms = 0.0;
+        let mut local_overlap_ms = 0.0;
+        let mut max_mic_rms = 0.0;
+        let mut max_system_rms = 0.0;
+
+        for window in &self.speaker_activity_windows {
+            let overlap_start = window.start_ms.max(start_ms);
+            let overlap_end = window.end_ms.min(end_ms);
+            if overlap_end <= overlap_start {
+                continue;
+            }
+
+            let overlap_ms = overlap_end - overlap_start;
+            total_overlap_ms += overlap_ms;
+            if window.local_mic_active {
+                local_overlap_ms += overlap_ms;
+            }
+            if window.mic_rms > max_mic_rms {
+                max_mic_rms = window.mic_rms;
+            }
+            if window.system_rms > max_system_rms {
+                max_system_rms = window.system_rms;
+            }
+        }
+
+        let prune_before_ms = start_ms - 5000.0;
+        while self
+            .speaker_activity_windows
+            .front()
+            .is_some_and(|window| window.end_ms < prune_before_ms)
+        {
+            self.speaker_activity_windows.pop_front();
+        }
+
+        if total_overlap_ms <= 0.0 {
+            return None;
+        }
+
+        let local_overlap_ratio = local_overlap_ms / total_overlap_ms;
+        let strong_local_peak =
+            max_mic_rms >= 0.012 && (max_system_rms < 0.002 || max_mic_rms >= max_system_rms * 0.50);
+
+        if local_overlap_ratio >= 0.30 || strong_local_peak {
+            Some("me".to_string())
+        } else {
+            None
+        }
+    }
+
     fn flush_remaining_audio(&mut self) -> Result<()> {
         info!("Flushing remaining audio from pipeline (processed {} chunks)", self.processed_chunks);
 
@@ -911,12 +1031,17 @@ impl AudioPipeline {
                         info!("📤 Sending final VAD segment to Whisper: {:.1}ms duration, {} samples",
                               duration_ms, segment.samples.len());
 
+                        let speaker = self.infer_speaker_for_segment(
+                            segment.start_timestamp_ms,
+                            segment.end_timestamp_ms,
+                        );
                         let transcription_chunk = AudioChunk {
                             data: segment.samples,
                             sample_rate: 16000,
                             timestamp: segment.start_timestamp_ms / 1000.0,
                             chunk_id: self.chunk_id_counter,
                             device_type: DeviceType::Microphone,
+                            speaker,
                         };
 
                         if let Err(e) = self.transcription_sender.send(transcription_chunk) {
@@ -1039,6 +1164,7 @@ impl AudioPipelineManager {
                 timestamp: 0.0,
                 chunk_id: u64::MAX, // Special ID to indicate flush
                 device_type: super::recording_state::DeviceType::Microphone,
+                speaker: None,
             };
 
             if let Err(e) = sender.send(flush_chunk) {
@@ -1059,6 +1185,7 @@ impl AudioPipelineManager {
                         timestamp: 0.0,
                         chunk_id: u64::MAX - (i as u64),
                         device_type: super::recording_state::DeviceType::Microphone,
+                        speaker: None,
                     };
                     let _ = sender.send(additional_flush);
                 }

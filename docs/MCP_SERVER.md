@@ -1,6 +1,6 @@
 # Meetily MCP Server
 
-Meetily includes an MCP server for local meeting data. It lets agents inspect meetings, raw transcript segments, summaries, meeting notes, and action-item sections without starting the archived FastAPI backend. It can also trim transcript segments recorded after a known meeting end point when explicitly confirmed.
+Meetily includes an MCP server for local meeting data. It lets agents inspect meetings, raw transcript segments, local-speaker labels, summaries, meeting notes, and action-item sections without starting the archived FastAPI backend. It can also trim transcript segments recorded after a known meeting end point when explicitly confirmed.
 
 ## What It Exposes
 
@@ -14,6 +14,8 @@ Meetily includes an MCP server for local meeting data. It lets agents inspect me
 - `trim_transcript_after` - delete transcript segments after a cutoff and clear stale summary/cache data. Requires `confirm: true`.
 
 The server does not read settings, API keys, or model-provider configuration. All tools are read-only except `trim_transcript_after`, which only deletes timestamped transcript rows for the requested meeting after the requested cutoff.
+
+Transcript segments may include `speaker: "me"` when Meetily detected that the local microphone was active for that segment. `get_transcript.raw_text` also prefixes those lines with `Me:` so agents can use local-user attribution without implementing full speaker diarization.
 
 ## Trim A Transcript Tail
 

@@ -96,6 +96,7 @@ Whether you're a defense consultant, enterprise executive, legal professional, o
 
 - **Local First:** All processing is done on your machine. No data ever leaves your computer.
 - **Real-time Transcription:** Get a live transcript of your meeting as it happens.
+- **Local Speaker Labels:** Detect when the Mac's microphone is the active speaker and mark those transcript lines as `Me`.
 - **AI-Powered Summaries:** Generate summaries of your meetings using powerful language models.
 - **Multi-Platform:** Works on macOS, Windows, and Linux.
 - **Open Source:** Meetily is open source and free to use.
@@ -173,7 +174,7 @@ All data stays on your machine. Transcription models, recordings, and transcript
 
 ### 🔌 Local MCP Access
 
-Agents can inspect local meetings through an MCP server for raw transcripts, summaries, notes, and action items. The MCP server also supports confirmed cleanup of transcript tails recorded after a meeting ended. See [Meetily MCP Server](docs/MCP_SERVER.md) for setup.
+Agents can inspect local meetings through an MCP server for raw transcripts, local `Me` speaker labels, summaries, notes, and action items. The MCP server also supports confirmed cleanup of transcript tails recorded after a meeting ended. See [Meetily MCP Server](docs/MCP_SERVER.md) for setup.
 
 ### 🌐 Custom OpenAI Endpoint Support
 

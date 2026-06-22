@@ -443,10 +443,13 @@ export function useSummaryGeneration({
       const secs = totalSecs % 60;
       return `[${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}]`;
     };
+    const formatSpeaker = (speaker: string | null | undefined): string => {
+      return speaker === 'me' ? ' Me:' : '';
+    };
 
     return {
       transcriptText: allTranscripts
-        .map(t => `${formatTime(t.audio_start_time, t.timestamp)} ${t.text}`)
+        .map(t => `${formatTime(t.audio_start_time, t.timestamp)}${formatSpeaker(t.speaker)} ${t.text}`)
         .join('\n'),
       transcriptTexts: allTranscripts.map(t => t.text),
     };
