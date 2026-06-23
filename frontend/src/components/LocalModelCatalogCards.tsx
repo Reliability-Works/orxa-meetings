@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import { CheckCircle2, Download, ExternalLink, FolderOpen, Loader2 } from 'lucide-react';
+import { CheckCircle2, ChevronDown, ChevronRight, Download, ExternalLink, FolderOpen, Loader2 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import {
@@ -51,6 +51,7 @@ async function openSource(url: string) {
 export function LocalModelCatalogCards({ models }: LocalModelCatalogCardsProps) {
   const modelIds = useMemo(() => models.map((model) => model.id), [models]);
   const [statuses, setStatuses] = useState<Record<string, LocalModelDownloadStatus>>({});
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
   const mergeStatus = useCallback((status: LocalModelDownloadStatus) => {
     setStatuses((current) => ({
@@ -150,13 +151,26 @@ export function LocalModelCatalogCards({ models }: LocalModelCatalogCardsProps) 
     }
   }, []);
 
+  const toggleExpanded = useCallback((modelId: string) => {
+    setExpandedIds((current) => {
+      const next = new Set(current);
+      if (next.has(modelId)) {
+        next.delete(modelId);
+      } else {
+        next.add(modelId);
+      }
+      return next;
+    });
+  }, []);
+
   return (
-    <div className="grid grid-cols-1 gap-3">
+    <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
       {models.map((model) => {
         const status = statuses[model.id];
         const isDownloading = status?.state === 'downloading';
         const isDownloaded = status?.state === 'downloaded';
         const hasError = status?.state === 'error';
+        const expanded = expandedIds.has(model.id);
         const progress = status?.total_bytes
           ? Math.min(99, Math.round((status.downloaded_bytes / status.total_bytes) * 100))
           : 0;
@@ -164,39 +178,97 @@ export function LocalModelCatalogCards({ models }: LocalModelCatalogCardsProps) 
         return (
           <div
             key={model.id}
-            className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm"
+            className="border-b border-gray-100 last:border-b-0"
           >
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="text-sm font-semibold text-gray-900">{model.name}</h3>
+            <div className="flex min-h-14 items-center gap-3 px-3 py-2.5">
+              <button
+                type="button"
+                onClick={() => toggleExpanded(model.id)}
+                className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                aria-expanded={expanded}
+              >
+                {expanded ? (
+                  <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" />
+                ) : (
+                  <ChevronRight className="h-4 w-4 shrink-0 text-gray-400" />
+                )}
+                <span className="min-w-0 flex-1">
+                  <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                    <span className="min-w-0 truncate text-[14px] font-semibold leading-5 text-gray-950">{model.name}</span>
                   {model.recommended && (
-                    <span className="rounded-full bg-blue-600 px-2 py-0.5 text-xs font-medium text-white">
+                    <span className="rounded-full bg-blue-600 px-1.5 py-0.5 text-[11px] font-medium text-white">
                       Best
                     </span>
                   )}
                   {model.bestLabel && (
-                    <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
+                    <span className="rounded-full bg-blue-50 px-1.5 py-0.5 text-[11px] font-medium text-blue-700">
                       {model.bestLabel}
                     </span>
                   )}
-                  <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${statusClass(model.runtimeStatus)}`}>
+                  <span className={`rounded-full border px-1.5 py-0.5 text-[11px] font-medium ${statusClass(model.runtimeStatus)}`}>
                     {runtimeStatusLabel(model.runtimeStatus)}
                   </span>
                   {isDownloaded && (
-                    <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                    <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[11px] font-medium text-emerald-700">
                       <CheckCircle2 className="h-3 w-3" />
                       Downloaded
                     </span>
                   )}
                   {hasError && (
-                    <span className="rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">
+                    <span className="rounded-full border border-red-200 bg-red-50 px-1.5 py-0.5 text-[11px] font-medium text-red-700">
                       Failed
                     </span>
                   )}
-                </div>
-                <p className="mt-1 text-xs text-gray-500">{model.family} · {model.size}</p>
-                <p className="mt-2 text-sm text-gray-700">{model.bestFor}</p>
+                  </span>
+                  <span className="mt-0.5 block truncate text-[12px] text-gray-500">{model.family} · {model.size}</span>
+                </span>
+              </button>
+
+              <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 px-2"
+                  onClick={() => openSource(model.sourceUrl)}
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  Source
+                </Button>
+                {isDownloaded && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 px-2"
+                    onClick={() => handleOpenFolder(model.id)}
+                  >
+                    <FolderOpen className="h-4 w-4" />
+                    Folder
+                  </Button>
+                )}
+                <Button
+                  type="button"
+                  variant={isDownloaded ? 'outline' : 'secondary'}
+                  size="sm"
+                  className="h-8"
+                  disabled={isDownloading}
+                  onClick={() => isDownloaded ? handleOpenFolder(model.id) : handleDownload(model)}
+                  title={model.runtimeStatus === 'ready' ? 'Download model artifacts locally.' : 'Download model artifacts locally for research and benchmarking.'}
+                >
+                  {isDownloading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Download className="h-4 w-4" />
+                  )}
+                  {isDownloading ? `${progress}%` : isDownloaded ? 'Open' : hasError ? 'Retry' : 'Download'}
+                </Button>
+              </div>
+            </div>
+
+            {expanded && (
+              <div className="border-t border-gray-100 px-4 pb-3 pt-3">
+                <p className="text-[13px] leading-5 text-gray-700">{model.bestFor}</p>
                 <p className="mt-1 text-xs text-gray-500">{model.notes}</p>
                 <div className="mt-3 grid gap-3 text-xs sm:grid-cols-2">
                   <div className="rounded-md bg-emerald-50 p-3 text-emerald-900">
@@ -239,45 +311,7 @@ export function LocalModelCatalogCards({ models }: LocalModelCatalogCardsProps) 
                   <p className="mt-2 text-xs text-red-600">{status.error}</p>
                 )}
               </div>
-
-              <div className="flex shrink-0 flex-wrap items-center gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => openSource(model.sourceUrl)}
-                >
-                  <ExternalLink className="h-4 w-4" />
-                  Source
-                </Button>
-                {isDownloaded && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleOpenFolder(model.id)}
-                  >
-                    <FolderOpen className="h-4 w-4" />
-                    Folder
-                  </Button>
-                )}
-                <Button
-                  type="button"
-                  variant={isDownloaded ? 'outline' : 'secondary'}
-                  size="sm"
-                  disabled={isDownloading}
-                  onClick={() => isDownloaded ? handleOpenFolder(model.id) : handleDownload(model)}
-                  title={model.runtimeStatus === 'ready' ? 'Download model artifacts locally.' : 'Download model artifacts locally for research and benchmarking.'}
-                >
-                  {isDownloading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Download className="h-4 w-4" />
-                  )}
-                  {isDownloading ? `${progress}%` : isDownloaded ? 'Open' : hasError ? 'Retry' : 'Download'}
-                </Button>
-              </div>
-            </div>
+            )}
           </div>
         );
       })}

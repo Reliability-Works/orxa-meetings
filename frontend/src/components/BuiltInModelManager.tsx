@@ -6,9 +6,10 @@ import { listen } from '@tauri-apps/api/event';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
-import { Download, RefreshCw, BadgeAlert, Trash2 } from 'lucide-react';
+import { BadgeAlert, ChevronDown, ChevronRight, Download, RefreshCw, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatSummaryModelSizeLabelFromMb } from '@/lib/onboarding-summary-model';
+import { Switch } from '@/components/ui/switch';
 
 interface ModelInfo {
   name: string;
@@ -195,6 +196,7 @@ export function BuiltInModelManager({
   const [downloadProgress, setDownloadProgress] = useState<Record<string, number>>({});
   const [downloadProgressInfo, setDownloadProgressInfo] = useState<Record<string, DownloadProgressInfo>>({});
   const [downloadingModels, setDownloadingModels] = useState<Set<string>>(new Set());
+  const [expandedModel, setExpandedModel] = useState<string | null>(null);
 
   const fetchModels = async () => {
     try {
@@ -428,17 +430,17 @@ export function BuiltInModelManager({
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
-        <h4 className="text-sm font-bold">Built-in AI Models</h4>
+      <div className="mb-3 flex items-center justify-between">
+        <h4 className="text-sm font-semibold text-gray-950">Built-in AI Models</h4>
       </div>
 
       <div
         className={cn(
-          'grid gap-4',
-          layout === 'dialog' && 'max-h-[50vh] overflow-y-auto pr-2 pb-2'
+          'overflow-hidden rounded-xl border border-gray-200 bg-white',
+          layout === 'dialog' && 'max-h-[50vh] overflow-y-auto'
         )}
       >
-        {models.map((model) => {
+        {models.map((model, index) => {
           const progress = downloadProgress[model.name];
           const progressInfo = downloadProgressInfo[model.name];
           const modelIsDownloading = downloadingModels.has(model.name);
@@ -448,143 +450,149 @@ export function BuiltInModelManager({
           const isError = model.status.type === 'error';
           const guidance = getModelGuidance(model.name, usage);
           const description = getModelDescription(model, usage);
+          const expanded = expandedModel === model.name;
 
           return (
             <div
               key={model.name}
               className={cn(
-                'p-4 rounded-lg border transition-colors',
-                modelIsDownloading
-                  ? 'bg-white border-gray-200'
-                  : 'bg-card',
-                selectedModel === model.name
-                  ? 'ring-2 ring-gray-800 border-gray-800'
-                  : 'border-gray-200 hover:border-gray-300',
-                isAvailable && !modelIsDownloading && 'cursor-pointer'
+                'transition-colors',
+                index > 0 && 'border-t border-gray-100',
+                selectedModel === model.name ? 'bg-gray-50' : 'bg-white hover:bg-gray-50'
               )}
-              onClick={() => {
-                if (isAvailable && !modelIsDownloading) {
-                  onModelSelect(model.name);
-                }
-              }}
             >
-            <div className="space-y-3">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="min-w-0 flex-1">
-                  <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-                    <span className="min-w-0 break-words text-base font-bold leading-snug text-gray-900">{model.display_name || model.name}</span>
-                    {guidance.isBest && (
-                      <span className="shrink-0 rounded-full bg-blue-600 px-2 py-0.5 text-xs font-medium text-white">
-                        Best
+              <div className="flex min-h-14 items-center gap-3 px-3 py-2.5">
+                <Switch
+                  checked={selectedModel === model.name}
+                  disabled={!isAvailable || modelIsDownloading}
+                  onCheckedChange={(checked) => {
+                    if (checked && isAvailable && !modelIsDownloading) {
+                      onModelSelect(model.name);
+                    }
+                  }}
+                  aria-label={`Use ${model.display_name || model.name}`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setExpandedModel(expanded ? null : model.name)}
+                  className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                  aria-expanded={expanded}
+                >
+                  {expanded ? <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" /> : <ChevronRight className="h-4 w-4 shrink-0 text-gray-400" />}
+                  <span className="min-w-0 flex-1">
+                    <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                      <span className="min-w-0 truncate text-[14px] font-semibold leading-5 text-gray-950">{model.display_name || model.name}</span>
+                      {guidance.isBest && (
+                        <span className="shrink-0 rounded-full bg-blue-600 px-1.5 py-0.5 text-[11px] font-medium text-white">
+                          Best
+                        </span>
+                      )}
+                      <span className="shrink-0 rounded-full bg-blue-50 px-1.5 py-0.5 text-[11px] font-medium text-blue-700">
+                        {guidance.bestLabel}
                       </span>
-                    )}
-                    <span className="shrink-0 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
-                      {guidance.bestLabel}
-                    </span>
-                    {isAvailable && (
-                      <>
-                        <span className="flex shrink-0 items-center gap-1 text-xs font-medium text-green-600">
-                          <span className="h-2 w-2 rounded-full bg-green-600"></span>
+                      {isAvailable && (
+                        <span className="flex shrink-0 items-center gap-1 text-[11px] font-medium text-green-600">
+                          <span className="h-1.5 w-1.5 rounded-full bg-green-600" />
                           Ready
                         </span>
-                        {selectedModel === model.name && (
-                          <span className="shrink-0 rounded bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
-                            Selected
-                          </span>
-                        )}
-                      </>
-                    )}
-                    {isCorrupted && (
-                      <span className="flex shrink-0 items-center gap-1 rounded bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
-                        <BadgeAlert className="h-3 w-3" />
-                        Corrupted
-                      </span>
-                    )}
-                    {isError && (
-                      <span className="shrink-0 rounded bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
-                        Error
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <div className="flex w-full shrink-0 flex-wrap items-center gap-2 sm:ml-4 sm:w-auto sm:justify-end">
-                  {/* Not Downloaded - Show Download button */}
+                      )}
+                      {selectedModel === model.name && isAvailable && (
+                        <span className="shrink-0 rounded bg-blue-100 px-1.5 py-0.5 text-[11px] font-medium text-blue-700">
+                          Selected
+                        </span>
+                      )}
+                      {isCorrupted && (
+                        <span className="flex shrink-0 items-center gap-1 rounded bg-red-100 px-1.5 py-0.5 text-[11px] font-medium text-red-700">
+                          <BadgeAlert className="h-3 w-3" />
+                          Corrupted
+                        </span>
+                      )}
+                      {isError && (
+                        <span className="shrink-0 rounded bg-red-100 px-1.5 py-0.5 text-[11px] font-medium text-red-700">
+                          Error
+                        </span>
+                      )}
+                    </span>
+                    <span className="mt-0.5 block truncate text-[12px] text-gray-500">
+                      {formatSummaryModelSizeLabelFromMb(model.size_mb)} · {model.context_size} tokens
+                    </span>
+                  </span>
+                </button>
+                <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
                   {isNotDownloaded && !modelIsDownloading && (
                     <Button
                       variant="outline"
                       size="sm"
-                      className="min-w-[100px]"
-                      onClick={(e) => {
-                        e.stopPropagation();
+                      className="h-8"
+                      onClick={(event) => {
+                        event.stopPropagation();
                         downloadModel(model.name);
                       }}
                     >
-                      <Download className="mr-2 h-4 w-4" />
+                      <Download className="h-4 w-4" />
                       Download
                     </Button>
                   )}
-                  {/* Downloading - Show Cancel button */}
                   {modelIsDownloading && (
                     <Button
                       variant="outline"
                       size="sm"
-                      className="min-w-[100px]"
-                      onClick={(e) => {
-                        e.stopPropagation();
+                      className="h-8"
+                      onClick={(event) => {
+                        event.stopPropagation();
                         cancelDownload(model.name);
                       }}
                     >
                       Cancel
                     </Button>
                   )}
-                  {/* Error - Show Retry button */}
                   {isError && !modelIsDownloading && (
                     <Button
                       variant="outline"
                       size="sm"
-                      className="min-w-[100px]"
-                      onClick={(e) => {
-                        e.stopPropagation();
+                      className="h-8"
+                      onClick={(event) => {
+                        event.stopPropagation();
                         downloadModel(model.name);
                       }}
                     >
-                      <RefreshCw className="mr-2 h-4 w-4" />
+                      <RefreshCw className="h-4 w-4" />
                       Retry
                     </Button>
                   )}
-                  {/* Corrupted - Show both Retry and Delete buttons */}
                   {isCorrupted && !modelIsDownloading && (
                     <>
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
+                        className="h-8"
+                        onClick={(event) => {
+                          event.stopPropagation();
                           downloadModel(model.name);
                         }}
                       >
-                        <RefreshCw className="mr-2 h-4 w-4" />
+                        <RefreshCw className="h-4 w-4" />
                         Retry
                       </Button>
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
+                        className="h-8"
+                        onClick={(event) => {
+                          event.stopPropagation();
                           deleteModel(model.name);
                         }}
                       >
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Delete
+                        <Trash2 className="h-4 w-4" />
                       </Button>
                     </>
                   )}
-                  {/* Available - Show small trash icon (only if not currently selected) */}
                   {isAvailable && !modelIsDownloading && selectedModel !== model.name && (
                     <button
-                      className="p-2 rounded hover:bg-gray-100 transition-colors text-gray-500 hover:text-red-600"
-                      onClick={(e) => {
-                        e.stopPropagation();
+                      type="button"
+                      className="flex h-8 w-8 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-gray-100 hover:text-red-600"
+                      onClick={(event) => {
+                        event.stopPropagation();
                         deleteModel(model.name);
                       }}
                       title="Delete model"
@@ -594,53 +602,49 @@ export function BuiltInModelManager({
                   )}
                 </div>
               </div>
-              <div className="text-sm text-gray-600">
-                {description && (
-                  <p className="mb-1">{description}</p>
-                )}
-                <div className="mb-3 grid gap-3 text-xs sm:grid-cols-2">
-                  <div className="rounded-md bg-emerald-50 p-3 text-emerald-900">
-                    <p className="font-semibold">Pros</p>
-                    <ul className="mt-1 space-y-1">
-                      {guidance.pros.map((item) => (
-                        <li key={item}>+ {item}</li>
-                      ))}
-                    </ul>
-                  </div>
-                  <div className="rounded-md bg-gray-50 p-3 text-gray-700">
-                    <p className="font-semibold text-gray-900">Cons</p>
-                    <ul className="mt-1 space-y-1">
-                      {guidance.cons.map((item) => (
-                        <li key={item}>- {item}</li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-                {(isError || isCorrupted) && (
-                  <p className="mb-1 text-xs text-red-600">
-                    {isError && typeof model.status === 'object' && 'Error' in model.status
-                      ? (model.status as any).Error
-                      : isCorrupted
-                      ? 'File is corrupted. Retry download or delete.'
-                      : 'An error occurred'}
-                  </p>
-                )}
-                <div className="text-xs text-gray-500">
-                  <span>{formatSummaryModelSizeLabelFromMb(model.size_mb)} • {model.context_size} tokens</span>
-                </div>
-                </div>
-              </div>
 
-              {/* Download progress bar */}
-              {modelIsDownloading && progress !== undefined && (
-                <div className="mt-3 pt-3 border-t border-gray-200">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm font-medium text-gray-900">Downloading...</span>
-                    <span className="text-sm font-semibold text-gray-900">
-                      {Math.round(progress)}%
-                    </span>
+              {expanded && (
+                <div className="border-t border-gray-100 px-4 pb-3 pt-3 text-sm text-gray-600">
+                  {description && (
+                    <p className="mb-3 max-w-3xl text-[13px] leading-5">{description}</p>
+                  )}
+                  <div className="grid gap-3 text-xs sm:grid-cols-2">
+                    <div className="rounded-md bg-emerald-50 p-3 text-emerald-900">
+                      <p className="font-semibold">Pros</p>
+                      <ul className="mt-1 space-y-1">
+                        {guidance.pros.map((item) => (
+                          <li key={item}>+ {item}</li>
+                        ))}
+                      </ul>
+                    </div>
+                    <div className="rounded-md bg-gray-50 p-3 text-gray-700">
+                      <p className="font-semibold text-gray-900">Cons</p>
+                      <ul className="mt-1 space-y-1">
+                        {guidance.cons.map((item) => (
+                          <li key={item}>- {item}</li>
+                        ))}
+                      </ul>
+                    </div>
                   </div>
-                  <div className="text-sm text-gray-600 mb-2">
+                  {(isError || isCorrupted) && (
+                    <p className="mt-3 text-xs text-red-600">
+                      {isError && typeof model.status === 'object' && 'Error' in model.status
+                        ? (model.status as any).Error
+                        : isCorrupted
+                          ? 'File is corrupted. Retry download or delete.'
+                          : 'An error occurred'}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {modelIsDownloading && progress !== undefined && (
+                <div className="border-t border-gray-100 px-4 py-3">
+                  <div className="mb-1 flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-900">Downloading...</span>
+                    <span className="text-sm font-semibold text-gray-900">{Math.round(progress)}%</span>
+                  </div>
+                  <div className="mb-2 text-sm text-gray-600">
                     {progressInfo?.totalMb > 0 ? (
                       <>
                         {progressInfo.downloadedMb.toFixed(1)} MiB / {progressInfo.totalMb.toFixed(1)} MiB
@@ -654,9 +658,9 @@ export function BuiltInModelManager({
                       <span>{formatSummaryModelSizeLabelFromMb(model.size_mb)}</span>
                     )}
                   </div>
-                  <div className="w-full h-2.5 bg-gray-200 rounded-full overflow-hidden">
+                  <div className="h-2 overflow-hidden rounded-full bg-gray-200">
                     <div
-                      className="h-full bg-gradient-to-r from-gray-800 to-gray-900 rounded-full transition-all duration-300"
+                      className="h-full rounded-full bg-gray-900 transition-all duration-300"
                       style={{ width: `${progress}%` }}
                     />
                   </div>

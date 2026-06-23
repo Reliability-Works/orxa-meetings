@@ -4,7 +4,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Input } from './ui/input';
 import { Button } from './ui/button';
 import { Label } from './ui/label';
-import { Eye, EyeOff, Lock, Unlock } from 'lucide-react';
+import { ChevronDown, ChevronRight, Eye, EyeOff, Lock, Unlock } from 'lucide-react';
 import { ModelManager } from './WhisperModelManager';
 import { ParakeetModelManager } from './ParakeetModelManager';
 import { ExperimentalTranscriptionModels } from './ExperimentalTranscriptionModels';
@@ -57,6 +57,7 @@ export function TranscriptSettings({ transcriptModelConfig, setTranscriptModelCo
     const [isApiKeyLocked, setIsApiKeyLocked] = useState<boolean>(true);
     const [isLockButtonVibrating, setIsLockButtonVibrating] = useState<boolean>(false);
     const [uiProvider, setUiProvider] = useState<TranscriptModelProps['provider']>(transcriptModelConfig.provider);
+    const [providerGuidanceOpen, setProviderGuidanceOpen] = useState<boolean>(false);
 
     // Sync uiProvider when backend config changes (e.g., after model selection or initial load)
     useEffect(() => {
@@ -181,29 +182,39 @@ export function TranscriptSettings({ transcriptModelConfig, setTranscriptModelCo
 
                         </div>
                         {(uiProvider === 'parakeet' || uiProvider === 'localWhisper') && (
-                            <div className="mx-1 mt-3 rounded-lg border border-gray-200 bg-white p-3 text-sm">
-                                <div className="flex flex-wrap items-center gap-2">
-                                    <span className="rounded-full bg-blue-600 px-2 py-0.5 text-xs font-medium text-white">Best</span>
-                                    <span className="font-medium text-gray-900">{TRANSCRIPT_PROVIDER_GUIDANCE[uiProvider].label}</span>
-                                </div>
-                                <div className="mt-3 grid gap-3 text-xs text-gray-600 sm:grid-cols-2">
-                                    <div>
-                                        <p className="font-semibold text-gray-900">Pros</p>
-                                        <ul className="mt-1 space-y-1">
-                                            {TRANSCRIPT_PROVIDER_GUIDANCE[uiProvider].pros.map((item) => (
-                                                <li key={item}>+ {item}</li>
-                                            ))}
-                                        </ul>
+                            <div className="mx-1 mt-3 overflow-hidden rounded-xl border border-gray-200 bg-white text-sm">
+                                <button
+                                    type="button"
+                                    onClick={() => setProviderGuidanceOpen((open) => !open)}
+                                    className="flex min-h-11 w-full items-center gap-2 px-3 py-2 text-left hover:bg-gray-50"
+                                    aria-expanded={providerGuidanceOpen}
+                                >
+                                    {providerGuidanceOpen ? <ChevronDown className="h-4 w-4 text-gray-400" /> : <ChevronRight className="h-4 w-4 text-gray-400" />}
+                                    <span className="min-w-0 flex-1 truncate font-medium text-gray-900">{TRANSCRIPT_PROVIDER_GUIDANCE[uiProvider].label}</span>
+                                    <span className="rounded-full bg-blue-600 px-1.5 py-0.5 text-[11px] font-medium text-white">Best</span>
+                                </button>
+                                {providerGuidanceOpen && (
+                                    <div className="border-t border-gray-100 px-3 pb-3 pt-3">
+                                        <div className="grid gap-3 text-xs text-gray-600 sm:grid-cols-2">
+                                            <div className="rounded-md bg-emerald-50 p-3 text-emerald-900">
+                                                <p className="font-semibold">Pros</p>
+                                                <ul className="mt-1 space-y-1">
+                                                    {TRANSCRIPT_PROVIDER_GUIDANCE[uiProvider].pros.map((item) => (
+                                                        <li key={item}>+ {item}</li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                            <div className="rounded-md bg-gray-50 p-3 text-gray-700">
+                                                <p className="font-semibold text-gray-900">Cons</p>
+                                                <ul className="mt-1 space-y-1">
+                                                    {TRANSCRIPT_PROVIDER_GUIDANCE[uiProvider].cons.map((item) => (
+                                                        <li key={item}>- {item}</li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <p className="font-semibold text-gray-900">Cons</p>
-                                        <ul className="mt-1 space-y-1">
-                                            {TRANSCRIPT_PROVIDER_GUIDANCE[uiProvider].cons.map((item) => (
-                                                <li key={item}>- {item}</li>
-                                            ))}
-                                        </ul>
-                                    </div>
-                                </div>
+                                )}
                             </div>
                         )}
                     </div>
@@ -282,7 +293,6 @@ export function TranscriptSettings({ transcriptModelConfig, setTranscriptModelCo
         </div >
     )
 }
-
 
 
 

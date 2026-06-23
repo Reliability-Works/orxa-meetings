@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { listen } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/core';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { toast } from 'sonner';
+import { ChevronDown, ChevronRight, Download, RefreshCw, Trash2 } from 'lucide-react';
 import {
   ModelInfo,
   ModelStatus,
@@ -15,6 +16,7 @@ import {
   WhisperAPI
 } from '../lib/whisper';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Switch } from '@/components/ui/switch';
 
 interface ModelManagerProps {
   selectedModel?: string;
@@ -498,7 +500,7 @@ export function ModelManager({
   return (
     <div className={`space-y-3 ${className}`}>
       {/* Basic Models */}
-      <div className="space-y-3">
+      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white divide-y divide-gray-100">
         {basicModels.map((model) => {
           const isRecommended = model.name === 'large-v3';
           return (
@@ -526,12 +528,12 @@ export function ModelManager({
       {/* Advanced Models */}
       {advancedModels.length > 0 && (
         <Accordion type="single" collapsible className="w-full">
-          <AccordionItem value="advanced-models">
-            <AccordionTrigger>
-              <span className='text-lg'>Advanced Models</span>
+            <AccordionItem value="advanced-models">
+            <AccordionTrigger className="py-2 text-sm font-medium text-gray-700">
+              <span>Advanced Models</span>
             </AccordionTrigger>
             <AccordionContent>
-              <div className="space-y-3 pt-4">
+              <div className="overflow-hidden rounded-xl border border-gray-200 bg-white divide-y divide-gray-100">
                 {advancedModels.map((model) => (
                   <ModelCard
                     key={model.name}
@@ -597,7 +599,7 @@ function ModelCard({
   displayName,
   guidance
 }: ModelCardProps) {
-  const [isHovered, setIsHovered] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const isAvailable = model.status === 'Available';
   const isMissing = model.status === 'Missing';
@@ -613,52 +615,43 @@ function ModelCard({
       initial={{ opacity: 0, y: 5 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2 }}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      className={`
-        relative rounded-lg border-2 transition-all cursor-pointer
-        ${isSelected && isAvailable
-          ? 'border-blue-500 bg-blue-50'
-          : isAvailable
-            ? 'border-gray-200 hover:border-gray-300 bg-white'
-            : 'border-gray-200 bg-gray-50'
-        }
-        ${isAvailable ? '' : 'cursor-default'}
-      `}
-      onClick={() => {
-        if (isAvailable) onSelect();
-      }}
+      className={`${isSelected && isAvailable ? 'bg-gray-50' : isAvailable ? 'bg-white hover:bg-gray-50' : 'bg-gray-50/70'} transition-colors`}
     >
-      {/* Recommended Badge */}
-      {isRecommended && (
-        <div className="absolute -top-2 -right-2 bg-blue-600 text-white text-xs px-2 py-0.5 rounded-full font-medium">
-          Best
-        </div>
-      )}
-
-      <div className="p-3">
-        <div className="flex items-start justify-between mb-2">
-          <div className="flex-1">
-            {/* Model Name and Tagline */}
-            <div className="flex items-center gap-2 flex-wrap mb-2">
-              <span className="text-2xl">{getModelIcon(model.accuracy)}</span>
-              <h3 className="font-semibold text-gray-900">{displayName}</h3>
-              <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
+      <div className="flex min-h-14 items-center gap-3 px-3 py-2.5">
+        <Switch
+          checked={isSelected && isAvailable}
+          disabled={!isAvailable || isDownloading}
+          onCheckedChange={(checked) => {
+            if (checked && isAvailable) onSelect();
+          }}
+          aria-label={`Use ${displayName}`}
+        />
+        <button
+          type="button"
+          onClick={() => setIsExpanded((expanded) => !expanded)}
+          className="flex min-w-0 flex-1 items-center gap-2 text-left"
+          aria-expanded={isExpanded}
+        >
+          {isExpanded ? <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" /> : <ChevronRight className="h-4 w-4 shrink-0 text-gray-400" />}
+          <span className="text-lg leading-none">{getModelIcon(model.accuracy)}</span>
+          <span className="min-w-0 flex-1">
+            <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+              <span className="min-w-0 truncate text-[14px] font-semibold leading-5 text-gray-950">{displayName}</span>
+              {isRecommended && (
+                <span className="rounded-full bg-blue-600 px-1.5 py-0.5 text-[11px] font-medium text-white">
+                  Best
+                </span>
+              )}
+              <span className="rounded-full bg-blue-50 px-1.5 py-0.5 text-[11px] font-medium text-blue-700">
                 {guidance.bestLabel}
               </span>
-              <span className="text-sm text-gray-500">•</span>
-              <span className="text-sm text-gray-500">{getModelTagline(model.name, model.speed, model.accuracy)}</span>
               {isSelected && isAvailable && (
-                <motion.span
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  className="bg-blue-600 text-white px-2 py-0.5 rounded-full text-xs font-medium flex items-center gap-1"
-                >
-                  ✓
-                </motion.span>
+                <span className="rounded bg-blue-100 px-1.5 py-0.5 text-[11px] font-medium text-blue-700">
+                  Selected
+                </span>
               )}
               {isQuantizedModel(model.name) && (
-                <span className={`px-2 py-0.5 rounded-full text-xs ${getModelPerformanceBadge(model.name).color === 'green'
+                <span className={`rounded-full px-1.5 py-0.5 text-[11px] ${getModelPerformanceBadge(model.name).color === 'green'
                   ? 'bg-green-100 text-green-700'
                   : getModelPerformanceBadge(model.name).color === 'orange'
                     ? 'bg-orange-100 text-orange-700'
@@ -667,130 +660,118 @@ function ModelCard({
                   {getModelPerformanceBadge(model.name).label}
                 </span>
               )}
-            </div>
+            </span>
+            <span className="mt-0.5 block truncate text-[12px] text-gray-500">
+              {formatFileSize(model.size_mb)} · {model.accuracy} accuracy · {model.speed} processing
+            </span>
+          </span>
+        </button>
 
-            {/* Model Specs */}
-            <div className="flex items-center space-x-4 text-sm text-gray-600 ml-9 mt-1.5">
-              <span className="flex items-center space-x-1">
-                <span>📦</span>
-                <span>{formatFileSize(model.size_mb)}</span>
-              </span>
-              <span className="flex items-center space-x-1">
-                <span>🎯</span>
-                <span>{model.accuracy} accuracy</span>
-              </span>
-              <span className="flex items-center space-x-1">
-                <span>⚡</span>
-                <span>{model.speed} processing</span>
-              </span>
-            </div>
-            <div className="ml-9 mt-3 grid gap-3 text-xs text-gray-600 sm:grid-cols-2">
-              <div className="rounded-md bg-emerald-50 p-3 text-emerald-900">
-                <p className="font-semibold">Pros</p>
-                <ul className="mt-1 space-y-1">
-                  {guidance.pros.map((item) => (
-                    <li key={item}>+ {item}</li>
-                  ))}
-                </ul>
-              </div>
-              <div className="rounded-md bg-gray-50 p-3 text-gray-700">
-                <p className="font-semibold text-gray-900">Cons</p>
-                <ul className="mt-1 space-y-1">
-                  {guidance.cons.map((item) => (
-                    <li key={item}>- {item}</li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          </div>
+        <div className="flex shrink-0 items-center gap-1.5">
+          {isAvailable && (
+            <span className="flex items-center gap-1 text-[11px] font-medium text-green-600">
+              <span className="h-1.5 w-1.5 rounded-full bg-green-600" />
+              Ready
+            </span>
+          )}
 
-          {/* Status/Action */}
-          <div className="ml-4 flex items-center gap-2">
-            {isAvailable && (
-              <>
-                <div className="flex items-center gap-1.5 text-green-600">
-                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                  <span className="text-xs font-medium">Ready</span>
-                </div>
-                <AnimatePresence>
-                  {isHovered && (
-                    <motion.button
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.8 }}
-                      transition={{ duration: 0.15 }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDelete();
-                      }}
-                      className="text-gray-400 hover:text-red-600 transition-colors p-1"
-                      title="Delete model to free up space"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </motion.button>
-                  )}
-                </AnimatePresence>
-              </>
-            )}
+          {isMissing && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onDownload();
+              }}
+              className="flex h-8 items-center gap-1.5 rounded-md bg-gray-900 px-3 text-sm font-medium text-white transition-colors hover:bg-gray-800"
+            >
+              <Download className="h-4 w-4" />
+              Download
+            </button>
+          )}
 
-            {isMissing && (
+          {downloadProgress === null && isError && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onDownload();
+              }}
+              className="flex h-8 items-center gap-1.5 rounded-md bg-red-600 px-3 text-sm font-medium text-white transition-colors hover:bg-red-700"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Retry
+            </button>
+          )}
+
+          {isCorrupted && (
+            <>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete();
+                }}
+                className="h-8 rounded-md bg-orange-600 px-3 text-sm font-medium text-white transition-colors hover:bg-orange-700"
+              >
+                Delete
+              </button>
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   onDownload();
                 }}
-                className="bg-blue-600 text-white px-3 py-1.5 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors"
+                className="h-8 rounded-md bg-gray-900 px-3 text-sm font-medium text-white transition-colors hover:bg-gray-800"
               >
-                Download
+                Re-download
               </button>
-            )}
+            </>
+          )}
 
-            {downloadProgress === null && isError && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDownload();
-                }}
-                className="bg-red-600 text-white px-3 py-1.5 rounded-md text-sm font-medium hover:bg-red-700 transition-colors"
-              >
-                Retry
-              </button>
-            )}
+          {isAvailable && !isSelected && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete();
+              }}
+              className="flex h-8 w-8 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-gray-100 hover:text-red-600"
+              title="Delete model to free up space"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+      </div>
 
-            {isCorrupted && (
-              <div className="flex gap-2">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDelete();
-                  }}
-                  className="bg-orange-600 text-white px-3 py-1.5 rounded-md text-sm font-medium hover:bg-orange-700 transition-colors"
-                >
-                  Delete
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDownload();
-                  }}
-                  className="bg-blue-600 text-white px-3 py-1.5 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors"
-                >
-                  Re-download
-                </button>
-              </div>
-            )}
+      {isExpanded && (
+        <div className="border-t border-gray-100 px-4 pb-3 pt-3">
+          <p className="text-[13px] leading-5 text-gray-700">
+            {getModelTagline(model.name, model.speed, model.accuracy)}
+          </p>
+          <div className="mt-3 grid gap-3 text-xs text-gray-600 sm:grid-cols-2">
+            <div className="rounded-md bg-emerald-50 p-3 text-emerald-900">
+              <p className="font-semibold">Pros</p>
+              <ul className="mt-1 space-y-1">
+                {guidance.pros.map((item) => (
+                  <li key={item}>+ {item}</li>
+                ))}
+              </ul>
+            </div>
+            <div className="rounded-md bg-gray-50 p-3 text-gray-700">
+              <p className="font-semibold text-gray-900">Cons</p>
+              <ul className="mt-1 space-y-1">
+                {guidance.cons.map((item) => (
+                  <li key={item}>- {item}</li>
+                ))}
+              </ul>
+            </div>
           </div>
         </div>
+      )}
 
-        {/* Full-width Download Progress Bar - PROMINENT */}
         {downloadProgress !== null && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="mt-3 pt-3 border-t border-gray-200"
+            className="border-t border-gray-100 px-4 py-3"
           >
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
@@ -810,7 +791,7 @@ function ModelCard({
             </div>
             <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
               <motion.div
-                className="h-full bg-gradient-to-r from-blue-500 to-blue-600 rounded-full"
+                className="h-full bg-gray-900 rounded-full"
                 initial={{ width: 0 }}
                 animate={{ width: `${downloadProgress}%` }}
                 transition={{ duration: 0.3, ease: 'easeOut' }}
@@ -827,7 +808,6 @@ function ModelCard({
             </p>
           </motion.div>
         )}
-      </div>
     </motion.div>
   );
 }

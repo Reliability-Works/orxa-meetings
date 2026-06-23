@@ -17,7 +17,7 @@ import {
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Switch } from '@/components/ui/switch';
-import { Lock, Unlock, Eye, EyeOff, RefreshCw, CheckCircle2, XCircle, ChevronDown, ChevronUp, Download, ExternalLink, Check, ChevronsUpDown } from 'lucide-react';
+import { Lock, Unlock, Eye, EyeOff, RefreshCw, CheckCircle2, XCircle, ChevronDown, ChevronRight, ChevronUp, Download, ExternalLink, Check, ChevronsUpDown } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   Command,
@@ -235,6 +235,7 @@ export function ModelSettingsModal({
   const [customTopP, setCustomTopP] = useState<string>(modelConfig.topP?.toString() || '');
   const [isCustomOpenAIAdvancedOpen, setIsCustomOpenAIAdvancedOpen] = useState<boolean>(false);
   const [isTestingConnection, setIsTestingConnection] = useState<boolean>(false);
+  const [isProviderGuidanceOpen, setIsProviderGuidanceOpen] = useState<boolean>(false);
 
   // Combobox state
   const [modelComboboxOpen, setModelComboboxOpen] = useState<boolean>(false);
@@ -1026,31 +1027,45 @@ export function ModelSettingsModal({
               </Popover>
             )}
           </div>
-          <div className="mt-3 rounded-lg border border-gray-200 bg-white p-3 text-sm">
-            <div className="flex flex-wrap items-center gap-2">
-              {modelConfig.provider === 'builtin-ai' && (
-                <span className="rounded-full bg-blue-600 px-2 py-0.5 text-xs font-medium text-white">Best</span>
+          <div className="mt-3 overflow-hidden rounded-xl border border-gray-200 bg-white text-sm">
+            <button
+              type="button"
+              onClick={() => setIsProviderGuidanceOpen((open) => !open)}
+              className="flex min-h-11 w-full items-center gap-2 px-3 py-2 text-left hover:bg-gray-50"
+              aria-expanded={isProviderGuidanceOpen}
+            >
+              {isProviderGuidanceOpen ? (
+                <ChevronDown className="h-4 w-4 text-gray-400" />
+              ) : (
+                <ChevronRight className="h-4 w-4 text-gray-400" />
               )}
-              <span className="font-medium text-gray-900">{providerGuidance.label}</span>
-            </div>
-            <div className="mt-3 grid gap-3 text-xs text-gray-600 sm:grid-cols-2">
-              <div>
-                <p className="font-semibold text-gray-900">Pros</p>
-                <ul className="mt-1 space-y-1">
-                  {providerGuidance.pros.map((item) => (
-                    <li key={item}>+ {item}</li>
-                  ))}
-                </ul>
+              <span className="min-w-0 flex-1 truncate font-medium text-gray-900">{providerGuidance.label}</span>
+              {modelConfig.provider === 'builtin-ai' && (
+                <span className="rounded-full bg-blue-600 px-1.5 py-0.5 text-[11px] font-medium text-white">Best</span>
+              )}
+            </button>
+            {isProviderGuidanceOpen && (
+              <div className="border-t border-gray-100 px-3 pb-3 pt-3">
+                <div className="grid gap-3 text-xs text-gray-600 sm:grid-cols-2">
+                  <div className="rounded-md bg-emerald-50 p-3 text-emerald-900">
+                    <p className="font-semibold">Pros</p>
+                    <ul className="mt-1 space-y-1">
+                      {providerGuidance.pros.map((item) => (
+                        <li key={item}>+ {item}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div className="rounded-md bg-gray-50 p-3 text-gray-700">
+                    <p className="font-semibold text-gray-900">Cons</p>
+                    <ul className="mt-1 space-y-1">
+                      {providerGuidance.cons.map((item) => (
+                        <li key={item}>- {item}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
               </div>
-              <div>
-                <p className="font-semibold text-gray-900">Cons</p>
-                <ul className="mt-1 space-y-1">
-                  {providerGuidance.cons.map((item) => (
-                    <li key={item}>- {item}</li>
-                  ))}
-                </ul>
-              </div>
-            </div>
+            )}
           </div>
         </div>
 

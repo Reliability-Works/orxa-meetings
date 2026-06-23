@@ -5,6 +5,8 @@ import {
   ArrowLeft,
   ArrowRight,
   CalendarDays,
+  ChevronDown,
+  ChevronRight,
   Download,
   FileText,
   Home,
@@ -71,33 +73,45 @@ function relativeTime(value?: string | null) {
 
 function SidebarSectionHeader({
   title,
+  collapsed,
+  onToggle,
   onSearch,
   onAction,
   actionTitle,
   actionIcon,
 }: {
   title: string;
+  collapsed: boolean;
+  onToggle: () => void;
   onSearch: () => void;
   onAction: () => void;
   actionTitle: string;
   actionIcon: React.ReactNode;
 }) {
   return (
-    <div className="mb-1 mt-4 flex h-8 items-center justify-between px-3">
-      <h2 className="text-[15px] font-medium text-gray-400">{title}</h2>
+    <div className="mb-1 mt-3 flex h-7 items-center justify-between px-2">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="flex min-w-0 items-center gap-1 rounded-md py-1 pr-1 text-left text-[13px] font-medium text-gray-400 hover:text-gray-700"
+        aria-expanded={!collapsed}
+      >
+        {collapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+        <span className="truncate">{title}</span>
+      </button>
       <div className="flex items-center gap-1">
         <button
           type="button"
           onClick={onSearch}
-          className="flex h-7 w-7 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+          className="flex h-6 w-6 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-900"
           title={`Search ${title.toLowerCase()}`}
         >
-          <SearchIcon className="h-4 w-4" />
+          <SearchIcon className="h-3.5 w-3.5" />
         </button>
         <button
           type="button"
           onClick={onAction}
-          className="flex h-7 w-7 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+          className="flex h-6 w-6 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-900"
           title={actionTitle}
         >
           {actionIcon}
@@ -137,6 +151,8 @@ const Sidebar: React.FC = () => {
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
   const [chatSearchOpen, setChatSearchOpen] = useState(false);
   const [meetingSearchOpen, setMeetingSearchOpen] = useState(false);
+  const [chatsCollapsed, setChatsCollapsed] = useState(false);
+  const [meetingsCollapsed, setMeetingsCollapsed] = useState(false);
   const [globalSearchOpen, setGlobalSearchOpen] = useState(false);
   const [globalSearchQuery, setGlobalSearchQuery] = useState('');
   const [chatSearchQuery, setChatSearchQuery] = useState('');
@@ -467,11 +483,11 @@ const Sidebar: React.FC = () => {
               </button>
             </div>
 
-            <div className="space-y-2 px-2">
+            <div className="space-y-0.5 px-3">
               <button
                 type="button"
                 onClick={() => router.push('/')}
-                className={`flex h-9 w-full items-center gap-3 rounded-lg px-3 text-[15px] text-gray-800 ${pathname === '/' ? 'bg-gray-100' : 'hover:bg-gray-100'}`}
+                className={`flex h-8 w-full items-center gap-2 rounded-lg px-2 text-[14px] text-gray-800 ${pathname === '/' ? 'bg-gray-100' : 'hover:bg-gray-100'}`}
               >
                 <Home className="h-4 w-4" />
                 <span>Home</span>
@@ -479,7 +495,7 @@ const Sidebar: React.FC = () => {
               <button
                 type="button"
                 onClick={() => router.push('/calendar')}
-                className={`flex h-9 w-full items-center gap-3 rounded-lg px-3 text-[15px] text-gray-800 ${pathname === '/calendar' ? 'bg-gray-100' : 'hover:bg-gray-100'}`}
+                className={`flex h-8 w-full items-center gap-2 rounded-lg px-2 text-[14px] text-gray-800 ${pathname === '/calendar' ? 'bg-gray-100' : 'hover:bg-gray-100'}`}
               >
                 <CalendarDays className="h-4 w-4" />
                 <span>Calendar</span>
@@ -487,25 +503,27 @@ const Sidebar: React.FC = () => {
               <button
                 type="button"
                 onClick={openGlobalSearch}
-                className="flex h-9 w-full items-center gap-3 rounded-lg px-3 text-[15px] text-gray-800 hover:bg-gray-100"
+                className="flex h-8 w-full items-center gap-2 rounded-lg px-2 text-[14px] text-gray-800 hover:bg-gray-100"
               >
                 <SearchIcon className="h-4 w-4" />
                 <span>Search</span>
               </button>
             </div>
 
-            <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-2">
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-3">
               <SidebarSectionHeader
                 title="Chats"
+                collapsed={chatsCollapsed}
+                onToggle={() => setChatsCollapsed((collapsed) => !collapsed)}
                 onSearch={() => setChatSearchOpen((open) => !open)}
                 onAction={() => {
                   setActiveChatId(null);
                   router.push('/chat');
                 }}
                 actionTitle="New chat"
-                actionIcon={<Plus className="h-4 w-4" />}
+                actionIcon={<Plus className="h-3.5 w-3.5" />}
               />
-              {chatSearchOpen && (
+              {!chatsCollapsed && chatSearchOpen && (
                 <div className="mb-2 px-1">
                   <InputGroup>
                     <InputGroupInput
@@ -526,34 +544,38 @@ const Sidebar: React.FC = () => {
                   </InputGroup>
                 </div>
               )}
-              <div className="max-h-[34%] min-h-[120px] overflow-y-auto pr-1">
-                {filteredChats.map((session) => {
-                  const active = activeChatId === session.id;
-                  return (
-                    <button
-                      key={session.id}
-                      type="button"
-                      onClick={() => {
-                        setActiveChatId(session.id);
-                        router.push(`/chat?id=${session.id}`);
-                      }}
-                      className={`group flex h-9 w-full items-center gap-2 rounded-lg px-3 text-left text-[15px] ${active ? 'bg-gray-100 text-gray-950' : 'text-gray-800 hover:bg-gray-50'}`}
-                    >
-                      <span className="min-w-0 flex-1 truncate">{session.title}</span>
-                      <span className="shrink-0 text-sm text-gray-400">{relativeTime(session.updated_at)}</span>
-                    </button>
-                  );
-                })}
-              </div>
+              {!chatsCollapsed && (
+                <div className="max-h-[30%] min-h-[72px] overflow-y-auto pr-1">
+                  {filteredChats.map((session) => {
+                    const active = activeChatId === session.id;
+                    return (
+                      <button
+                        key={session.id}
+                        type="button"
+                        onClick={() => {
+                          setActiveChatId(session.id);
+                          router.push(`/chat?id=${session.id}`);
+                        }}
+                        className={`group flex h-8 w-full items-center gap-2 rounded-md px-2 text-left text-[14px] ${active ? 'bg-gray-100 text-gray-950' : 'text-gray-800 hover:bg-gray-50'}`}
+                      >
+                        <span className="min-w-0 flex-1 truncate">{session.title}</span>
+                        <span className="shrink-0 text-[13px] text-gray-400">{relativeTime(session.updated_at)}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
 
               <SidebarSectionHeader
                 title="Meetings"
+                collapsed={meetingsCollapsed}
+                onToggle={() => setMeetingsCollapsed((collapsed) => !collapsed)}
                 onSearch={() => setMeetingSearchOpen((open) => !open)}
                 onAction={handleRecordingToggle}
                 actionTitle={isRecording ? 'Recording in progress' : 'Start meeting recording'}
-                actionIcon={isRecording ? <Square className="h-4 w-4 text-red-500" /> : <Mic className="h-4 w-4" />}
+                actionIcon={isRecording ? <Square className="h-3.5 w-3.5 text-red-500" /> : <Mic className="h-3.5 w-3.5" />}
               />
-              {meetingSearchOpen && (
+              {!meetingsCollapsed && meetingSearchOpen && (
                 <div className="mb-2 px-1">
                   <InputGroup>
                     <InputGroupInput
@@ -574,50 +596,52 @@ const Sidebar: React.FC = () => {
                   </InputGroup>
                 </div>
               )}
-              <div className="min-h-0 flex-1 overflow-y-auto pr-1">
-                {filteredMeetings.map((meeting) => {
-                  const active = pathname?.includes('/meeting-details') && currentMeeting?.id === meeting.id;
-                  return (
-                    <div key={meeting.id} className="group">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setCurrentMeeting({ id: meeting.id, title: meeting.title });
-                          router.push(`/meeting-details?id=${meeting.id}`);
-                        }}
-                        className={`flex min-h-9 w-full items-center gap-2 rounded-lg px-3 py-1.5 text-left text-[15px] ${active ? 'bg-gray-100 text-gray-950' : 'text-gray-800 hover:bg-gray-50'}`}
-                      >
-                        <FileText className="h-4 w-4 shrink-0 text-gray-500" />
-                        <span className="min-w-0 flex-1 truncate">{meeting.title}</span>
-                        <span className="hidden shrink-0 items-center gap-0.5 group-hover:flex">
-                          <span
-                            role="button"
-                            tabIndex={0}
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              handleEditStart(meeting.id, meeting.title);
-                            }}
-                            className="rounded-md p-1 hover:bg-blue-50 hover:text-blue-600"
-                          >
-                            <Pencil className="h-3.5 w-3.5" />
+              {!meetingsCollapsed && (
+                <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+                  {filteredMeetings.map((meeting) => {
+                    const active = pathname?.includes('/meeting-details') && currentMeeting?.id === meeting.id;
+                    return (
+                      <div key={meeting.id} className="group">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCurrentMeeting({ id: meeting.id, title: meeting.title });
+                            router.push(`/meeting-details?id=${meeting.id}`);
+                          }}
+                          className={`flex min-h-8 w-full items-center gap-2 rounded-md px-2 py-1 text-left text-[14px] leading-5 ${active ? 'bg-gray-100 text-gray-950' : 'text-gray-800 hover:bg-gray-50'}`}
+                        >
+                          <FileText className="h-3.5 w-3.5 shrink-0 text-gray-500" />
+                          <span className="min-w-0 flex-1 truncate">{meeting.title}</span>
+                          <span className="hidden shrink-0 items-center gap-0.5 group-hover:flex">
+                            <span
+                              role="button"
+                              tabIndex={0}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                handleEditStart(meeting.id, meeting.title);
+                              }}
+                              className="rounded-md p-1 hover:bg-blue-50 hover:text-blue-600"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </span>
+                            <span
+                              role="button"
+                              tabIndex={0}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                setDeleteModalState({ isOpen: true, itemId: meeting.id });
+                              }}
+                              className="rounded-md p-1 hover:bg-red-50 hover:text-red-600"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </span>
                           </span>
-                          <span
-                            role="button"
-                            tabIndex={0}
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              setDeleteModalState({ isOpen: true, itemId: meeting.id });
-                            }}
-                            className="rounded-md p-1 hover:bg-red-50 hover:text-red-600"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </span>
-                        </span>
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             <div className="shrink-0 border-t border-gray-100 p-2">
