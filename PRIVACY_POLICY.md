@@ -1,127 +1,65 @@
-# Orxa Privacy Policy
+# Orxa Meetings Privacy Policy
 
-*Last updated: [Current Date]*
+Last updated: 2026-06-23
 
-## Our Privacy-First Commitment
+Orxa Meetings is designed around local ownership of meeting data. Recordings, transcripts, summaries, chat history, MCP data, and Calendar-derived meeting links are stored on the user's Mac unless the user explicitly configures an external model provider.
 
-Orxa is built on the principle that your meeting data should remain private and under your control. This privacy policy explains how we handle data in our open-source meeting assistant.
+## Local Data
 
-## Data Processing Philosophy
+Orxa stores local application data under the app data directory for `com.orxa.ai`. This can include:
 
-### Local-First Processing
-- **Meeting transcription**: Processed entirely on your device using local Whisper models
-- **Audio recordings**: Never transmitted to external servers
-- **Meeting content**: Remains on your infrastructure
-- **AI summaries**: Generated locally or through your chosen LLM provider
+- audio recordings
+- transcript segments
+- summaries and notes
+- action items and work context packs
+- chat sessions
+- model configuration
+- calendar auto-start preferences
 
-### Your Data Ownership
-- You own all meeting data, transcripts, and recordings
-- Data is stored locally on your device
-- No vendor lock-in - export your data anytime
-- Complete control over data retention and deletion
+The app does not upload raw meeting content by default.
 
-## Usage Analytics
+## Calendar Access
 
-### What We Collect
-Usage analytics is optional and off by default. When you choose to enable it, Orxa collects minimal, anonymized usage data:
+When the user grants macOS Calendar permission, Orxa reads event titles, calendars, and start/end times so it can:
 
-**Application Usage:**
-- Feature usage patterns (which tools you use most)
-- Session duration and frequency
-- Performance metrics (transcription success rates, error frequencies)
-- UI interaction patterns (button clicks, navigation flows)
+- show real Calendar events in the Calendar view
+- auto-start recording when configured
+- attach overlapping Orxa recordings to matching events
 
-**Technical Metrics:**
-- Application version and platform information
-- Error logs and crash reports (anonymized)
-- Performance benchmarks (processing times, resource usage)
+Calendar data is read locally through EventKit and is not sent to Reliability Works.
 
-### What We DON'T Collect
-We never collect:
-- ❌ Meeting content, transcripts, or recordings
-- ❌ Personal information or identifiable data
-- ❌ File names, meeting titles, or metadata
-- ❌ Audio data or voice patterns
-- ❌ Participant names or contact information
-- ❌ LLM conversations or AI-generated content
+## Model Providers
 
-### Why We Collect This Data
-When enabled, analytics helps us with:
-- **Product Quality**: Identifying and fixing bugs that impact user experience
-- **Performance Optimization**: Understanding resource usage and system bottlenecks
-- **Security**: Detecting potential security issues and vulnerabilities
-- **Feature Development**: Making data-driven decisions about new features
-- **Open Source Sustainability**: Ensuring the project meets user needs effectively
+Local transcription and local summary models run on the user's machine. If the user configures an external provider, such as Anthropic, Groq, OpenRouter, OpenAI-compatible endpoints, or another API, meeting content sent to that provider is governed by that provider's terms and privacy policy.
 
-### Analytics Implementation
-- **Provider**: PostHog (privacy-focused analytics platform)
-- **Default**: Off by default; analytics starts only after you enable it in settings
-- **Anonymization**: All data linked to generated user IDs only - no personal identification
-- **Data retention**: 12 months maximum, then automatically deleted
-- **Encryption**: All data encrypted in transit using industry-standard protocols
-- **Location**: Data processed in accordance with PostHog's privacy policy
-- **Access Control**: Strictly limited to core development team members
+## Analytics
 
-## Third-Party Services
+Usage analytics is optional and off by default. When enabled, Orxa may collect product and performance events such as feature usage, app version, platform, and anonymized error categories.
 
-### LLM Providers (Optional)
-If you choose to use external LLM providers:
-- **Anthropic Claude**: Subject to Anthropic's privacy policy
-- **Groq**: Subject to Groq's privacy policy
-- **Local Ollama**: Processed entirely on your device
+Analytics must not include:
 
-### Analytics Service (Optional)
-- **PostHog**: Used for usage analytics when enabled
-- **Data**: Only anonymized usage patterns, no meeting content
-- **Control**: Completely optional, off by default, and user-controlled
+- meeting audio
+- transcript text
+- meeting titles
+- participant names
+- summaries
+- chat content
+- API keys
 
-## Your Privacy Rights
+## MCP Access
 
-### Data Control
-- **Access**: View all data stored locally on your device
-- **Export**: Export your data in standard formats
-- **Delete**: Remove all data from your device
+The MCP server is a local process that exposes meeting data to tools configured by the user. It does not open a network service by default and does not send data anywhere on its own. Any agent connected to the MCP server should be treated as having access to the local meeting database configured for that server.
 
+## Updates
 
-### Analytics Transparency
-- **Open source**: Full analytics implementation available for review in our source code
-- **Opt-in**: New and existing installs have analytics disabled until you turn it on
-- **Questions**: Contact us for any analytics-related concerns
+The app checks GitHub Releases for update metadata at:
 
-## Data Security
+```text
+https://github.com/Reliability-Works/orxa-meetings/releases/latest/download/latest.json
+```
 
-### Local Security
-- Data encrypted at rest using your device's security features
-- No transmission of sensitive meeting data
-- Standard file system permissions protect your data
+Update checks include the app version and platform information needed by the Tauri updater.
 
-### Open Source Transparency
-- Full source code available for security review
-- Community-audited privacy implementations
-- No hidden data collection or tracking
+## Contact
 
-## Changes to This Policy
-
-We will notify users of any material changes to this privacy policy through:
-- Updates to this document in our GitHub repository
-- Release notes for application updates
-- In-app notifications for significant privacy changes
-
-## Contact Us
-
-For privacy-related questions or concerns:
-- **GitHub Issues**: [Create an issue](https://github.com/Zackriya-Solutions/meeting-minutes/issues)
-- **Email**: [Contact form](https://www.zackriya.com/service-interest-form/)
-- **Community**: [Discord](https://discord.gg/crRymMQBFH)
-
-## Open Source Commitment
-
-As an open-source project under MIT license, you can:
-- Review our complete privacy implementation
-- Modify data handling to meet your requirements
-- Deploy entirely on your own infrastructure
-- Contribute to privacy improvements
-
----
-
-*This privacy policy applies to Orxa v0.0.5 and later versions. For enterprise deployments, additional privacy controls may be available.*
+Open an issue at [Reliability-Works/orxa-meetings](https://github.com/Reliability-Works/orxa-meetings/issues) for privacy questions or corrections.

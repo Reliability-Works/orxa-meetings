@@ -231,4 +231,4 @@ From [Apple Technical Note TN2321](https://developer.apple.com/library/archive/t
 ---
 
 **Last Updated**: October 10, 2025
-**Applies To**: Orxa v0.0.5+ on macOS
+**Applies To**: Orxa v0.0.1+ on macOS

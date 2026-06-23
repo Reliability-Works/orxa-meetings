@@ -1,6 +1,10 @@
 MIT License
 
 Copyright (c) 2024 Zackriya Solutions
+Copyright (c) 2026 Reliability Works
+
+This project is derived from the original Meetily / meeting-minutes project by
+Zackriya Solutions. The original MIT license notice is retained above.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

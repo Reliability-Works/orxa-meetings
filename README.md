@@ -1,274 +1,111 @@
-<div align="center" style="border-bottom: none">
-    <h1>
-        Privacy-First AI Meeting Assistant
-    </h1>
-    <a href="https://trendshift.io/repositories/21958" target="_blank"><img src="https://trendshift.io/api/badge/repositories/21958" alt="Zackriya-Solutions%2Forxa | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
-    <br>
-    <br>
-    <a href="https://github.com/Zackriya-Solutions/meeting-minutes/releases/"><img src="https://img.shields.io/badge/Pre_Release-Link-brightgreen" alt="Pre-Release"></a>
-    <a href="https://github.com/Zackriya-Solutions/meeting-minutes/releases"><img alt="GitHub Repo stars" src="https://img.shields.io/github/stars/zackriya-solutions/meeting-minutes?style=flat">
-</a>
- <a href="https://github.com/Zackriya-Solutions/meeting-minutes/releases"> <img alt="GitHub Downloads (all assets, all releases)" src="https://img.shields.io/github/downloads/zackriya-solutions/meeting-minutes/total?style=plastic"> </a>
-    <a href="https://github.com/Zackriya-Solutions/meeting-minutes/releases"><img src="https://img.shields.io/badge/License-MIT-blue" alt="License"></a>
-    <a href="https://github.com/Zackriya-Solutions/meeting-minutes/releases"><img src="https://img.shields.io/badge/Supported_OS-macOS,_Windows-white" alt="Supported OS"></a>
-    <a href="https://github.com/Zackriya-Solutions/meeting-minutes/releases"><img alt="GitHub Tag" src="https://img.shields.io/github/v/tag/zackriya-solutions/meeting-minutes?include_prereleases&color=yellow">
-</a>
-    <br>
-    <h3>
-    <br>
-    Open Source • Privacy-First • Enterprise-Ready
-    </h3>
-    <p align="center">
-    Get latest <a href="https://www.zackriya.com/orxa-subscribe/"><b>Product updates</b></a> <br><br>
-    <a href="https://orxa.ai"><b>Website</b></a> •
-    <a href="https://www.linkedin.com/company/106363062/"><b>LinkedIn</b></a> •
-    <a href="https://discord.gg/crRymMQBFH"><b>Orxa Discord</b></a> •
-    <a href="https://discord.com/invite/vCFJvN4BwJ"><b>Privacy-First AI</b></a> •
-    <a href="https://www.reddit.com/r/orxa/"><b>Reddit</b></a>
-</p>
-    <p align="center">
+# Orxa Meetings
 
-A privacy-first AI meeting assistant that captures, transcribes, and summarizes meetings entirely on your infrastructure. Built by expert AI engineers passionate about data sovereignty and open source solutions. Perfect for enterprises that need advanced meeting intelligence without compromising on privacy, compliance, or control.
+Orxa Meetings is a local-first macOS meeting assistant for recording, transcribing, summarizing, and handing meeting context to coding agents and other staff workflows.
 
-</p>
+The app is based on the original open-source Meetily project by Zackriya Solutions. Orxa keeps the local privacy model and extends it with agent access, persistent chat, work extraction, calendar-aware meeting history, and a Reliability Works release/update flow.
 
-<p align="center">
-    <img src="docs/orxa_demo.gif" width="650" alt="Orxa Demo" />
-    <br>
-    <a href="https://youtu.be/6FnhSC_eSz8">View full Demo Video</a>
-</p>
+## What It Does
 
-</div>
+- Records microphone and system audio locally.
+- Transcribes meetings during the call with downloadable local transcription models.
+- Detects when the Mac owner's microphone is active and labels those transcript lines as `Me`.
+- Generates expansive summaries, decisions, risks, open questions, and action items.
+- Opens a summary modal after a recording stops so the next step is obvious.
+- Exposes a local MCP server so Codex, Claude, and other agents can inspect transcripts, summaries, notes, and work items.
+- Supports a persistent chat agent for asking questions across meetings.
+- Shows macOS Calendar events and attaches overlapping Orxa recordings to the matching event.
+- Publishes signed updater artifacts through GitHub Releases.
 
----
+## Calendar Linking
 
-> **Orxa PRO Upgrade Offer** - Orxa PRO is available for users who need enhanced accuracy, advanced exports, custom summary workflows, and team-ready features. Use coupon code **LAUNCH20** for **20% off** until the next Orxa Community Edition release. Speaker diarization is also planned for PRO in mid-June. [Explore Orxa PRO →](https://orxa.ai/pro/)
+Orxa reads the user's macOS Calendar with EventKit after permission is granted. The Calendar page shows real Calendar events and local Orxa recordings in one view.
 
----
+When a recording overlaps a Calendar event, Orxa displays that transcript under the event. If there is no matching event, the recording remains a standalone meeting, which preserves the current ad hoc transcription flow.
 
-<details>
-<summary>Table of Contents</summary>
+Calendar data stays local. Orxa does not upload event details.
 
-- [Introduction](#introduction)
-- [Why Orxa?](#why-orxa)
-- [Features](#features)
-- [Installation](#installation)
-- [Key Features in Action](#key-features-in-action)
-- [System Architecture](#system-architecture)
-- [For Developers](#for-developers)
-- [Orxa PRO](#orxa-pro)
-- [Contributing](#contributing)
-- [License](#license)
+## Agent Access
 
-</details>
+The bundled MCP server lives in `mcp/orxa_mcp.py` and reads the local Orxa SQLite database. It provides tools for:
 
-## Introduction
+- listing meetings
+- reading raw transcript segments
+- reading summaries and meeting notes
+- extracting and updating action items
+- trimming transcript tails after a confirmed cutoff
+- preparing role-specific context packs
 
-Orxa is a privacy-first AI meeting assistant that runs entirely on your local machine. It captures your meetings, transcribes them in real-time, and generates summaries, all without sending any data to the cloud. This makes it the perfect solution for professionals and enterprises who need to maintain complete control over their sensitive information.
+See [docs/MCP_SERVER.md](docs/MCP_SERVER.md) for setup.
 
-## Why Orxa?
+## Install And Update
 
-While there are many meeting transcription tools available, this solution stands out by offering:
+Orxa is distributed from [Reliability-Works/orxa-meetings releases](https://github.com/Reliability-Works/orxa-meetings/releases).
 
-- **Privacy First:** All processing happens locally on your device.
-- **Cost-Effective:** Uses open-source AI models instead of expensive APIs.
-- **Flexible:** Works offline and supports multiple meeting platforms.
-- **Customizable:** Self-host and modify for your specific needs.
+The app checks:
 
-<details>
-<summary>The Privacy Problem</summary>
-
-Meeting AI tools create significant privacy and compliance risks across all sectors:
-
-- **$4.4M average cost per data breach** (IBM 2024)
-- **€5.88 billion in GDPR fines** issued by 2025
-- **400+ unlawful recording cases** filed in California this year
-
-Whether you're a defense consultant, enterprise executive, legal professional, or healthcare provider, your sensitive discussions shouldn't live on servers you don't control. Cloud meeting tools promise convenience but deliver privacy nightmares with unclear data storage practices and potential unauthorized access.
-
-**Orxa solves this:** Complete data sovereignty on your infrastructure, zero vendor lock-in, and full control over your sensitive conversations.
-
-</details>
-
-## Features
-
-- **Local First:** All processing is done on your machine. No data ever leaves your computer.
-- **Real-time Transcription:** Get a live transcript of your meeting as it happens.
-- **Local Speaker Labels:** Detect when the Mac's microphone is the active speaker and mark those transcript lines as `Me`.
-- **AI-Powered Summaries:** Generate summaries of your meetings using powerful language models.
-- **Multi-Platform:** Works on macOS, Windows, and Linux.
-- **Open Source:** Orxa is open source and free to use.
-- **Flexible AI Provider Support:** Choose from Ollama (local), Claude, Groq, OpenRouter, or use your own OpenAI-compatible endpoint.
-
-## Installation
-
-### 🪟 **Windows**
-
-1. Download the latest `x64-setup.exe` from [Releases](https://github.com/Zackriya-Solutions/meeting-minutes/releases/latest)
-2. Run the installer
-
-### 🍎 **macOS**
-
-1. Download `orxa_0.4.0_aarch64.dmg` from [Releases](https://github.com/Zackriya-Solutions/meeting-minutes/releases/latest)
-2. Open the downloaded `.dmg` file
-3. Drag **Orxa** to your Applications folder
-4. Open **Orxa** from Applications folder
-
-### 🐧 **Linux**
-
-Build from source following our detailed guides:
-
-- [Building on Linux](docs/building_in_linux.md)
-- [General Build Instructions](docs/BUILDING.md)
-
-**Quick start:**
-
-```bash
-git clone https://github.com/Zackriya-Solutions/meeting-minutes
-cd meeting-minutes/frontend
-pnpm install
-./build-gpu.sh
+```text
+https://github.com/Reliability-Works/orxa-meetings/releases/latest/download/latest.json
 ```
 
-## Key Features in Action
+When an update is available, the left sidebar shows an update notice above the bottom icons. Starting the update displays download progress and relaunches the app after installation.
 
-### 🎯 Local Transcription
+Updater signing requires these GitHub Actions secrets:
 
-Transcribe meetings entirely on your device using **Whisper** or **Parakeet** models. No cloud required.
+- `TAURI_SIGNING_PRIVATE_KEY`
+- `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
 
-<p align="center">
-    <img src="docs/home.png" width="650" style="border-radius: 10px;" alt="Orxa Demo" />
-</p>
+macOS Developer ID distribution additionally uses the Apple signing and notarization secrets referenced in `.github/workflows/build.yml`.
 
-### 📥 Import & Enhance `Beta`
+## Build Locally
 
-Import existing audio files to generate transcripts, or enhance to re-transcribe any recorded meeting with a different model or language, all processed locally.
+Requirements:
 
-> Contributed by [Jeremi Joslin](https://github.com/jeremi), improved by [Vishnu P S](https://github.com/p-s-vishnu) and [Mohammed Safvan](https://github.com/mohammedsafvan)
+- Node.js 20
+- pnpm 8+
+- Rust stable
+- Xcode command line tools on macOS
 
-<p align="center">
-    <img src="docs/orxa-export.gif" width="650" style="border-radius: 10px;" alt="Import and Enhance" />
-</p>
+```bash
+cd frontend
+pnpm install
+pnpm build
+pnpm tauri:build
+```
 
-### 🤖 AI-Powered Summaries
+For a local app install on macOS:
 
-Generate meeting summaries with your choice of AI provider. **Ollama** (local) is recommended, with support for Claude, Groq, OpenRouter, and OpenAI.
+```bash
+cd frontend
+./install-macos.sh --skip-build --no-backup
+```
 
-<p align="center">
-    <img src="docs/summary.png" width="650" style="border-radius: 10px;" alt="Summary generation" />
-</p>
+## Release
 
-<p align="center">
-    <img src="docs/editor1.png" width="650" style="border-radius: 10px;" alt="Editor Summary generation" />
-</p>
+Release builds are created by `.github/workflows/release.yml`.
 
-### 🔒 Privacy-First Design
+Manual release:
 
-All data stays on your machine. Transcription models, recordings, and transcripts are stored locally.
+1. Set `frontend/src-tauri/tauri.conf.json` and `frontend/package.json` to the desired version.
+2. Push to the default branch.
+3. Run the `Release` workflow, or push a `vX.Y.Z` tag.
+4. Publish the draft release after checking the generated assets and `latest.json`.
 
-<p align="center">
-    <img src="docs/settings.png" width="650" style="border-radius: 10px;" alt="Local Transcription and storage" />
-</p>
+The current app version has been reset to `0.0.1` for the new Orxa Meetings repository.
 
-### 🔌 Local MCP Access
+## Documentation
 
-Agents can inspect local meetings through an MCP server for raw transcripts, local `Me` speaker labels, summaries, notes, and action items. The MCP server also supports confirmed cleanup of transcript tails recorded after a meeting ended. See [Orxa MCP Server](docs/MCP_SERVER.md) for setup.
+- [Architecture](docs/architecture.md)
+- [Building](docs/BUILDING.md)
+- [MCP Server](docs/MCP_SERVER.md)
+- [GPU Acceleration](docs/GPU_ACCELERATION.md)
+- [Privacy Policy](PRIVACY_POLICY.md)
 
-### 🌐 Custom OpenAI Endpoint Support
+## Attribution
 
-Use your own OpenAI-compatible endpoint for AI summaries. Perfect for organizations with custom AI infrastructure or preferred providers.
+Orxa Meetings is derived from Meetily / meeting-minutes by Zackriya Solutions. The original project is MIT licensed, and the original copyright notice is retained in [LICENSE.md](LICENSE.md).
 
-<p align="center">
-    <img src="docs/custom.png" width="650" style="border-radius: 10px;" alt="Custom OpenAI Endpoint Configuration" />
-</p>
-
-### 🎙️ Professional Audio Mixing
-
-Capture microphone and system audio simultaneously with intelligent ducking and clipping prevention.
-
-<p align="center">
-    <img src="docs/audio.png" width="650" style="border-radius: 10px;" alt="Device selection" />
-</p>
-
-### ⚡ GPU Acceleration
-
-Built-in support for hardware acceleration across platforms:
-
-- **macOS**: Apple Silicon (Metal) + CoreML
-- **Windows/Linux**: NVIDIA (CUDA), AMD/Intel (Vulkan)
-
-Automatically enabled at build time - no configuration needed.
-
-## System Architecture
-
-Orxa is a single, self-contained application built with [Tauri](https://tauri.app/). It uses a Rust-based backend to handle all the core logic, and a Next.js frontend for the user interface.
-
-For more details, see the [Architecture documentation](docs/architecture.md).
-
-## For Developers
-
-If you want to contribute to Orxa or build it from source, you'll need to have Rust and Node.js installed. For detailed build instructions, please see the [Building from Source guide](docs/BUILDING.md).
-
-## Orxa Pro
-
-<p align="center">
-    <img src="docs/pv2.1.png" width="650" style="border-radius: 10px;" alt="Upcoming version" />
-</p>
-
-**Orxa PRO** is a professional-grade solution with enhanced accuracy and advanced features for serious users and teams. Built on a different codebase with superior transcription models and enterprise-ready capabilities.
-
-### Community Thank-You Offer
-
-Orxa Community Edition will remain free and open source. PRO exists for users and teams who want a more advanced meeting workflow, including higher transcription accuracy, custom summary templates, advanced exports, auto-meeting detection, and self-hosted deployment options.
-
-For the community that helped Orxa grow, we are making the upgrade easier: use coupon code **LAUNCH20** for **20% off Orxa PRO** until the next Orxa Community Edition release.
-
-Speaker diarization is planned for mid-June, bringing automatic speaker separation to PRO meetings.
-
-### Key Advantages Over Community Edition:
-
-- **Enhanced Accuracy**: Superior transcription models for professional-grade accuracy
-- **Custom Summary Templates**: Tailor summaries to your specific workflow and needs
-- **Advanced Export Options**: PDF, DOCX, and Markdown exports with formatting
-- **Auto-detect and Join Meetings**: Automatic meeting detection and joining
-- **Speaker Identification**: Distinguish between speakers automatically *(Coming Soon)*
-- **Chat with Meetings**: AI-powered meeting insights and queries *(Coming Soon)*
-- **Calendar Integration**: Seamless integration with your calendar *(Coming Soon)*
-- **Self-Hosted Deployment**: Deploy on your own infrastructure for teams
-- **GDPR Compliance Built-In**: Privacy by design architecture with complete audit trails
-- **Priority Support**: Dedicated support for PRO users
-
-### Who is PRO for?
-
-- **Professionals** who need the highest accuracy for critical meetings
-- **Teams and organizations** (2-100 users) requiring self-hosted deployment
-- **Power users** who need advanced export formats and custom workflows
-- **Compliance-focused organizations** requiring GDPR readiness
-
-> **Note:** Orxa Community Edition remains **free & open source forever** with local transcription, AI summaries, and core features. PRO is a separate professional solution for users who need enhanced accuracy and advanced capabilities.
-
-For organizations needing 100+ users or managed compliance solutions, explore [Orxa Enterprise](https://orxa.ai/enterprise/).
-
-**Learn more about pricing and features:** [https://orxa.ai/pro/](https://orxa.ai/pro/)
-
-## Contributing
-
-We welcome contributions from the community! If you have any questions or suggestions, please open an issue or submit a pull request. Please follow the established project structure and guidelines. For more details, refer to the [CONTRIBUTING.md](CONTRIBUTING.md) file.
-
-Thanks for all the contributions. Our community is what makes this project possible.
+Substantial Orxa-specific additions include the Orxa app shell, local agent workflows, MCP tooling, calendar linking, work extraction, update UX, and Reliability Works release automation.
 
 ## License
 
-MIT License - Feel free to use this project for your own purposes.
-
-## Acknowledgments
-
-- We borrowed some code from [Whisper.cpp](https://github.com/ggerganov/whisper.cpp).
-- We borrowed some code from [Screenpipe](https://github.com/mediar-ai/screenpipe).
-- We borrowed some code from [transcribe-rs](https://crates.io/crates/transcribe-rs).
-- Thanks to **NVIDIA** for developing the **Parakeet** model.
-- Thanks to [istupakov](https://huggingface.co/istupakov/parakeet-tdt-0.6b-v3-onnx) for providing the **ONNX conversion** of the Parakeet model.
-
-## Star History
-
-[![Star History Chart](https://api.star-history.com/chart?repos=Zackriya-Solutions/orxa&type=date&legend=top-left)](https://www.star-history.com/?repos=Zackriya-Solutions%2Forxa&type=date&legend=bottom-right)
+MIT. See [LICENSE.md](LICENSE.md).

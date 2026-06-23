@@ -1,152 +1,47 @@
-# Contributing to Meeting Minutes Updates
+# Contributing To Orxa Meetings
 
-Thank you for your interest in contributing to Orxa! This document provides guidelines and instructions for contributing to this project.
+Thanks for improving Orxa Meetings. This repository is the Reliability Works continuation of the original Meetily codebase, with a focus on local meeting capture, agent workflows, and macOS-first release quality.
 
-## Development Workflow
+## Development Flow
 
-### Branch Strategy
+Use small branches and small commits. Keep changes scoped to one behavior where possible.
 
-- `main` - Production branch
-- `devtest` - Development and testing branch
-- Feature branches should be created from `devtest`
-
-### Getting Started
-
-1. Fork the repository
-2. Clone your fork:
-   ```bash
-   git clone https://github.com/YOUR_USERNAME/meeting-minutes.git
-   ```
-3. Add the original repository as upstream:
-   ```bash
-   git remote add upstream https://github.com/Zackriya-Solutions/meeting-minutes.git
-   ```
-4. Create a new branch from `devtest`:
-   ```bash
-   git checkout devtest
-   git pull upstream devtest
-   git checkout -b feature/your-feature-name
-   ```
-
-### Development Process
-
-1. Always start your work from the `devtest` branch
-2. Create a new branch for each feature/fix
-3. Make your changes
-4. Write or update tests as needed
-5. Ensure all tests pass
-6. Update documentation if necessary
-
-### Issue Creation
-
-Before starting work on a new feature or bug fix:
-
-1. Check if an issue already exists
-2. If not, create a new issue with:
-   - Clear title
-   - Detailed description
-   - Steps to reproduce (for bugs)
-   - Expected behavior
-   - Screenshots (if applicable)
-   - Labels (bug, enhancement, etc.)
-
-### Pull Request Process
-
-1. Create a PR from your feature branch to `devtest`
-2. Link the PR to the related issue using the issue number (e.g., "Fixes #123")
-3. Fill out the PR template completely
-4. Ensure CI checks pass
-5. Request review from at least one maintainer
-6. Address any review comments
-7. Once approved, the PR will be merged into `devtest`
-
-### PR Template
-
-```markdown
-## Description
-[Describe your changes here]
-
-## Related Issue
-[Link to the issue this PR addresses]
-
-## Type of Change
-- [ ] Bug fix
-- [ ] New feature
-- [ ] Documentation update
-- [ ] Performance improvement
-- [ ] Code refactoring
-- [ ] Other (please describe)
-
-## Testing
-- [ ] Unit tests added/updated
-- [ ] Manual testing performed
-- [ ] All tests pass
-
-## Documentation
-- [ ] Documentation updated
-- [ ] No documentation needed
-
-## Checklist
-- [ ] Code follows project style
-- [ ] Self-reviewed the code
-- [ ] Added comments for complex code
-- [ ] Updated README if needed
+```bash
+git clone https://github.com/Reliability-Works/orxa-meetings.git
+cd orxa-meetings
+cd frontend
+pnpm install
+pnpm build
 ```
 
-## Code Style
+For local desktop development:
 
-- Follow the existing code style
-- Use meaningful variable and function names
-- Add comments for complex logic
-- Keep functions small and focused
-- Write clear commit messages
-
-## Commit Message Format
-
-```
-<type>(<scope>): <subject>
-
-<body>
-
-<footer>
+```bash
+cd frontend
+pnpm tauri:dev
 ```
 
-Types:
-- feat: New feature
-- fix: Bug fix
-- docs: Documentation changes
-- style: Code style changes
-- refactor: Code refactoring
-- test: Adding/updating tests
-- chore: Maintenance tasks
+For a production bundle:
 
-## Testing
+```bash
+cd frontend
+pnpm tauri:build
+```
 
-- Write unit tests for new features
-- Update existing tests when modifying code
-- Ensure all tests pass before submitting PR
-- Include integration tests for complex features
+## Pull Requests
 
-## Documentation
+- Explain the user-visible behavior you changed.
+- Include screenshots for UI changes.
+- Run the relevant frontend and Tauri checks.
+- Keep generated model files and local app data out of commits.
+- Update docs when behavior, setup, release, or MCP tooling changes.
 
-- Update documentation for new features
-- Keep README up to date
-- Document API changes
-- Add comments for complex code
+## Release Work
 
-## Review Process
+Release artifacts are produced through `.github/workflows/release.yml`. The updater manifest is published as `latest.json` on the latest GitHub release.
 
-1. PRs require at least one review
-2. Address all review comments
-3. Keep the PR up to date with `devtest`
-4. Squash commits if requested
-
-## Getting Help
-
-- Create an issue for questions
-- Join our community chat
-- Contact maintainers
+Do not commit updater private keys, Apple certificates, API keys, local databases, recordings, or transcripts.
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under the project's MIT License. 
+By contributing, you agree that your contributions are licensed under the MIT license in this repository.
