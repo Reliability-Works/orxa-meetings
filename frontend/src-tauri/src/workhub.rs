@@ -50,6 +50,56 @@ pub struct WorkPreMeetingBrief {
     pub updated_at: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AgentHandoffPacket {
+    pub meeting_id: String,
+    pub meeting_title: String,
+    pub target: String,
+    pub role_scope: String,
+    pub markdown: String,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WorkBriefing {
+    pub kind: String,
+    pub title: String,
+    pub generated_at: String,
+    pub meeting_count: usize,
+    pub item_count: usize,
+    pub markdown: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TranscriptRepairSegment {
+    pub id: String,
+    pub text: String,
+    pub timestamp: String,
+    pub audio_start_time: Option<f64>,
+    pub audio_end_time: Option<f64>,
+    pub reason: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TranscriptRepairSuggestion {
+    pub meeting_id: String,
+    pub meeting_title: String,
+    pub suggested_cutoff_seconds: Option<f64>,
+    pub suggested_trim_reason: Option<String>,
+    pub weak_segments: Vec<TranscriptRepairSegment>,
+    pub markdown: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AgentToolCapability {
+    pub id: String,
+    pub label: String,
+    pub scope: String,
+    pub access: String,
+    pub enabled_by_default: bool,
+    pub description: String,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct WorkHubOverview {
     pub open_actions: i64,
@@ -165,7 +215,13 @@ pub async fn workhub_update_item_status(
     agent_notes: Option<String>,
     state: tauri::State<'_, AppState>,
 ) -> Result<WorkItem, String> {
-    update_item_status(state.db_manager.pool(), &item_id, &status, agent_notes.as_deref()).await
+    update_item_status(
+        state.db_manager.pool(),
+        &item_id,
+        &status,
+        agent_notes.as_deref(),
+    )
+    .await
 }
 
 #[tauri::command]
@@ -238,6 +294,156 @@ pub async fn workhub_create_pre_meeting_brief(
     .await
 }
 
+#[tauri::command]
+pub async fn workhub_create_agent_handoff(
+    meeting_id: String,
+    target: Option<String>,
+    role_scope: Option<String>,
+    include_evidence: Option<bool>,
+    include_repo_hints: Option<bool>,
+    state: tauri::State<'_, AppState>,
+) -> Result<AgentHandoffPacket, String> {
+    let pool = state.db_manager.pool();
+    let target = target.unwrap_or_else(|| "codex".to_string());
+    let role_scope = role_scope.unwrap_or_else(|| "engineering".to_string());
+    let context = load_meeting_context(pool, &meeting_id).await?;
+    let pack = create_context_pack(pool, &meeting_id, None, &role_scope).await?;
+    let role_output = get_role_output(pool, &meeting_id, &role_scope).await?;
+    let items = list_items(pool, None, None, Some(&meeting_id), 200).await?;
+
+    let markdown = build_agent_handoff_markdown(
+        &context,
+        &target,
+        &role_scope,
+        include_evidence.unwrap_or(true),
+        include_repo_hints.unwrap_or(true),
+        &pack.pack_markdown,
+        &role_output.markdown,
+        &items,
+    );
+
+    Ok(AgentHandoffPacket {
+        meeting_id,
+        meeting_title: context.title,
+        target,
+        role_scope,
+        markdown,
+        created_at: Utc::now().to_rfc3339(),
+    })
+}
+
+#[tauri::command]
+pub async fn workhub_generate_briefing(
+    kind: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<WorkBriefing, String> {
+    let pool = state.db_manager.pool();
+    let kind = if kind.eq_ignore_ascii_case("weekly") {
+        "weekly"
+    } else {
+        "daily"
+    };
+    let meeting_limit = if kind == "weekly" { 20 } else { 8 };
+    let meetings = list_recent_meetings(pool, meeting_limit).await?;
+    for meeting in &meetings {
+        let _ = sync_meeting(pool, &meeting.id).await;
+    }
+
+    let items = list_items(
+        pool,
+        None,
+        None,
+        None,
+        if kind == "weekly" { 200 } else { 80 },
+    )
+    .await?;
+    let title = if kind == "weekly" {
+        "Weekly Work Briefing".to_string()
+    } else {
+        "Daily Work Briefing".to_string()
+    };
+    let generated_at = Utc::now().to_rfc3339();
+    let markdown = build_work_briefing_markdown(&title, &generated_at, &meetings, &items);
+
+    Ok(WorkBriefing {
+        kind: kind.to_string(),
+        title,
+        generated_at,
+        meeting_count: meetings.len(),
+        item_count: items.len(),
+        markdown,
+    })
+}
+
+#[tauri::command]
+pub async fn workhub_suggest_transcript_repairs(
+    meeting_id: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<TranscriptRepairSuggestion, String> {
+    let pool = state.db_manager.pool();
+    let context = load_meeting_context(pool, &meeting_id).await?;
+    let segments = load_transcript_repair_segments(pool, &meeting_id).await?;
+    let (cutoff, reason) = suggest_trim_cutoff(&segments);
+    let weak_segments = suggest_weak_segments(&segments);
+    let markdown =
+        build_transcript_repair_markdown(&context, cutoff, reason.as_deref(), &weak_segments);
+
+    Ok(TranscriptRepairSuggestion {
+        meeting_id,
+        meeting_title: context.title,
+        suggested_cutoff_seconds: cutoff,
+        suggested_trim_reason: reason,
+        weak_segments,
+        markdown,
+    })
+}
+
+#[tauri::command]
+pub fn workhub_get_agent_tool_capabilities() -> Result<Vec<AgentToolCapability>, String> {
+    Ok(vec![
+        AgentToolCapability {
+            id: "meeting_search".to_string(),
+            label: "Meeting search".to_string(),
+            scope: "Chat + MCP".to_string(),
+            access: "read".to_string(),
+            enabled_by_default: true,
+            description: "Search meeting titles, raw transcript segments, timestamps, and summaries with local citations.".to_string(),
+        },
+        AgentToolCapability {
+            id: "work_items".to_string(),
+            label: "Work items".to_string(),
+            scope: "Work Hub + MCP".to_string(),
+            access: "read/write".to_string(),
+            enabled_by_default: true,
+            description: "Sync, list, and update actions, decisions, risks, and questions extracted from meetings.".to_string(),
+        },
+        AgentToolCapability {
+            id: "context_packs".to_string(),
+            label: "Agent handoff packets".to_string(),
+            scope: "Work Hub + MCP".to_string(),
+            access: "read/generate".to_string(),
+            enabled_by_default: true,
+            description: "Generate role-scoped context packs for Codex, Claude, Jira, Slack, and other downstream agents.".to_string(),
+        },
+        AgentToolCapability {
+            id: "briefings".to_string(),
+            label: "Briefings and memory".to_string(),
+            scope: "Settings + MCP".to_string(),
+            access: "read/generate".to_string(),
+            enabled_by_default: true,
+            description: "Create daily/weekly briefings, pre-meeting briefs, recurring meeting memory, and role-specific outputs.".to_string(),
+        },
+        AgentToolCapability {
+            id: "transcript_repair".to_string(),
+            label: "Transcript repair".to_string(),
+            scope: "Meeting details + MCP".to_string(),
+            access: "guarded write".to_string(),
+            enabled_by_default: false,
+            description: "Preview and confirm transcript tail trims, with summary invalidation when transcript content changes.".to_string(),
+        },
+    ])
+}
+
 async fn sync_meeting(pool: &SqlitePool, meeting_id: &str) -> Result<WorkHubSyncResult, String> {
     let context = load_meeting_context(pool, meeting_id).await?;
     let candidates = extract_candidates(&context);
@@ -292,11 +498,13 @@ async fn sync_meeting(pool: &SqlitePool, meeting_id: &str) -> Result<WorkHubSync
 }
 
 async fn count_actions(pool: &SqlitePool, status: &str) -> Result<i64, String> {
-    let row = sqlx::query("SELECT COUNT(*) AS count FROM work_items WHERE kind = 'action' AND status = ?")
-        .bind(status)
-        .fetch_one(pool)
-        .await
-        .map_err(|e| format!("Failed to count actions: {}", e))?;
+    let row = sqlx::query(
+        "SELECT COUNT(*) AS count FROM work_items WHERE kind = 'action' AND status = ?",
+    )
+    .bind(status)
+    .fetch_one(pool)
+    .await
+    .map_err(|e| format!("Failed to count actions: {}", e))?;
     Ok(row.get::<i64, _>("count"))
 }
 
@@ -349,7 +557,10 @@ async fn update_item_status(
     status: &str,
     agent_notes: Option<&str>,
 ) -> Result<WorkItem, String> {
-    if !matches!(status, "open" | "in_progress" | "blocked" | "done" | "dismissed") {
+    if !matches!(
+        status,
+        "open" | "in_progress" | "blocked" | "done" | "dismissed"
+    ) {
         return Err("status must be open, in_progress, blocked, done, or dismissed".to_string());
     }
 
@@ -422,7 +633,10 @@ async fn create_context_pack(
         None => None,
     };
     if work_item_id.is_some() && selected_item.is_none() {
-        return Err(format!("Work item not found for meeting: {}", work_item_id.unwrap()));
+        return Err(format!(
+            "Work item not found for meeting: {}",
+            work_item_id.unwrap()
+        ));
     }
 
     let all_items = list_items(pool, None, None, Some(meeting_id), 500).await?;
@@ -430,7 +644,8 @@ async fn create_context_pack(
         .as_ref()
         .map(|item| item.title.clone())
         .unwrap_or_else(|| format!("{} context pack", context.title));
-    let markdown = build_context_pack_markdown(&context, selected_item.as_ref(), &all_items, role_scope);
+    let markdown =
+        build_context_pack_markdown(&context, selected_item.as_ref(), &all_items, role_scope);
     let pack_id = format!("context-{}", uuid::Uuid::new_v4());
     let now = Utc::now().to_rfc3339();
 
@@ -504,7 +719,10 @@ async fn get_role_output(
     })
 }
 
-async fn get_recurring_memory(pool: &SqlitePool, meeting_id: &str) -> Result<RecurringMemory, String> {
+async fn get_recurring_memory(
+    pool: &SqlitePool,
+    meeting_id: &str,
+) -> Result<RecurringMemory, String> {
     sync_meeting(pool, meeting_id).await?;
     let context = load_meeting_context(pool, meeting_id).await?;
     let title_pattern = title_pattern(&context.title);
@@ -589,7 +807,13 @@ async fn create_pre_meeting_brief(
         related_items.extend(list_items(pool, None, None, Some(&meeting.id), 50).await?);
     }
 
-    let markdown = build_pre_meeting_brief_markdown(title, starts_at, attendee_hint, &related_meetings, &related_items);
+    let markdown = build_pre_meeting_brief_markdown(
+        title,
+        starts_at,
+        attendee_hint,
+        &related_meetings,
+        &related_items,
+    );
     let id = format!("brief-{}", uuid::Uuid::new_v4());
     let now = Utc::now().to_rfc3339();
     sqlx::query(
@@ -624,7 +848,10 @@ async fn create_pre_meeting_brief(
     })
 }
 
-async fn load_meeting_context(pool: &SqlitePool, meeting_id: &str) -> Result<MeetingContext, String> {
+async fn load_meeting_context(
+    pool: &SqlitePool,
+    meeting_id: &str,
+) -> Result<MeetingContext, String> {
     let meeting = sqlx::query("SELECT id, title, created_at FROM meetings WHERE id = ?")
         .bind(meeting_id)
         .fetch_optional(pool)
@@ -654,7 +881,11 @@ async fn load_meeting_context(pool: &SqlitePool, meeting_id: &str) -> Result<Mee
         let text: String = row.get("transcript");
         let speaker: Option<String> = row.try_get("speaker").ok();
         let audio_start_time: Option<f64> = row.try_get("audio_start_time").ok();
-        let label = if speaker.as_deref() == Some("me") { "Me: " } else { "" };
+        let label = if speaker.as_deref() == Some("me") {
+            "Me: "
+        } else {
+            ""
+        };
         let time = audio_start_time
             .map(format_seconds)
             .unwrap_or_else(|| row.get::<String, _>("timestamp"));
@@ -674,7 +905,10 @@ async fn load_meeting_context(pool: &SqlitePool, meeting_id: &str) -> Result<Mee
     })
 }
 
-async fn load_summary_markdown(pool: &SqlitePool, meeting_id: &str) -> Result<Option<String>, String> {
+async fn load_summary_markdown(
+    pool: &SqlitePool,
+    meeting_id: &str,
+) -> Result<Option<String>, String> {
     let row = sqlx::query("SELECT result FROM summary_processes WHERE meeting_id = ?")
         .bind(meeting_id)
         .fetch_optional(pool)
@@ -719,11 +953,21 @@ fn extract_candidates(context: &MeetingContext) -> Vec<CandidateWorkItem> {
         if is_action_like(&lower) {
             candidates.push(build_candidate("action", &cleaned, context, "summary-sync"));
         } else if is_decision_like(&lower) {
-            candidates.push(build_candidate("decision", &cleaned, context, "summary-sync"));
+            candidates.push(build_candidate(
+                "decision",
+                &cleaned,
+                context,
+                "summary-sync",
+            ));
         } else if is_risk_like(&lower) {
             candidates.push(build_candidate("risk", &cleaned, context, "summary-sync"));
         } else if is_question_like(&lower) {
-            candidates.push(build_candidate("question", &cleaned, context, "summary-sync"));
+            candidates.push(build_candidate(
+                "question",
+                &cleaned,
+                context,
+                "summary-sync",
+            ));
         }
     }
 
@@ -744,7 +988,12 @@ fn extract_candidates(context: &MeetingContext) -> Vec<CandidateWorkItem> {
     dedupe_candidates(candidates)
 }
 
-fn build_candidate(kind: &str, text: &str, context: &MeetingContext, source: &str) -> CandidateWorkItem {
+fn build_candidate(
+    kind: &str,
+    text: &str,
+    context: &MeetingContext,
+    source: &str,
+) -> CandidateWorkItem {
     let (owner, due_date, title) = parse_owner_due_title(text);
     let evidence = find_evidence(context, &title).or_else(|| Some(text.to_string()));
     CandidateWorkItem {
@@ -767,7 +1016,10 @@ fn build_context_pack_markdown(
 ) -> String {
     let mut sections = Vec::new();
     sections.push(format!("# Agent Context Pack: {}", context.title));
-    sections.push(format!("- Meeting: {}\n- Created: {}\n- Role lens: {}", context.id, context.created_at, role_scope));
+    sections.push(format!(
+        "- Meeting: {}\n- Created: {}\n- Role lens: {}",
+        context.id, context.created_at, role_scope
+    ));
 
     if let Some(item) = selected_item {
         sections.push(format!(
@@ -781,24 +1033,58 @@ fn build_context_pack_markdown(
         ));
     }
 
-    sections.push(format!("## Acceptance Criteria\n{}", acceptance_for_role(role_scope)));
-    sections.push("## Open Actions\n".to_string() + &item_list_markdown(all_items, "action", false));
+    sections.push(format!(
+        "## Acceptance Criteria\n{}",
+        acceptance_for_role(role_scope)
+    ));
+    sections
+        .push("## Open Actions\n".to_string() + &item_list_markdown(all_items, "action", false));
     sections.push("## Decisions\n".to_string() + &item_list_markdown(all_items, "decision", false));
-    sections.push("## Risks And Questions\n".to_string() + &item_list_markdown(all_items, "risk", false) + &item_list_markdown(all_items, "question", false));
-    sections.push(format!("## Relevant Transcript Excerpts\n{}", relevant_transcript_excerpt(context, selected_item.map(|item| item.title.as_str()))));
+    sections.push(
+        "## Risks And Questions\n".to_string()
+            + &item_list_markdown(all_items, "risk", false)
+            + &item_list_markdown(all_items, "question", false),
+    );
+    sections.push(format!(
+        "## Relevant Transcript Excerpts\n{}",
+        relevant_transcript_excerpt(context, selected_item.map(|item| item.title.as_str()))
+    ));
 
     sections.join("\n\n")
 }
 
-fn build_role_output_markdown(context: &MeetingContext, items: &[WorkItem], role_scope: &str) -> String {
+fn build_role_output_markdown(
+    context: &MeetingContext,
+    items: &[WorkItem],
+    role_scope: &str,
+) -> String {
     let mut output = Vec::new();
-    output.push(format!("# {} Output: {}", title_case(role_scope), context.title));
+    output.push(format!(
+        "# {} Output: {}",
+        title_case(role_scope),
+        context.title
+    ));
     output.push(role_guidance(role_scope).to_string());
-    output.push(format!("## Actions\n{}", item_list_markdown(items, "action", true)));
-    output.push(format!("## Decisions\n{}", item_list_markdown(items, "decision", true)));
-    output.push(format!("## Risks\n{}", item_list_markdown(items, "risk", true)));
-    output.push(format!("## Open Questions\n{}", item_list_markdown(items, "question", true)));
-    output.push(format!("## Evidence\n{}", relevant_transcript_excerpt(context, None)));
+    output.push(format!(
+        "## Actions\n{}",
+        item_list_markdown(items, "action", true)
+    ));
+    output.push(format!(
+        "## Decisions\n{}",
+        item_list_markdown(items, "decision", true)
+    ));
+    output.push(format!(
+        "## Risks\n{}",
+        item_list_markdown(items, "risk", true)
+    ));
+    output.push(format!(
+        "## Open Questions\n{}",
+        item_list_markdown(items, "question", true)
+    ));
+    output.push(format!(
+        "## Evidence\n{}",
+        relevant_transcript_excerpt(context, None)
+    ));
     output.join("\n\n")
 }
 
@@ -821,9 +1107,19 @@ fn build_recurring_memory_markdown(
                 .join("\n")
         ));
     }
-    output.push(format!("## Carry-Forward Open Items\n{}", item_list_markdown(related_items, "action", true)));
-    output.push(format!("## Prior Decisions\n{}", item_list_markdown(related_items, "decision", true)));
-    output.push(format!("## Prior Risks And Questions\n{}{}", item_list_markdown(related_items, "risk", true), item_list_markdown(related_items, "question", true)));
+    output.push(format!(
+        "## Carry-Forward Open Items\n{}",
+        item_list_markdown(related_items, "action", true)
+    ));
+    output.push(format!(
+        "## Prior Decisions\n{}",
+        item_list_markdown(related_items, "decision", true)
+    ));
+    output.push(format!(
+        "## Prior Risks And Questions\n{}{}",
+        item_list_markdown(related_items, "risk", true),
+        item_list_markdown(related_items, "question", true)
+    ));
     output.join("\n\n")
 }
 
@@ -841,9 +1137,19 @@ fn build_pre_meeting_brief_markdown(
         starts_at.unwrap_or("TBD"),
         attendee_hint.unwrap_or("Not provided")
     ));
-    output.push(format!("## Open Follow-Ups To Review\n{}", item_list_markdown(related_items, "action", true)));
-    output.push(format!("## Decisions To Carry Forward\n{}", item_list_markdown(related_items, "decision", true)));
-    output.push(format!("## Risks / Open Questions\n{}{}", item_list_markdown(related_items, "risk", true), item_list_markdown(related_items, "question", true)));
+    output.push(format!(
+        "## Open Follow-Ups To Review\n{}",
+        item_list_markdown(related_items, "action", true)
+    ));
+    output.push(format!(
+        "## Decisions To Carry Forward\n{}",
+        item_list_markdown(related_items, "decision", true)
+    ));
+    output.push(format!(
+        "## Risks / Open Questions\n{}{}",
+        item_list_markdown(related_items, "risk", true),
+        item_list_markdown(related_items, "question", true)
+    ));
     output.push(format!(
         "## Related Meetings\n{}",
         if related_meetings.is_empty() {
@@ -854,6 +1160,168 @@ fn build_pre_meeting_brief_markdown(
                 .map(|meeting| format!("- {} ({})", meeting.title, meeting.created_at))
                 .collect::<Vec<_>>()
                 .join("\n")
+        }
+    ));
+    output.join("\n\n")
+}
+
+fn build_agent_handoff_markdown(
+    context: &MeetingContext,
+    target: &str,
+    role_scope: &str,
+    include_evidence: bool,
+    include_repo_hints: bool,
+    context_pack: &str,
+    role_output: &str,
+    items: &[WorkItem],
+) -> String {
+    let mut output = Vec::new();
+    output.push(format!(
+        "# {} Handoff: {}",
+        title_case(target),
+        context.title
+    ));
+    output.push(format!(
+        "- Meeting ID: {}\n- Meeting date: {}\n- Role lens: {}\n- Generated: {}",
+        context.id,
+        context.created_at,
+        role_scope,
+        Utc::now().to_rfc3339()
+    ));
+    output.push(format!(
+        "## Start Here\n{}",
+        match target {
+            "jira" => "Use this packet to create or update tickets. Keep transcript evidence in ticket descriptions or comments.",
+            "slack" => "Use this packet to draft a concise channel update. Keep owner, status, and evidence visible.",
+            "claude" => "Use this packet as project context before planning or editing code.",
+            _ => "Use this packet as Codex context before planning, editing code, or creating a follow-up task.",
+        }
+    ));
+    output.push(format!(
+        "## Priority Work\n{}",
+        item_list_markdown(items, "action", true)
+    ));
+    output.push(format!(
+        "## Decisions\n{}",
+        item_list_markdown(items, "decision", true)
+    ));
+    output.push(format!(
+        "## Risks And Questions\n{}{}",
+        item_list_markdown(items, "risk", true),
+        item_list_markdown(items, "question", true)
+    ));
+
+    if include_repo_hints {
+        let hints = repo_hints(context);
+        output.push(format!(
+            "## Repo / Branch Hints\n{}",
+            if hints.is_empty() {
+                "- None detected.\n".to_string()
+            } else {
+                hints.join("\n") + "\n"
+            }
+        ));
+    }
+
+    output.push(format!("## Role Output\n{}", role_output));
+
+    if include_evidence {
+        output.push(format!("## Transcript-Backed Context\n{}", context_pack));
+    }
+
+    output.join("\n\n")
+}
+
+fn build_work_briefing_markdown(
+    title: &str,
+    generated_at: &str,
+    meetings: &[MeetingLite],
+    items: &[WorkItem],
+) -> String {
+    let mut output = Vec::new();
+    output.push(format!("# {}\nGenerated: {}", title, generated_at));
+    output.push(format!(
+        "## Snapshot\n- Meetings reviewed: {}\n- Captured work items: {}\n- Open actions: {}\n- Blocked actions: {}",
+        meetings.len(),
+        items.len(),
+        items.iter().filter(|item| item.kind == "action" && item.status == "open").count(),
+        items.iter().filter(|item| item.kind == "action" && item.status == "blocked").count()
+    ));
+    output.push(format!(
+        "## Open Actions\n{}",
+        item_list_markdown(items, "action", true)
+    ));
+    output.push(format!(
+        "## Decisions To Remember\n{}",
+        item_list_markdown(items, "decision", true)
+    ));
+    output.push(format!(
+        "## Risks And Questions\n{}{}",
+        item_list_markdown(items, "risk", true),
+        item_list_markdown(items, "question", true)
+    ));
+    output.push(format!(
+        "## Recent Meetings\n{}",
+        if meetings.is_empty() {
+            "- No meetings found.\n".to_string()
+        } else {
+            meetings
+                .iter()
+                .map(|meeting| format!("- {} ({})", meeting.title, meeting.created_at))
+                .collect::<Vec<_>>()
+                .join("\n")
+                + "\n"
+        }
+    ));
+    output.join("\n\n")
+}
+
+fn build_transcript_repair_markdown(
+    context: &MeetingContext,
+    cutoff: Option<f64>,
+    trim_reason: Option<&str>,
+    weak_segments: &[TranscriptRepairSegment],
+) -> String {
+    let mut output = Vec::new();
+    output.push(format!("# Transcript Repair Review: {}", context.title));
+    output.push(format!(
+        "- Meeting ID: {}\n- Transcript segments scanned: {}",
+        context.id,
+        context.transcript_lines.len()
+    ));
+    output.push(format!(
+        "## Suggested Tail Trim\n{}",
+        match (cutoff, trim_reason) {
+            (Some(seconds), Some(reason)) =>
+                format!("- Cut after [{}]. {}\n", format_seconds(seconds), reason),
+            (Some(seconds), None) => format!(
+                "- Cut after [{}]. Review before applying.\n",
+                format_seconds(seconds)
+            ),
+            _ => "- No obvious post-meeting tail detected.\n".to_string(),
+        }
+    ));
+    output.push(format!(
+        "## Weak Segments\n{}",
+        if weak_segments.is_empty() {
+            "- No obvious weak segments found by local heuristics.\n".to_string()
+        } else {
+            weak_segments
+                .iter()
+                .map(|segment| {
+                    format!(
+                        "- [{}] {} ({})",
+                        segment
+                            .audio_start_time
+                            .map(format_seconds)
+                            .unwrap_or_else(|| segment.timestamp.clone()),
+                        segment.text,
+                        segment.reason
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join("\n")
+                + "\n"
         }
     ));
     output.join("\n\n")
@@ -915,6 +1383,204 @@ fn relevant_transcript_excerpt(context: &MeetingContext, focus: Option<&str>) ->
     } else {
         excerpts.join("\n")
     }
+}
+
+async fn list_recent_meetings(pool: &SqlitePool, limit: i64) -> Result<Vec<MeetingLite>, String> {
+    let rows = sqlx::query(
+        r#"
+        SELECT id, title, created_at
+        FROM meetings
+        ORDER BY created_at DESC
+        LIMIT ?
+        "#,
+    )
+    .bind(limit.clamp(1, 50))
+    .fetch_all(pool)
+    .await
+    .map_err(|e| format!("Failed to load recent meetings: {}", e))?;
+
+    Ok(rows
+        .into_iter()
+        .map(|row| MeetingLite {
+            id: row.get("id"),
+            title: row.get("title"),
+            created_at: row.get("created_at"),
+        })
+        .collect())
+}
+
+async fn load_transcript_repair_segments(
+    pool: &SqlitePool,
+    meeting_id: &str,
+) -> Result<Vec<TranscriptRepairSegment>, String> {
+    let rows = sqlx::query(
+        r#"
+        SELECT id, transcript, timestamp, audio_start_time, audio_end_time
+        FROM transcripts
+        WHERE meeting_id = ?
+        ORDER BY
+          CASE WHEN audio_start_time IS NULL THEN 1 ELSE 0 END,
+          audio_start_time ASC,
+          timestamp ASC
+        LIMIT 4000
+        "#,
+    )
+    .bind(meeting_id)
+    .fetch_all(pool)
+    .await
+    .map_err(|e| format!("Failed to load transcript repair segments: {}", e))?;
+
+    Ok(rows
+        .into_iter()
+        .map(|row| TranscriptRepairSegment {
+            id: row.get("id"),
+            text: row.get::<String, _>("transcript").trim().to_string(),
+            timestamp: row.get("timestamp"),
+            audio_start_time: row.try_get("audio_start_time").ok(),
+            audio_end_time: row.try_get("audio_end_time").ok(),
+            reason: String::new(),
+        })
+        .collect())
+}
+
+fn suggest_trim_cutoff(segments: &[TranscriptRepairSegment]) -> (Option<f64>, Option<String>) {
+    if segments.len() < 4 {
+        return (None, None);
+    }
+
+    for (index, segment) in segments.iter().enumerate().rev() {
+        let Some(cutoff) = segment.audio_end_time.or(segment.audio_start_time) else {
+            continue;
+        };
+        if !is_signoff_like(&segment.text) {
+            continue;
+        }
+
+        let trailing_segments = segments.len().saturating_sub(index + 1);
+        let trailing_seconds = segments
+            .last()
+            .and_then(|last| last.audio_end_time.or(last.audio_start_time))
+            .map(|last_time| (last_time - cutoff).max(0.0))
+            .unwrap_or(0.0);
+
+        if trailing_segments >= 2 && trailing_seconds >= 90.0 {
+            return (
+                Some(cutoff),
+                Some(format!(
+                    "{} transcript segments continue for about {} after a sign-off phrase.",
+                    trailing_segments,
+                    format_seconds(trailing_seconds)
+                )),
+            );
+        }
+    }
+
+    (None, None)
+}
+
+fn suggest_weak_segments(segments: &[TranscriptRepairSegment]) -> Vec<TranscriptRepairSegment> {
+    let mut weak = Vec::new();
+    for segment in segments {
+        let Some(reason) = weak_segment_reason(&segment.text) else {
+            continue;
+        };
+        let mut flagged = segment.clone();
+        flagged.reason = reason;
+        weak.push(flagged);
+        if weak.len() >= 12 {
+            break;
+        }
+    }
+    weak
+}
+
+fn weak_segment_reason(text: &str) -> Option<String> {
+    let lower = text.to_lowercase();
+    let trimmed = text.trim();
+    if trimmed.len() <= 3 {
+        return Some("Very short fragment".to_string());
+    }
+    if contains_any(&lower, &["um", "uh", "erm"]) && trimmed.split_whitespace().count() <= 3 {
+        return Some("Filler-only fragment".to_string());
+    }
+    if contains_any(
+        &lower,
+        &[
+            "satayarona",
+            "kotsu yuta",
+            "jujutsu",
+            "ladies and gentlemen",
+            "this is not a drill",
+        ],
+    ) {
+        return Some("Likely unrelated media bleed".to_string());
+    }
+    if repeated_word_ratio(trimmed) > 0.45 {
+        return Some("Repeated words suggest transcription uncertainty".to_string());
+    }
+    None
+}
+
+fn repeated_word_ratio(text: &str) -> f32 {
+    let words: Vec<String> = text
+        .split_whitespace()
+        .map(|word| {
+            word.trim_matches(|ch: char| !ch.is_ascii_alphanumeric())
+                .to_lowercase()
+        })
+        .filter(|word| word.len() > 2)
+        .collect();
+    if words.len() < 5 {
+        return 0.0;
+    }
+
+    let repeats = words.windows(2).filter(|pair| pair[0] == pair[1]).count();
+    repeats as f32 / words.len() as f32
+}
+
+fn is_signoff_like(text: &str) -> bool {
+    let lower = text.to_lowercase();
+    contains_any(
+        &lower,
+        &[
+            "have a good weekend",
+            "cheers",
+            "thanks everyone",
+            "thank you everyone",
+            "speak soon",
+            "see you monday",
+            "talk on monday",
+            "that's all",
+            "that is all",
+            "bye",
+        ],
+    )
+}
+
+fn repo_hints(context: &MeetingContext) -> Vec<String> {
+    let mut hints = Vec::new();
+    for line in &context.transcript_lines {
+        let lower = line.to_lowercase();
+        if contains_any(
+            &lower,
+            &[
+                "repo",
+                "branch",
+                "pull request",
+                " pr ",
+                "github",
+                "codex",
+                "claude",
+                "jira",
+            ],
+        ) {
+            hints.push(format!("- {}", line));
+        }
+        if hints.len() >= 8 {
+            break;
+        }
+    }
+    hints
 }
 
 fn work_item_from_row(row: sqlx::sqlite::SqliteRow) -> WorkItem {
@@ -1018,7 +1684,11 @@ fn parse_owner_due_title(text: &str) -> (Option<String>, Option<String>, String)
         }
     }
 
-    if lower.contains(" i ") || lower.starts_with("i ") || lower.contains(" i'll") || lower.contains(" i’ll") {
+    if lower.contains(" i ")
+        || lower.starts_with("i ")
+        || lower.contains(" i'll")
+        || lower.contains(" i’ll")
+    {
         owner.get_or_insert_with(|| "Me".to_string());
     }
 
@@ -1055,13 +1725,48 @@ fn non_placeholder(value: &str) -> Option<String> {
 
 fn infer_role_scope(text: &str) -> Option<String> {
     let lower = text.to_lowercase();
-    let role = if contains_any(&lower, &["pr", "pull request", "deploy", "bug", "api", "frontend", "backend", "repo", "code"]) {
+    let role = if contains_any(
+        &lower,
+        &[
+            "pr",
+            "pull request",
+            "deploy",
+            "bug",
+            "api",
+            "frontend",
+            "backend",
+            "repo",
+            "code",
+        ],
+    ) {
         "engineering"
-    } else if contains_any(&lower, &["customer", "renewal", "deal", "pricing", "objection", "account"]) {
+    } else if contains_any(
+        &lower,
+        &[
+            "customer",
+            "renewal",
+            "deal",
+            "pricing",
+            "objection",
+            "account",
+        ],
+    ) {
         "sales_cs"
-    } else if contains_any(&lower, &["roadmap", "requirement", "user story", "launch", "experiment"]) {
+    } else if contains_any(
+        &lower,
+        &[
+            "roadmap",
+            "requirement",
+            "user story",
+            "launch",
+            "experiment",
+        ],
+    ) {
         "product"
-    } else if contains_any(&lower, &["candidate", "interview", "hiring", "onboarding", "policy"]) {
+    } else if contains_any(
+        &lower,
+        &["candidate", "interview", "hiring", "onboarding", "policy"],
+    ) {
         "people"
     } else if contains_any(&lower, &["risk", "budget", "board", "strategy", "metric"]) {
         "leadership"
@@ -1072,7 +1777,11 @@ fn infer_role_scope(text: &str) -> Option<String> {
 }
 
 fn clean_line(line: &str) -> String {
-    let mut value = line.trim().trim_start_matches(['-', '*', '•']).trim().to_string();
+    let mut value = line
+        .trim()
+        .trim_start_matches(['-', '*', '•'])
+        .trim()
+        .to_string();
     while value.starts_with('#') {
         value = value[1..].trim().to_string();
     }
@@ -1108,15 +1817,45 @@ fn is_action_like(lower: &str) -> bool {
 }
 
 fn is_decision_like(lower: &str) -> bool {
-    contains_any(lower, &["decided", "decision", "agreed", "approved", "confirmed", "finalized"])
+    contains_any(
+        lower,
+        &[
+            "decided",
+            "decision",
+            "agreed",
+            "approved",
+            "confirmed",
+            "finalized",
+        ],
+    )
 }
 
 fn is_risk_like(lower: &str) -> bool {
-    contains_any(lower, &["risk", "concern", "blocked", "blocker", "issue", "problem", "uncertain"])
+    contains_any(
+        lower,
+        &[
+            "risk",
+            "concern",
+            "blocked",
+            "blocker",
+            "issue",
+            "problem",
+            "uncertain",
+        ],
+    )
 }
 
 fn is_question_like(lower: &str) -> bool {
-    contains_any(lower, &["open question", "question", "unclear", "need to clarify", "tbd"])
+    contains_any(
+        lower,
+        &[
+            "open question",
+            "question",
+            "unclear",
+            "need to clarify",
+            "tbd",
+        ],
+    )
 }
 
 fn contains_any(value: &str, needles: &[&str]) -> bool {
@@ -1158,12 +1897,22 @@ fn keywords(value: &str) -> Vec<String> {
         .split(|ch: char| !ch.is_ascii_alphanumeric())
         .map(|word| word.to_lowercase())
         .filter(|word| word.len() > 3)
-        .filter(|word| !matches!(word.as_str(), "that" | "with" | "this" | "from" | "they" | "will" | "should"))
+        .filter(|word| {
+            !matches!(
+                word.as_str(),
+                "that" | "with" | "this" | "from" | "they" | "will" | "should"
+            )
+        })
         .collect()
 }
 
 fn work_item_id(meeting_id: &str, kind: &str, title: &str) -> String {
-    format!("work-{}-{}-{:x}", meeting_id, kind, stable_hash(&normalize_key(title)))
+    format!(
+        "work-{}-{}-{:x}",
+        meeting_id,
+        kind,
+        stable_hash(&normalize_key(title))
+    )
 }
 
 fn normalize_key(value: &str) -> String {
@@ -1190,11 +1939,20 @@ fn title_pattern(title: &str) -> String {
     let words: Vec<&str> = title
         .split_whitespace()
         .filter(|word| word.len() > 2)
-        .filter(|word| !matches!(word.to_lowercase().as_str(), "the" | "and" | "for" | "with" | "meeting" | "sync" | "call"))
+        .filter(|word| {
+            !matches!(
+                word.to_lowercase().as_str(),
+                "the" | "and" | "for" | "with" | "meeting" | "sync" | "call"
+            )
+        })
         .take(3)
         .collect();
     if words.is_empty() {
-        title.split_whitespace().take(2).collect::<Vec<_>>().join(" ")
+        title
+            .split_whitespace()
+            .take(2)
+            .collect::<Vec<_>>()
+            .join(" ")
     } else {
         words.join(" ")
     }

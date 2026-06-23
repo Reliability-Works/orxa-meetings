@@ -661,7 +661,7 @@ const Sidebar: React.FC = () => {
                 />
               )}
               <TooltipProvider>
-                <div className="flex items-center justify-center gap-1">
+                <div className="flex items-center justify-start gap-1">
                   {betaFeatures.importAndRetranscribe && (
                     <IconFooterButton title="Import audio" onClick={() => openImportDialog()}>
                       <Upload className="h-4 w-4" />
