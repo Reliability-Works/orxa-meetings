@@ -18,12 +18,12 @@ const Info = React.forwardRef<HTMLButtonElement, InfoProps>(({ isCollapsed, comp
           ref={ref} 
           className={`flex items-center justify-center mb-2 cursor-pointer border-none transition-colors ${
             iconOnly 
-              ? `bg-transparent p-2 hover:bg-gray-100 rounded-lg ${compact ? "mb-0" : "mb-2"}` 
+              ? `bg-transparent hover:bg-gray-100 rounded-lg ${compact ? "mb-0 h-8 w-8 p-0" : "mb-2 p-2"}`
               : "w-full px-3 py-1.5 mt-1 text-sm font-medium text-gray-700 bg-gray-200 hover:bg-gray-200 rounded-lg shadow-sm"
           }`}
           title="About Meetily"
         >
-          <InfoIcon className={`text-gray-600 ${iconOnly ? "w-5 h-5" : "w-4 h-4"}`} />
+          <InfoIcon className={`text-gray-600 ${iconOnly ? (compact ? "h-4 w-4" : "h-5 w-5") : "w-4 h-4"}`} />
           {!iconOnly && (
             <span className="ml-2 text-sm text-gray-700">About</span>
           )}

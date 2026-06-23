@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { ChevronDown, ChevronRight, File, Settings, Calendar, Home, Trash2, Mic, Square, Plus, Pencil, NotebookPen, SearchIcon, X, Upload, Inbox, MessageSquareText, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { ChevronDown, ChevronRight, File, Settings, Calendar, Home, Trash2, Mic, Square, Plus, Pencil, NotebookPen, SearchIcon, X, Upload, MessageSquareText, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useSidebar } from './SidebarProvider';
 import type { CurrentMeeting } from '@/components/Sidebar/SidebarProvider';
@@ -489,21 +489,20 @@ const Sidebar: React.FC = () => {
 
     const isHomePage = pathname === '/';
     const isMeetingPage = pathname?.includes('/meeting-details');
-    const isWorkHubPage = pathname === '/work-hub';
     const isAskPage = pathname === '/ask-meetily';
 
     return (
       <TooltipProvider>
-        <div className="flex flex-col items-center space-y-3 mt-3">
+        <div className="flex flex-col items-center space-y-2 mt-2">
           <Logo isCollapsed={isCollapsed} />
 
           <Tooltip>
             <TooltipTrigger asChild>
               <button
                 onClick={toggleCollapse}
-                className="p-2 rounded-lg transition-colors duration-150 hover:bg-gray-100"
+                className="flex h-8 w-8 items-center justify-center rounded-lg transition-colors duration-150 hover:bg-gray-100"
               >
-                <PanelLeftOpen className="w-5 h-5 text-gray-600" />
+                <PanelLeftOpen className="h-4 w-4 text-gray-600" />
               </button>
             </TooltipTrigger>
             <TooltipContent side="right">
@@ -515,10 +514,10 @@ const Sidebar: React.FC = () => {
             <TooltipTrigger asChild>
               <button
                 onClick={() => router.push('/')}
-                className={`p-2 rounded-lg transition-colors duration-150 ${isHomePage ? 'bg-gray-100' : 'hover:bg-gray-100'
+                className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors duration-150 ${isHomePage ? 'bg-gray-100' : 'hover:bg-gray-100'
                   }`}
               >
-                <Home className="w-5 h-5 text-gray-600" />
+                <Home className="h-4 w-4 text-gray-600" />
               </button>
             </TooltipTrigger>
             <TooltipContent side="right">
@@ -529,26 +528,11 @@ const Sidebar: React.FC = () => {
           <Tooltip>
             <TooltipTrigger asChild>
               <button
-                onClick={() => router.push('/work-hub')}
-                className={`p-2 rounded-lg transition-colors duration-150 ${isWorkHubPage ? 'bg-gray-100' : 'hover:bg-gray-100'
-                  }`}
-              >
-                <Inbox className="w-5 h-5 text-gray-600" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="right">
-              <p>Work Hub</p>
-            </TooltipContent>
-          </Tooltip>
-
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
                 onClick={() => router.push('/ask-meetily')}
-                className={`p-2 rounded-lg transition-colors duration-150 ${isAskPage ? 'bg-gray-100' : 'hover:bg-gray-100'
+                className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors duration-150 ${isAskPage ? 'bg-gray-100' : 'hover:bg-gray-100'
                   }`}
               >
-                <MessageSquareText className="w-5 h-5 text-gray-600" />
+                <MessageSquareText className="h-4 w-4 text-gray-600" />
               </button>
             </TooltipTrigger>
             <TooltipContent side="right">
@@ -563,10 +547,10 @@ const Sidebar: React.FC = () => {
                   if (isCollapsed) toggleCollapse();
                   toggleFolder('meetings');
                 }}
-                className={`p-2 rounded-lg transition-colors duration-150 ${isMeetingPage ? 'bg-gray-100' : 'hover:bg-gray-100'
+                className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors duration-150 ${isMeetingPage ? 'bg-gray-100' : 'hover:bg-gray-100'
                   }`}
               >
-                <NotebookPen className="w-5 h-5 text-gray-600" />
+                <NotebookPen className="h-4 w-4 text-gray-600" />
               </button>
             </TooltipTrigger>
             <TooltipContent side="right">
@@ -584,18 +568,18 @@ const Sidebar: React.FC = () => {
 
     return (
       <TooltipProvider>
-        <div className="flex flex-col items-center gap-2 border-t border-gray-100 px-2 py-3">
+        <div className="flex flex-col items-center gap-1.5 border-t border-gray-100 px-1.5 py-2">
           <Tooltip>
             <TooltipTrigger asChild>
               <button
                 onClick={handleRecordingToggle}
                 disabled={isRecording}
-                className={`p-2 ${isRecording ? 'bg-red-500 cursor-not-allowed' : 'bg-red-500 hover:bg-red-600'} rounded-full transition-colors duration-150 shadow-sm`}
+                className={`flex h-8 w-8 items-center justify-center ${isRecording ? 'bg-red-500 cursor-not-allowed' : 'bg-red-500 hover:bg-red-600'} rounded-lg transition-colors duration-150 shadow-sm`}
               >
                 {isRecording ? (
-                  <Square className="w-5 h-5 text-white" />
+                  <Square className="h-4 w-4 text-white" />
                 ) : (
-                  <Mic className="w-5 h-5 text-white" />
+                  <Mic className="h-4 w-4 text-white" />
                 )}
               </button>
             </TooltipTrigger>
@@ -609,9 +593,9 @@ const Sidebar: React.FC = () => {
               <TooltipTrigger asChild>
                 <button
                   onClick={() => openImportDialog()}
-                  className="p-2 rounded-lg transition-colors duration-150 hover:bg-blue-100 bg-blue-50"
+                  className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 transition-colors duration-150 hover:bg-blue-100"
                 >
-                  <Upload className="w-5 h-5 text-blue-600" />
+                  <Upload className="h-4 w-4 text-blue-600" />
                 </button>
               </TooltipTrigger>
               <TooltipContent side="right">
@@ -624,10 +608,10 @@ const Sidebar: React.FC = () => {
             <TooltipTrigger asChild>
               <button
                 onClick={() => router.push('/settings')}
-                className={`p-2 rounded-lg transition-colors duration-150 ${isSettingsPage ? 'bg-gray-100' : 'hover:bg-gray-100'
+                className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors duration-150 ${isSettingsPage ? 'bg-gray-100' : 'hover:bg-gray-100'
                   }`}
               >
-                <Settings className="w-5 h-5 text-gray-600" />
+                <Settings className="h-4 w-4 text-gray-600" />
               </button>
             </TooltipTrigger>
             <TooltipContent side="right">
@@ -758,11 +742,11 @@ const Sidebar: React.FC = () => {
 
   return (
     <div
-      className="fixed top-0 left-0 h-screen z-40"
+      className="fixed top-0 left-0 h-screen z-40 border-r border-gray-200 bg-white"
       style={{ width: isCollapsed ? COLLAPSED_WIDTH : sidebarWidth }}
     >
       <div
-        className={`relative h-screen bg-white border-r shadow-sm flex flex-col ${isResizing ? '' : 'transition-[width] duration-200'}`}
+        className={`relative h-screen bg-white shadow-sm flex flex-col ${isResizing ? '' : 'transition-[width] duration-200'}`}
         style={{ width: isCollapsed ? COLLAPSED_WIDTH : sidebarWidth }}
       >
         {!isCollapsed && (
@@ -826,17 +810,10 @@ const Sidebar: React.FC = () => {
               <>
                 <div
                   onClick={() => router.push('/')}
-                  className={`px-3 py-2 text-[15px] font-semibold items-center h-10 flex mx-3 mt-2 rounded-lg cursor-pointer ${pathname === '/' ? 'bg-gray-100' : 'hover:bg-gray-100'}`}
+                  className={`px-3 py-2 text-[14px] font-medium items-center h-9 flex mx-3 mt-2 rounded-lg cursor-pointer ${pathname === '/' ? 'bg-gray-100' : 'hover:bg-gray-100'}`}
                 >
                   <Home className="w-4 h-4 mr-2" />
                   <span>Home</span>
-                </div>
-                <div
-                  onClick={() => router.push('/work-hub')}
-                  className={`px-3 py-2 text-[15px] font-semibold items-center h-10 flex mx-3 mt-1 rounded-lg cursor-pointer ${pathname === '/work-hub' ? 'bg-gray-100' : 'hover:bg-gray-100'}`}
-                >
-                  <Inbox className="w-4 h-4 mr-2" />
-                  <span>Work Hub</span>
                 </div>
                 <div
                   onClick={() => router.push('/ask-meetily')}
@@ -858,7 +835,7 @@ const Sidebar: React.FC = () => {
                 {filteredSidebarItems.filter(item => item.type === 'folder').map(item => (
                   <div key={item.id}>
                     <div
-                      className="flex items-center transition-all duration-150 px-3 py-2 text-[15px] font-semibold h-10 mx-3 mt-2 rounded-lg"
+                      className="flex items-center transition-all duration-150 px-3 py-2 text-[14px] font-medium h-9 mx-3 mt-2 rounded-lg"
                     >
                       <NotebookPen className="w-4 h-4 mr-2 text-gray-600" />
                       <span className="text-gray-700">{item.title}</span>
@@ -890,20 +867,20 @@ const Sidebar: React.FC = () => {
         {isCollapsed ? (
           renderCollapsedFooterActions()
         ) : (
-          <div className="flex-shrink-0 border-t border-gray-100 p-2">
+          <div className="flex-shrink-0 border-t border-gray-100 p-1.5">
             <TooltipProvider>
-              <div className="flex items-center justify-center gap-1.5">
+              <div className="flex items-center justify-center gap-1">
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <button
                       onClick={handleRecordingToggle}
                       disabled={isRecording}
-                      className={`flex h-10 w-10 items-center justify-center rounded-lg text-white transition-colors shadow-sm ${isRecording ? 'bg-red-300 cursor-not-allowed' : 'bg-red-500 hover:bg-red-600'}`}
+                      className={`flex h-8 w-8 items-center justify-center rounded-lg text-white transition-colors shadow-sm ${isRecording ? 'bg-red-300 cursor-not-allowed' : 'bg-red-500 hover:bg-red-600'}`}
                     >
                       {isRecording ? (
-                        <Square className="h-5 w-5" />
+                        <Square className="h-4 w-4" />
                       ) : (
-                        <Mic className="h-5 w-5" />
+                        <Mic className="h-4 w-4" />
                       )}
                     </button>
                   </TooltipTrigger>
@@ -917,9 +894,9 @@ const Sidebar: React.FC = () => {
                     <TooltipTrigger asChild>
                       <button
                         onClick={() => openImportDialog()}
-                        className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-blue-600 transition-colors hover:bg-blue-100"
+                        className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600 transition-colors hover:bg-blue-100"
                       >
-                        <Upload className="h-5 w-5" />
+                        <Upload className="h-4 w-4" />
                       </button>
                     </TooltipTrigger>
                     <TooltipContent side="top">
@@ -932,9 +909,9 @@ const Sidebar: React.FC = () => {
                   <TooltipTrigger asChild>
                     <button
                       onClick={() => router.push('/settings')}
-                      className={`flex h-10 w-10 items-center justify-center rounded-lg transition-colors ${pathname === '/settings' ? 'bg-gray-100 text-gray-900' : 'text-gray-600 hover:bg-gray-100'}`}
+                      className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${pathname === '/settings' ? 'bg-gray-100 text-gray-900' : 'text-gray-600 hover:bg-gray-100'}`}
                     >
-                      <Settings className="h-5 w-5" />
+                      <Settings className="h-4 w-4" />
                     </button>
                   </TooltipTrigger>
                   <TooltipContent side="top">
@@ -945,7 +922,7 @@ const Sidebar: React.FC = () => {
                 <Info isCollapsed={false} compact />
               </div>
             </TooltipProvider>
-            <div className="w-full flex items-center justify-center px-3 py-1 text-xs text-gray-400">
+            <div className="w-full flex items-center justify-center px-3 pt-1 text-[11px] text-gray-400">
               v0.4.0
             </div>
           </div>

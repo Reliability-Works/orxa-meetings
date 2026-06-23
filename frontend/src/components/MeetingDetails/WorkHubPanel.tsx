@@ -37,9 +37,14 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
+export type WorkHubPanelView = 'captured' | 'context' | 'brief';
+
 type WorkHubPanelProps = {
   meetingId: string;
   meetingTitle: string;
+  view?: WorkHubPanelView;
+  hideHeader?: boolean;
+  compact?: boolean;
 };
 
 const KINDS: Array<{ value: WorkItemKind; label: string; icon: typeof ListChecks }> = [
@@ -71,7 +76,13 @@ function statusClass(status: WorkItemStatus | string) {
   return 'bg-amber-50 text-amber-700 border-amber-200';
 }
 
-export function WorkHubPanel({ meetingId, meetingTitle }: WorkHubPanelProps) {
+export function WorkHubPanel({
+  meetingId,
+  meetingTitle,
+  view,
+  hideHeader = false,
+  compact = false,
+}: WorkHubPanelProps) {
   const [items, setItems] = useState<WorkItem[]>([]);
   const [roleScope, setRoleScope] = useState<WorkRoleScope>('engineering');
   const [selectedItemId, setSelectedItemId] = useState<string>('meeting');
@@ -214,171 +225,201 @@ export function WorkHubPanel({ meetingId, meetingTitle }: WorkHubPanelProps) {
     toast.success('Copied to clipboard');
   };
 
+  const showCaptured = !view || view === 'captured';
+  const showContext = !view || view === 'context';
+  const showBrief = !view || view === 'brief';
+  const showGeneratedMarkdown = !view || view === 'context' || view === 'brief';
+  const contentSpacing = compact ? 'p-4 space-y-5' : 'p-5 space-y-6';
+  const statsGrid = compact ? 'grid grid-cols-2 gap-3' : 'grid grid-cols-2 xl:grid-cols-4 gap-3';
+  const twoColumnGrid = compact ? 'grid grid-cols-1 gap-3' : 'grid grid-cols-1 xl:grid-cols-2 gap-3';
+  const actionGrid = compact ? 'grid grid-cols-2 gap-2' : 'grid grid-cols-2 xl:grid-cols-4 gap-2';
+
   return (
     <div className="flex-1 min-w-0 flex flex-col bg-white overflow-hidden">
-      <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between gap-3">
-        <div>
-          <h2 className="text-base font-semibold text-gray-900">Work Hub</h2>
-          <p className="text-xs text-gray-500">Actions, agent context, decisions, risks, and pre-meeting memory.</p>
+      {!hideHeader && (
+        <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-base font-semibold text-gray-900">Work Hub</h2>
+            <p className="text-xs text-gray-500">Actions, agent context, decisions, risks, and pre-meeting memory.</p>
+          </div>
+          <Button variant="outline" size="sm" onClick={sync} disabled={isLoading}>
+            {isLoading ? <Loader2 className="animate-spin" /> : <RefreshCcw />}
+            Sync
+          </Button>
         </div>
-        <Button variant="outline" size="sm" onClick={sync} disabled={isLoading}>
-          {isLoading ? <Loader2 className="animate-spin" /> : <RefreshCcw />}
-          Sync
-        </Button>
-      </div>
+      )}
 
       <div className="flex-1 overflow-y-auto">
-        <div className="p-5 space-y-6">
-          <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
-            {KINDS.map(({ value, label, icon: Icon }) => (
-              <div key={value} className="rounded-md border border-gray-200 bg-gray-50 p-3">
-                <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                  <Icon className="w-4 h-4" />
-                  {label}
-                </div>
-                <div className="mt-2 text-2xl font-semibold text-gray-900">{grouped[value].length}</div>
-              </div>
-            ))}
-          </div>
-
-          <section className="space-y-3">
-            <div className="flex items-center justify-between gap-3">
-              <h3 className="text-sm font-semibold text-gray-900">Captured Work</h3>
-              <span className="text-xs text-gray-500">{items.length} total</span>
+        <div className={contentSpacing}>
+          {hideHeader && (
+            <div className="flex items-center justify-end">
+              <Button variant="outline" size="sm" onClick={sync} disabled={isLoading}>
+                {isLoading ? <Loader2 className="animate-spin" /> : <RefreshCcw />}
+                Sync
+              </Button>
             </div>
+          )}
 
-            {items.length === 0 ? (
-              <div className="rounded-md border border-dashed border-gray-300 p-5 text-sm text-gray-500">
-                No work items yet. Sync after a summary exists, or regenerate the summary with action items.
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {KINDS.map(({ value, label }) => (
-                  <div key={value}>
-                    <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">{label}</h4>
-                    <div className="space-y-2">
-                      {grouped[value].length === 0 ? (
-                        <p className="text-xs text-gray-400">None captured.</p>
-                      ) : grouped[value].map((item) => (
-                        <div key={item.id} className="rounded-md border border-gray-200 bg-white p-3">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <p className="text-sm font-medium text-gray-900">{item.title}</p>
-                              <p className="mt-1 text-xs text-gray-500">
-                                Owner: {item.owner || 'Unknown'} · Due: {item.due_date || 'TBD'} · Source: {item.source}
-                              </p>
-                            </div>
-                            <span className={`shrink-0 rounded-full border px-2 py-0.5 text-xs ${statusClass(item.status)}`}>
-                              {statusLabel(item.status)}
-                            </span>
-                          </div>
-                          {item.evidence && (
-                            <p className="mt-2 text-xs text-gray-600 line-clamp-2">{item.evidence}</p>
-                          )}
-                          <div className="mt-3 flex flex-wrap gap-2">
-                            {STATUSES.map((status) => (
-                              <button
-                                key={status}
-                                type="button"
-                                onClick={() => updateStatus(item, status)}
-                                className={`rounded-md border px-2 py-1 text-xs transition-colors ${
-                                  item.status === status
-                                    ? statusClass(status)
-                                    : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-                                }`}
-                              >
-                                {statusLabel(status)}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
+          {showCaptured && (
+            <>
+              <div className={statsGrid}>
+                {KINDS.map(({ value, label, icon: Icon }) => (
+                  <div key={value} className="rounded-md border border-gray-200 bg-gray-50 p-3">
+                    <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                      <Icon className="w-4 h-4" />
+                      {label}
                     </div>
+                    <div className="mt-2 text-2xl font-semibold text-gray-900">{grouped[value].length}</div>
                   </div>
                 ))}
               </div>
-            )}
-          </section>
 
-          <section className="space-y-3 border-t border-gray-200 pt-5">
-            <div>
-              <h3 className="text-sm font-semibold text-gray-900">Agent Context</h3>
-              <p className="text-xs text-gray-500">Generate a clean handoff for Codex, Claude, or a role-specific staff workflow.</p>
-            </div>
+              <section className="space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="text-sm font-semibold text-gray-900">Captured Work</h3>
+                  <span className="text-xs text-gray-500">{items.length} total</span>
+                </div>
 
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
-              <Select value={roleScope} onValueChange={(value) => setRoleScope(value as WorkRoleScope)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Role lens" />
-                </SelectTrigger>
-                <SelectContent>
-                  {ROLES.map((role) => (
-                    <SelectItem key={role.value} value={role.value}>{role.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                {items.length === 0 ? (
+                  <div className="rounded-md border border-dashed border-gray-300 p-5 text-sm text-gray-500">
+                    No work items yet. Sync after a summary exists, or regenerate the summary with action items.
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {KINDS.map(({ value, label }) => (
+                      <div key={value}>
+                        <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">{label}</h4>
+                        <div className="space-y-2">
+                          {grouped[value].length === 0 ? (
+                            <p className="text-xs text-gray-400">None captured.</p>
+                          ) : grouped[value].map((item) => (
+                            <div key={item.id} className="rounded-md border border-gray-200 bg-white p-3">
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                  <p className="text-sm font-medium text-gray-900">{item.title}</p>
+                                  <p className="mt-1 text-xs text-gray-500">
+                                    Owner: {item.owner || 'Unknown'} · Due: {item.due_date || 'TBD'} · Source: {item.source}
+                                  </p>
+                                </div>
+                                <span className={`shrink-0 rounded-full border px-2 py-0.5 text-xs ${statusClass(item.status)}`}>
+                                  {statusLabel(item.status)}
+                                </span>
+                              </div>
+                              {item.evidence && (
+                                <p className="mt-2 text-xs text-gray-600 line-clamp-2">{item.evidence}</p>
+                              )}
+                              <div className="mt-3 flex flex-wrap gap-2">
+                                {STATUSES.map((status) => (
+                                  <button
+                                    key={status}
+                                    type="button"
+                                    onClick={() => updateStatus(item, status)}
+                                    className={`rounded-md border px-2 py-1 text-xs transition-colors ${
+                                      item.status === status
+                                        ? statusClass(status)
+                                        : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                                    }`}
+                                  >
+                                    {statusLabel(status)}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
+            </>
+          )}
 
-              <Select value={selectedItemId} onValueChange={setSelectedItemId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Target item" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="meeting">Whole meeting</SelectItem>
-                  {items.map((item) => (
-                    <SelectItem key={item.id} value={item.id}>{item.title}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          {showContext && (
+            <section className="space-y-3 border-t border-gray-200 pt-5">
+              <div>
+                <h3 className="text-sm font-semibold text-gray-900">Agent Context</h3>
+                <p className="text-xs text-gray-500">Generate a clean handoff for Codex, Claude, or a role-specific staff workflow.</p>
+              </div>
 
-            <div className="grid grid-cols-2 xl:grid-cols-4 gap-2">
-              <Button variant="outline" size="sm" onClick={generateContextPack} disabled={isGenerating}>
-                <FileStack />
-                Context
+              <div className={twoColumnGrid}>
+                <Select value={roleScope} onValueChange={(value) => setRoleScope(value as WorkRoleScope)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Role lens" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ROLES.map((role) => (
+                      <SelectItem key={role.value} value={role.value}>{role.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Select value={selectedItemId} onValueChange={setSelectedItemId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Target item" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="meeting">Whole meeting</SelectItem>
+                    {items.map((item) => (
+                      <SelectItem key={item.id} value={item.id}>{item.title}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className={actionGrid}>
+                <Button variant="outline" size="sm" onClick={generateContextPack} disabled={isGenerating}>
+                  <FileStack />
+                  Context
+                </Button>
+                <Button variant="outline" size="sm" onClick={generateRoleOutput} disabled={isGenerating}>
+                  <BriefcaseBusiness />
+                  Role Output
+                </Button>
+                <Button variant="outline" size="sm" onClick={generateRecurringMemory} disabled={isGenerating}>
+                  <Sparkles />
+                  Memory
+                </Button>
+                <Button variant="outline" size="sm" onClick={copyMarkdown} disabled={!markdown}>
+                  <Clipboard />
+                  Copy
+                </Button>
+              </div>
+            </section>
+          )}
+
+          {showBrief && (
+            <section className="space-y-3 border-t border-gray-200 pt-5">
+              <div>
+                <h3 className="text-sm font-semibold text-gray-900">Pre-Meeting Brief</h3>
+                <p className="text-xs text-gray-500">Use this meeting as the local history anchor for the next one.</p>
+              </div>
+              <div className={twoColumnGrid}>
+                <Input value={briefTitle} onChange={(event) => setBriefTitle(event.target.value)} placeholder="Next meeting title" />
+                <Input value={briefStartsAt} onChange={(event) => setBriefStartsAt(event.target.value)} placeholder="Starts at, e.g. 2026-06-23 10:00" />
+              </div>
+              <Input value={briefAttendeeHint} onChange={(event) => setBriefAttendeeHint(event.target.value)} placeholder="Attendees or objective" />
+              <Button variant="outline" size="sm" onClick={generateBrief} disabled={isGenerating}>
+                {isGenerating ? <Loader2 className="animate-spin" /> : <Sparkles />}
+                Generate Brief
               </Button>
-              <Button variant="outline" size="sm" onClick={generateRoleOutput} disabled={isGenerating}>
-                <BriefcaseBusiness />
-                Role Output
-              </Button>
-              <Button variant="outline" size="sm" onClick={generateRecurringMemory} disabled={isGenerating}>
-                <Sparkles />
-                Memory
-              </Button>
-              <Button variant="outline" size="sm" onClick={copyMarkdown} disabled={!markdown}>
-                <Clipboard />
-                Copy
-              </Button>
-            </div>
-          </section>
+            </section>
+          )}
 
-          <section className="space-y-3 border-t border-gray-200 pt-5">
-            <div>
-              <h3 className="text-sm font-semibold text-gray-900">Pre-Meeting Brief</h3>
-              <p className="text-xs text-gray-500">Use this meeting as the local history anchor for the next one.</p>
-            </div>
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
-              <Input value={briefTitle} onChange={(event) => setBriefTitle(event.target.value)} placeholder="Next meeting title" />
-              <Input value={briefStartsAt} onChange={(event) => setBriefStartsAt(event.target.value)} placeholder="Starts at, e.g. 2026-06-23 10:00" />
-            </div>
-            <Input value={briefAttendeeHint} onChange={(event) => setBriefAttendeeHint(event.target.value)} placeholder="Attendees or objective" />
-            <Button variant="outline" size="sm" onClick={generateBrief} disabled={isGenerating}>
-              {isGenerating ? <Loader2 className="animate-spin" /> : <Sparkles />}
-              Generate Brief
-            </Button>
-          </section>
-
-          <section className="space-y-3 border-t border-gray-200 pt-5">
-            <div className="flex items-center justify-between gap-3">
-              <h3 className="text-sm font-semibold text-gray-900">Generated Markdown</h3>
-              {isGenerating && <Loader2 className="w-4 h-4 animate-spin text-gray-400" />}
-            </div>
-            <Textarea
-              value={markdown}
-              onChange={(event) => setMarkdown(event.target.value)}
-              placeholder="Generated context packs, role outputs, recurring memory, and briefs appear here."
-              className="min-h-[260px] font-mono text-xs"
-            />
-          </section>
+          {showGeneratedMarkdown && (
+            <section className="space-y-3 border-t border-gray-200 pt-5">
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="text-sm font-semibold text-gray-900">Generated Markdown</h3>
+                {isGenerating && <Loader2 className="w-4 h-4 animate-spin text-gray-400" />}
+              </div>
+              <Textarea
+                value={markdown}
+                onChange={(event) => setMarkdown(event.target.value)}
+                placeholder="Generated context packs, role outputs, recurring memory, and briefs appear here."
+                className="min-h-[260px] font-mono text-xs"
+              />
+            </section>
+          )}
         </div>
       </div>
     </div>
