@@ -154,14 +154,21 @@ pub async fn list_calendar_events(
     start_unix_ms: i64,
     end_unix_ms: i64,
     include_all_day_events: Option<bool>,
+    allow_permission_probe: Option<bool>,
 ) -> Result<Vec<CalendarEvent>, String> {
     if end_unix_ms <= start_unix_ms {
         return Err("Calendar range end must be after start".to_string());
     }
 
     let include_all_day_events = include_all_day_events.unwrap_or(false);
+    let allow_permission_probe = allow_permission_probe.unwrap_or(false);
     tauri::async_runtime::spawn_blocking(move || {
-        platform::calendar_events_in_range(start_unix_ms, end_unix_ms, include_all_day_events)
+        platform::calendar_events_in_range(
+            start_unix_ms,
+            end_unix_ms,
+            include_all_day_events,
+            allow_permission_probe,
+        )
     })
     .await
     .map_err(|error| format!("Failed to join calendar query task: {}", error))?
@@ -323,7 +330,14 @@ mod platform {
     type Id = *mut Object;
 
     pub fn calendar_permission_status() -> Result<CalendarPermissionStatus, String> {
-        Ok(status_from_raw(raw_calendar_permission_status()))
+        let raw_status = raw_calendar_permission_status();
+        let status = status_from_raw(raw_status);
+        log::info!(
+            "Calendar authorization status: raw={} mapped={:?}",
+            raw_status,
+            status
+        );
+        Ok(status)
     }
 
     pub fn request_calendar_access() -> Result<CalendarPermissionStatus, String> {
@@ -373,12 +387,21 @@ mod platform {
                             if status == CalendarPermissionStatus::FullAccess {
                                 return Ok(status);
                             }
+                            if can_probe_calendar_read() {
+                                return Ok(CalendarPermissionStatus::FullAccess);
+                            }
                             std::thread::sleep(Duration::from_millis(100));
                         }
 
                         Ok(status_from_raw(raw_calendar_permission_status()))
                     }
-                    Ok(false) => Ok(status_from_raw(raw_calendar_permission_status())),
+                    Ok(false) => {
+                        if can_probe_calendar_read() {
+                            Ok(CalendarPermissionStatus::FullAccess)
+                        } else {
+                            Ok(status_from_raw(raw_calendar_permission_status()))
+                        }
+                    }
                     Err(error) => Err(error),
                 }
             })
@@ -393,18 +416,51 @@ mod platform {
         let start_ms = now_ms - (START_GRACE_SECONDS * 1_000);
         let end_ms = now_ms + i64::from(lead_time_minutes) * 60_000;
 
-        calendar_events_in_range(start_ms, end_ms.max(now_ms + 1), include_all_day_events)
+        calendar_events_in_range(
+            start_ms,
+            end_ms.max(now_ms + 1),
+            include_all_day_events,
+            false,
+        )
     }
 
     pub fn calendar_events_in_range(
         start_ms: i64,
         end_ms: i64,
         include_all_day_events: bool,
+        allow_permission_probe: bool,
     ) -> Result<Vec<CalendarEvent>, String> {
-        if !calendar_permission_status()?.can_read_events() {
-            return Ok(Vec::new());
+        let status = calendar_permission_status()?;
+        if !status.can_read_events() {
+            match status {
+                CalendarPermissionStatus::Denied
+                | CalendarPermissionStatus::Restricted
+                | CalendarPermissionStatus::WriteOnly
+                | CalendarPermissionStatus::Unavailable => {
+                    return Err(format!("Calendar access is {:?}", status));
+                }
+                CalendarPermissionStatus::NotDetermined if !allow_permission_probe => {
+                    return Ok(Vec::new());
+                }
+                _ => {}
+            }
         }
 
+        let end_ms = end_ms.max(start_ms + 1);
+
+        read_calendar_events_unchecked(start_ms, end_ms, include_all_day_events)
+    }
+
+    fn can_probe_calendar_read() -> bool {
+        let now_ms = chrono::Utc::now().timestamp_millis();
+        read_calendar_events_unchecked(now_ms, now_ms + 60_000, true).is_ok()
+    }
+
+    fn read_calendar_events_unchecked(
+        start_ms: i64,
+        end_ms: i64,
+        include_all_day_events: bool,
+    ) -> Result<Vec<CalendarEvent>, String> {
         let end_ms = end_ms.max(start_ms + 1);
 
         unsafe {
@@ -573,6 +629,7 @@ mod platform {
         _start_unix_ms: i64,
         _end_unix_ms: i64,
         _include_all_day_events: bool,
+        _allow_permission_probe: bool,
     ) -> Result<Vec<CalendarEvent>, String> {
         Ok(Vec::new())
     }

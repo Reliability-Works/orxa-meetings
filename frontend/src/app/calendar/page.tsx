@@ -219,6 +219,10 @@ function canReadCalendar(status: CalendarPermissionStatus) {
   return status === 'full_access';
 }
 
+function shouldAttemptCalendarRead(status: CalendarPermissionStatus) {
+  return status === 'full_access' || status === 'unknown';
+}
+
 function calendarAccessMessage(status: CalendarPermissionStatus) {
   switch (status) {
     case 'denied':
@@ -229,8 +233,10 @@ function calendarAccessMessage(status: CalendarPermissionStatus) {
       return 'Calendar access is write-only. Orxa needs full access to read meeting events.';
     case 'unavailable':
       return 'Calendar access is not available in this build.';
-    default:
+    case 'not_determined':
       return 'Allow Calendar access to show your real meeting events here.';
+    default:
+      return 'Calendar access did not settle after the macOS prompt. Try again or reopen Orxa.';
   }
 }
 
@@ -273,7 +279,7 @@ export default function CalendarPage() {
       const status = await invoke<CalendarPermissionStatus>('get_calendar_permission_status');
       setPermissionStatus(status);
 
-      if (!canReadCalendar(status)) {
+      if (!shouldAttemptCalendarRead(status)) {
         setCalendarEvents([]);
         return;
       }
@@ -284,6 +290,7 @@ export default function CalendarPage() {
         includeAllDayEvents: false,
       });
       setCalendarEvents(events);
+      setPermissionStatus('full_access');
     } catch (error) {
       console.error('Failed to load macOS Calendar events:', error);
       setCalendarEvents([]);
@@ -324,11 +331,23 @@ export default function CalendarPage() {
         status = await invoke<CalendarPermissionStatus>('get_calendar_permission_status');
       }
 
+      try {
+        const events = await invoke<CalendarEvent[]>('list_calendar_events', {
+          startUnixMs: range.start.getTime(),
+          endUnixMs: range.end.getTime(),
+          includeAllDayEvents: false,
+          allowPermissionProbe: true,
+        });
+        setCalendarEvents(events);
+        setPermissionStatus('full_access');
+        return;
+      } catch (readError) {
+        console.warn('Calendar permission request completed, but read probe failed:', readError);
+      }
+
       setPermissionStatus(status);
 
-      if (canReadCalendar(status)) {
-        await loadCalendarEvents();
-      } else if (status === 'denied' || status === 'restricted' || status === 'write_only') {
+      if (status === 'denied' || status === 'restricted' || status === 'write_only') {
         await invoke('open_system_settings', { preferencePane: 'Privacy_Calendars' });
         toast.message('Calendar access needs to be enabled in macOS Settings');
       } else {
