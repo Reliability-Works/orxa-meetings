@@ -1,7 +1,10 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  ArrowLeft,
+  ArrowRight,
+  CalendarDays,
   FileText,
   Home,
   MessageSquareText,
@@ -42,6 +45,8 @@ const COLLAPSED_WIDTH = 64;
 const DEFAULT_SIDEBAR_WIDTH = 286;
 const MIN_SIDEBAR_WIDTH = 240;
 const MAX_SIDEBAR_WIDTH = 440;
+const TITLEBAR_CONTROL_OFFSET = 82;
+const TITLEBAR_CONTROL_LIFT = -4;
 
 function relativeTime(value?: string | null) {
   if (!value) return '';
@@ -119,6 +124,8 @@ const Sidebar: React.FC = () => {
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
   const [chatSearchOpen, setChatSearchOpen] = useState(false);
   const [meetingSearchOpen, setMeetingSearchOpen] = useState(false);
+  const [globalSearchOpen, setGlobalSearchOpen] = useState(false);
+  const [globalSearchQuery, setGlobalSearchQuery] = useState('');
   const [chatSearchQuery, setChatSearchQuery] = useState('');
   const [meetingSearchQuery, setMeetingSearchQuery] = useState('');
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
@@ -136,6 +143,7 @@ const Sidebar: React.FC = () => {
     currentTitle: '',
   });
   const [editingTitle, setEditingTitle] = useState('');
+  const globalSearchInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     const syncActiveChat = () => {
@@ -171,6 +179,12 @@ const Sidebar: React.FC = () => {
     window.addEventListener('orxa-chat-sessions-changed', handler);
     return () => window.removeEventListener('orxa-chat-sessions-changed', handler);
   }, [loadChatSessions]);
+
+  useEffect(() => {
+    if (globalSearchOpen) {
+      globalSearchInputRef.current?.focus();
+    }
+  }, [globalSearchOpen]);
 
   useEffect(() => {
     const width = isCollapsed ? COLLAPSED_WIDTH : sidebarWidth;
@@ -217,25 +231,47 @@ const Sidebar: React.FC = () => {
     });
   }, [chatSearchQuery, chatSessions]);
 
-  const matchedMeetingIds = useMemo(
-    () => new Set(searchResults.map((result: any) => result.id)),
-    [searchResults]
-  );
+  const globalSearchMatches = useMemo(() => {
+    const query = globalSearchQuery.trim().toLowerCase();
+    if (!query) {
+      return { chats: [] as ChatSession[], meetings: [] as CurrentMeeting[] };
+    }
+
+    return {
+      chats: chatSessions.filter((session) =>
+        session.title.toLowerCase().includes(query) ||
+        session.last_message?.toLowerCase().includes(query) ||
+        session.meeting_title?.toLowerCase().includes(query)
+      ),
+      meetings: meetings.filter((meeting) => meeting.title.toLowerCase().includes(query)),
+    };
+  }, [chatSessions, globalSearchQuery, meetings]);
 
   const filteredMeetings = useMemo(() => {
     const query = meetingSearchQuery.trim().toLowerCase();
     if (!query) return meetings;
     return meetings.filter((meeting) => {
-      return meeting.title.toLowerCase().includes(query) || matchedMeetingIds.has(meeting.id);
+      return meeting.title.toLowerCase().includes(query);
     });
-  }, [meetingSearchQuery, meetings, matchedMeetingIds]);
+  }, [meetingSearchQuery, meetings]);
 
-  const handleMeetingSearchChange = async (value: string) => {
+  const handleMeetingSearchChange = (value: string) => {
     setMeetingSearchQuery(value);
-    if (value.trim()) {
-      await searchTranscripts(value);
-    }
   };
+
+  useEffect(() => {
+    const query = globalSearchQuery.trim();
+    if (!query) {
+      void searchTranscripts('');
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      void searchTranscripts(query);
+    }, 250);
+
+    return () => window.clearTimeout(timeout);
+  }, [globalSearchQuery, searchTranscripts]);
 
   const handleDelete = async (itemId: string) => {
     try {
@@ -297,30 +333,90 @@ const Sidebar: React.FC = () => {
     setEditingTitle('');
   };
 
+  const openGlobalSearch = () => {
+    setGlobalSearchOpen(true);
+  };
+
+  const openGlobalSearchFromCollapsed = () => {
+    setGlobalSearchOpen(true);
+  };
+
+  const closeGlobalSearch = () => {
+    setGlobalSearchOpen(false);
+    setGlobalSearchQuery('');
+    void searchTranscripts('');
+  };
+
+  const openMeetingFromSearch = (meeting: CurrentMeeting) => {
+    setCurrentMeeting({ id: meeting.id, title: meeting.title });
+    closeGlobalSearch();
+    router.push(`/meeting-details?id=${meeting.id}`);
+  };
+
+  const openChatFromSearch = (session: ChatSession) => {
+    setActiveChatId(session.id);
+    closeGlobalSearch();
+    router.push(`/chat?id=${session.id}`);
+  };
+
   const renderCollapsed = () => (
     <TooltipProvider>
-      <div className="flex h-full flex-col items-center justify-between pb-2 pt-1">
-        <div className="flex flex-col items-center gap-1.5">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button onClick={toggleCollapse} className="flex h-9 w-9 items-center justify-center rounded-lg hover:bg-gray-100">
-                <PanelLeftOpen className="h-4 w-4 text-gray-600" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="right">Expand sidebar</TooltipContent>
-          </Tooltip>
+      <div className="flex h-full flex-col justify-between pb-2 pt-0">
+        <div>
+          <div
+            className="flex h-10 w-[190px] items-center gap-1 pr-3"
+            style={{ paddingLeft: TITLEBAR_CONTROL_OFFSET, transform: `translateY(${TITLEBAR_CONTROL_LIFT}px)` }}
+            data-tauri-drag-region
+          >
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button onClick={toggleCollapse} className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-gray-100">
+                  <PanelLeftOpen className="h-4 w-4 text-gray-600" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Expand sidebar</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={() => window.history.back()}
+                  className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+                  aria-label="Go back"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Go back</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={() => window.history.forward()}
+                  className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-300 hover:bg-gray-100 hover:text-gray-700"
+                  aria-label="Go forward"
+                >
+                  <ArrowRight className="h-4 w-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Go forward</TooltipContent>
+            </Tooltip>
+          </div>
+          <div className="flex flex-col items-center gap-1.5">
           <CollapsedButton title="Home" active={pathname === '/'} onClick={() => router.push('/')}>
             <Home className="h-4 w-4" />
           </CollapsedButton>
-          <CollapsedButton title="New chat" active={pathname === '/chat'} onClick={() => {
-            setActiveChatId(null);
-            router.push('/chat');
-          }}>
-            <MessageSquareText className="h-4 w-4" />
+          <CollapsedButton title="Calendar" active={pathname === '/calendar'} onClick={() => router.push('/calendar')}>
+            <CalendarDays className="h-4 w-4" />
+          </CollapsedButton>
+          <CollapsedButton title="Search" onClick={openGlobalSearchFromCollapsed}>
+            <SearchIcon className="h-4 w-4" />
           </CollapsedButton>
           <CollapsedButton title={isRecording ? 'Recording in progress' : 'Start recording'} onClick={handleRecordingToggle}>
             {isRecording ? <Square className="h-4 w-4 text-red-500" /> : <Mic className="h-4 w-4" />}
           </CollapsedButton>
+          </div>
         </div>
         <div className="flex flex-col items-center gap-1.5">
           {betaFeatures.importAndRetranscribe && (
@@ -361,7 +457,11 @@ const Sidebar: React.FC = () => {
           renderCollapsed()
         ) : (
           <>
-            <div className="flex h-10 shrink-0 items-center justify-end px-3">
+            <div
+              className="flex h-10 shrink-0 items-center gap-1 pr-3"
+              style={{ paddingLeft: TITLEBAR_CONTROL_OFFSET, transform: `translateY(${TITLEBAR_CONTROL_LIFT}px)` }}
+              data-tauri-drag-region
+            >
               <button
                 type="button"
                 onClick={toggleCollapse}
@@ -370,9 +470,27 @@ const Sidebar: React.FC = () => {
               >
                 <PanelLeftClose className="h-4 w-4" />
               </button>
+              <button
+                type="button"
+                onClick={() => window.history.back()}
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+                aria-label="Go back"
+                title="Go back"
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => window.history.forward()}
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-300 hover:bg-gray-100 hover:text-gray-700"
+                aria-label="Go forward"
+                title="Go forward"
+              >
+                <ArrowRight className="h-4 w-4" />
+              </button>
             </div>
 
-            <div className="px-2">
+            <div className="space-y-2 px-2">
               <button
                 type="button"
                 onClick={() => router.push('/')}
@@ -380,6 +498,22 @@ const Sidebar: React.FC = () => {
               >
                 <Home className="h-4 w-4" />
                 <span>Home</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => router.push('/calendar')}
+                className={`flex h-9 w-full items-center gap-3 rounded-lg px-3 text-[15px] text-gray-800 ${pathname === '/calendar' ? 'bg-gray-100' : 'hover:bg-gray-100'}`}
+              >
+                <CalendarDays className="h-4 w-4" />
+                <span>Calendar</span>
+              </button>
+              <button
+                type="button"
+                onClick={openGlobalSearch}
+                className="flex h-9 w-full items-center gap-3 rounded-lg px-3 text-[15px] text-gray-800 hover:bg-gray-100"
+              >
+                <SearchIcon className="h-4 w-4" />
+                <span>Search</span>
               </button>
             </div>
 
@@ -448,14 +582,14 @@ const Sidebar: React.FC = () => {
                     <InputGroupInput
                       placeholder="Search meetings..."
                       value={meetingSearchQuery}
-                      onChange={(event) => void handleMeetingSearchChange(event.target.value)}
+                      onChange={(event) => handleMeetingSearchChange(event.target.value)}
                     />
                     <InputGroupAddon>
                       <SearchIcon />
                     </InputGroupAddon>
                     {meetingSearchQuery && (
                       <InputGroupAddon align="inline-end">
-                        <InputGroupButton onClick={() => void handleMeetingSearchChange('')}>
+                        <InputGroupButton onClick={() => handleMeetingSearchChange('')}>
                           <X />
                         </InputGroupButton>
                       </InputGroupAddon>
@@ -466,7 +600,6 @@ const Sidebar: React.FC = () => {
               <div className="min-h-0 flex-1 overflow-y-auto pr-1">
                 {filteredMeetings.map((meeting) => {
                   const active = pathname?.includes('/meeting-details') && currentMeeting?.id === meeting.id;
-                  const match = searchResults.find((result: any) => result.id === meeting.id);
                   return (
                     <div key={meeting.id} className="group">
                       <button
@@ -475,7 +608,7 @@ const Sidebar: React.FC = () => {
                           setCurrentMeeting({ id: meeting.id, title: meeting.title });
                           router.push(`/meeting-details?id=${meeting.id}`);
                         }}
-                        className={`flex min-h-9 w-full items-center gap-2 rounded-lg px-3 py-1.5 text-left text-[15px] ${active ? 'bg-gray-100 text-gray-950' : match ? 'bg-yellow-50 text-gray-900' : 'text-gray-800 hover:bg-gray-50'}`}
+                        className={`flex min-h-9 w-full items-center gap-2 rounded-lg px-3 py-1.5 text-left text-[15px] ${active ? 'bg-gray-100 text-gray-950' : 'text-gray-800 hover:bg-gray-50'}`}
                       >
                         <FileText className="h-4 w-4 shrink-0 text-gray-500" />
                         <span className="min-w-0 flex-1 truncate">{meeting.title}</span>
@@ -504,17 +637,9 @@ const Sidebar: React.FC = () => {
                           </span>
                         </span>
                       </button>
-                      {match && (
-                        <div className="mx-3 mb-1 rounded-md border border-yellow-100 bg-yellow-50 p-1.5 text-xs text-gray-500">
-                          {match.matchContext}
-                        </div>
-                      )}
                     </div>
                   );
                 })}
-                {meetingSearchQuery && isSearching && (
-                  <div className="px-3 py-2 text-xs text-blue-500">Searching transcripts...</div>
-                )}
               </div>
             </div>
 
@@ -547,6 +672,110 @@ const Sidebar: React.FC = () => {
         }}
         onCancel={() => setDeleteModalState({ isOpen: false, itemId: null })}
       />
+
+      <Dialog open={globalSearchOpen} onOpenChange={(open) => {
+        if (open) {
+          setGlobalSearchOpen(true);
+        } else {
+          closeGlobalSearch();
+        }
+      }}>
+        <DialogContent className="top-[40%] max-h-[78vh] overflow-hidden rounded-2xl border-gray-200 p-0 shadow-2xl sm:max-w-2xl">
+          <VisuallyHidden>
+            <DialogTitle>Search Orxa</DialogTitle>
+          </VisuallyHidden>
+          <div className="border-b border-gray-100 p-4">
+            <div className="flex h-12 items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 shadow-sm">
+              <SearchIcon className="h-5 w-5 shrink-0 text-gray-400" />
+              <input
+                ref={globalSearchInputRef}
+                value={globalSearchQuery}
+                onChange={(event) => setGlobalSearchQuery(event.target.value)}
+                placeholder="Search chats, meetings, and transcripts"
+                className="h-full min-w-0 flex-1 bg-transparent text-[17px] text-gray-900 outline-none placeholder:text-gray-400"
+              />
+              {globalSearchQuery && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setGlobalSearchQuery('');
+                    void searchTranscripts('');
+                    globalSearchInputRef.current?.focus();
+                  }}
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+                  aria-label="Clear search"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="max-h-[56vh] overflow-y-auto p-3">
+            {!globalSearchQuery.trim() ? (
+              <div className="px-2 py-10 text-center text-sm text-gray-400">
+                Search across chats, meeting titles, and transcript text.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {globalSearchMatches.chats.slice(0, 6).map((session) => (
+                  <button
+                    key={`chat-${session.id}`}
+                    type="button"
+                    onClick={() => openChatFromSearch(session)}
+                    className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-gray-50"
+                  >
+                    <MessageSquareText className="h-4 w-4 shrink-0 text-gray-400" />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-[15px] font-medium text-gray-900">{session.title}</div>
+                      {session.last_message && (
+                        <div className="truncate text-sm text-gray-500">{session.last_message}</div>
+                      )}
+                    </div>
+                    <span className="shrink-0 text-sm text-gray-400">{relativeTime(session.updated_at)}</span>
+                  </button>
+                ))}
+
+                {globalSearchMatches.meetings.slice(0, 6).map((meeting) => (
+                  <button
+                    key={`meeting-${meeting.id}`}
+                    type="button"
+                    onClick={() => openMeetingFromSearch(meeting)}
+                    className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-gray-50"
+                  >
+                    <FileText className="h-4 w-4 shrink-0 text-gray-400" />
+                    <div className="min-w-0 flex-1 truncate text-[15px] font-medium text-gray-900">{meeting.title}</div>
+                  </button>
+                ))}
+
+                {searchResults.slice(0, 8).map((result: any) => (
+                  <button
+                    key={`transcript-${result.id}-${result.timestamp}`}
+                    type="button"
+                    onClick={() => openMeetingFromSearch({ id: result.id, title: result.title })}
+                    className="w-full rounded-xl px-3 py-2.5 text-left hover:bg-gray-50"
+                  >
+                    <div className="flex items-center gap-3">
+                      <SearchIcon className="h-4 w-4 shrink-0 text-gray-400" />
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-[15px] font-medium text-gray-900">{result.title}</div>
+                        <div className="line-clamp-2 text-sm leading-5 text-gray-500">{result.matchContext}</div>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+
+                {!globalSearchMatches.chats.length && !globalSearchMatches.meetings.length && !searchResults.length && !isSearching && (
+                  <div className="px-2 py-10 text-center text-sm text-gray-400">No matches</div>
+                )}
+                {isSearching && (
+                  <div className="px-3 py-3 text-sm text-blue-500">Searching transcripts...</div>
+                )}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={editModalState.isOpen} onOpenChange={(open) => {
         if (!open) handleEditCancel();

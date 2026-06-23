@@ -164,7 +164,7 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
   };
 
   // Function to search through meeting transcripts
-  const searchTranscripts = async (query: string) => {
+  const searchTranscripts = React.useCallback(async (query: string) => {
     if (!query.trim()) {
       setSearchResults([]);
       return;
@@ -182,7 +182,7 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsSearching(false);
     }
-  };
+  }, []);
 
   // Summary polling management
   const startSummaryPolling = React.useCallback((
