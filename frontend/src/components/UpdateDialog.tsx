@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Download, X, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import React from 'react';
+import { Download, AlertCircle, Loader2 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -9,136 +9,29 @@ import {
   DialogTitle,
 } from './ui/dialog';
 import { Button } from './ui/button';
-import { updateService, UpdateInfo, UpdateProgress } from '@/services/updateService';
-import { check, Update } from '@tauri-apps/plugin-updater';
-import { relaunch } from '@tauri-apps/plugin-process';
-import { toast } from 'sonner';
+import { UpdateInfo, UpdateProgress } from '@/services/updateService';
 
 interface UpdateDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   updateInfo: UpdateInfo | null;
+  isDownloading: boolean;
+  progress: UpdateProgress | null;
+  error: string | null;
+  onInstall: () => Promise<void>;
 }
 
-export function UpdateDialog({ open, onOpenChange, updateInfo }: UpdateDialogProps) {
-  const [isDownloading, setIsDownloading] = useState(false);
-  const [progress, setProgress] = useState<UpdateProgress | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [update, setUpdate] = useState<Update | null>(null);
-
-  useEffect(() => {
-    if (open && updateInfo?.available) {
-      // Reset state when dialog opens
-      setIsDownloading(false);
-      setProgress(null);
-      setError(null);
-
-      // Get the update object when dialog opens
-      check().then((updateResult) => {
-        if (updateResult?.available) {
-          setUpdate(updateResult);
-        } else {
-          setError('Update no longer available');
-        }
-      }).catch((err) => {
-        console.error('Failed to get update object:', err);
-        setError('Failed to prepare update: ' + (err.message || 'Unknown error'));
-      });
-    } else {
-      // Reset state when dialog closes
-      setIsDownloading(false);
-      setProgress(null);
-      setError(null);
-      setUpdate(null);
-    }
-  }, [open, updateInfo]);
-
+export function UpdateDialog({
+  open,
+  onOpenChange,
+  updateInfo,
+  isDownloading,
+  progress,
+  error,
+  onInstall,
+}: UpdateDialogProps) {
   const handleDownloadAndInstall = async () => {
-    // Get update object if not already available
-    let updateToUse: Update | null = update;
-    if (!updateToUse) {
-      try {
-        const updateResult = await check();
-        if (updateResult?.available) {
-          updateToUse = updateResult;
-          setUpdate(updateResult);
-        } else {
-          setError('Update not available');
-          return;
-        }
-      } catch (err: any) {
-        setError('Failed to get update: ' + (err.message || 'Unknown error'));
-        return;
-      }
-    }
-
-    // At this point, updateToUse is guaranteed to be non-null
-    if (!updateToUse) {
-      return; // This should never happen, but TypeScript needs this check
-    }
-
-    setIsDownloading(true);
-    setError(null);
-    setProgress({ downloaded: 0, total: 0, percentage: 0 });
-
-    try {
-      let downloaded = 0;
-      let contentLength = 0;
-
-      // Use the official Tauri updater API with progress callbacks
-      await updateToUse.downloadAndInstall((event) => {
-        switch (event.event) {
-          case 'Started':
-            contentLength = event.data.contentLength || 0;
-            console.log(`[UpdateDialog] Started downloading ${contentLength} bytes`);
-            setProgress({
-              downloaded: 0,
-              total: contentLength,
-              percentage: 0,
-            });
-            break;
-
-          case 'Progress':
-            downloaded += event.data.chunkLength || 0;
-            const percentage = contentLength > 0
-              ? Math.round((downloaded / contentLength) * 100)
-              : 0;
-            console.log(`[UpdateDialog] Progress: ${downloaded} / ${contentLength} bytes (${percentage}%)`);
-            setProgress({
-              downloaded,
-              total: contentLength,
-              percentage,
-            });
-            break;
-
-          case 'Finished':
-            console.log('[UpdateDialog] Download finished');
-            setProgress({
-              downloaded: contentLength,
-              total: contentLength,
-              percentage: 100,
-            });
-            break;
-        }
-      });
-
-      console.log('[UpdateDialog] Update installed successfully');
-      toast.success('Update installed successfully. The app will restart...');
-
-      // Mark download as complete before closing
-      setIsDownloading(false);
-
-      // Close dialog before relaunch
-      handleOpenChange(false);
-
-      // Relaunch the app
-      await relaunch();
-    } catch (err: any) {
-      console.error('Update failed:', err);
-      setError(err.message || 'Failed to download or install update');
-      setIsDownloading(false);
-      toast.error('Update failed: ' + (err.message || 'Unknown error'));
-    }
+    await onInstall();
   };
 
   const formatDate = (dateString?: string) => {

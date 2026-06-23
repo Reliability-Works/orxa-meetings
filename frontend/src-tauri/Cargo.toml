@@ -1,10 +1,10 @@
 [package]
 name = "orxa"
-version = "0.4.0"
-description = "A Tauri App for meeting minutes"
-authors = ["Sujith S"]
+version = "0.0.1"
+description = "Local meeting transcription, summaries, and agent access"
+authors = ["Reliability Works", "Sujith S"]
 license = "MIT"
-repository = "https://github.com/Zackriya-Solutions/meeting-minutes"
+repository = "https://github.com/Reliability-Works/orxa-meetings"
 edition = "2021"
 rust-version = "1.77"
 

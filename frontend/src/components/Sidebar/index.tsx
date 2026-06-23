@@ -5,8 +5,10 @@ import {
   ArrowLeft,
   ArrowRight,
   CalendarDays,
+  Download,
   FileText,
   Home,
+  Loader2,
   MessageSquareText,
   Mic,
   PanelLeftClose,
@@ -31,6 +33,7 @@ import { ConfirmationModal } from '../ConfirmationModel/confirmation-modal';
 import { useRecordingState } from '@/contexts/RecordingStateContext';
 import { useImportDialog } from '@/contexts/ImportDialogContext';
 import { useConfig } from '@/contexts/ConfigContext';
+import { useUpdateCheckContext } from '@/components/UpdateCheckProvider';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   Dialog,
@@ -122,6 +125,14 @@ const Sidebar: React.FC = () => {
   const { isRecording } = useRecordingState();
   const { openImportDialog } = useImportDialog();
   const { betaFeatures } = useConfig();
+  const {
+    updateInfo,
+    isDownloading: isUpdateDownloading,
+    updateProgress,
+    updateError,
+    showUpdateDialog,
+    installUpdate,
+  } = useUpdateCheckContext();
 
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
   const [chatSearchOpen, setChatSearchOpen] = useState(false);
@@ -459,6 +470,20 @@ const Sidebar: React.FC = () => {
           </div>
         </div>
         <div className="flex flex-col items-center gap-1.5">
+          {updateInfo?.available && (
+            <CollapsedButton
+              title={isUpdateDownloading ? 'Downloading update' : `Update to ${updateInfo.version}`}
+              onClick={() => {
+                if (isUpdateDownloading || updateError) {
+                  showUpdateDialog();
+                } else {
+                  void installUpdate();
+                }
+              }}
+            >
+              {isUpdateDownloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+            </CollapsedButton>
+          )}
           {betaFeatures.importAndRetranscribe && (
             <CollapsedButton title="Import audio" onClick={() => openImportDialog()}>
               <Upload className="h-4 w-4" />
@@ -683,6 +708,21 @@ const Sidebar: React.FC = () => {
             </div>
 
             <div className="shrink-0 border-t border-gray-100 p-2">
+              {updateInfo?.available && (
+                <UpdateSidebarNotice
+                  version={updateInfo.version}
+                  isDownloading={isUpdateDownloading}
+                  progress={updateProgress?.percentage ?? 0}
+                  error={updateError}
+                  onClick={() => {
+                    if (isUpdateDownloading || updateError) {
+                      showUpdateDialog();
+                    } else {
+                      void installUpdate();
+                    }
+                  }}
+                />
+              )}
               <TooltipProvider>
                 <div className="flex items-center justify-center gap-1">
                   {betaFeatures.importAndRetranscribe && (
@@ -916,6 +956,52 @@ function IconFooterButton({
       </TooltipTrigger>
       <TooltipContent side="top">{title}</TooltipContent>
     </Tooltip>
+  );
+}
+
+function UpdateSidebarNotice({
+  version,
+  isDownloading,
+  progress,
+  error,
+  onClick,
+}: {
+  version?: string;
+  isDownloading: boolean;
+  progress: number;
+  error: string | null;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="mb-2 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-left text-gray-800 shadow-sm transition-colors hover:bg-gray-50"
+    >
+      <span className="flex items-center gap-2">
+        {isDownloading ? (
+          <Loader2 className="h-4 w-4 shrink-0 animate-spin text-gray-500" />
+        ) : (
+          <Download className="h-4 w-4 shrink-0 text-gray-500" />
+        )}
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-medium">
+            {error ? 'Update failed' : isDownloading ? 'Downloading update' : 'Update available'}
+          </span>
+          <span className="block truncate text-xs text-gray-500">
+            {error ?? (isDownloading ? `${Math.round(progress)}% complete` : `Version ${version}`)}
+          </span>
+        </span>
+      </span>
+      {isDownloading && (
+        <span className="mt-2 block h-1.5 overflow-hidden rounded-full bg-gray-100">
+          <span
+            className="block h-full rounded-full bg-gray-900 transition-[width] duration-200"
+            style={{ width: `${Math.min(Math.max(progress, 0), 100)}%` }}
+          />
+        </span>
+      )}
+    </button>
   );
 }
 

@@ -16,6 +16,7 @@ export interface UpdateInfo {
   date?: string;
   body?: string;
   downloadUrl?: string;
+  update?: Update;
 }
 
 export interface UpdateProgress {
@@ -70,6 +71,7 @@ export class UpdateService {
           version: update.version,
           date: update.date,
           body: update.body,
+          update,
         };
       }
 
@@ -96,16 +98,34 @@ export class UpdateService {
     onProgress?: (progress: UpdateProgress) => void
   ): Promise<void> {
     try {
-      // Download the update
-      await update.download();
+      let downloaded = 0;
+      let contentLength = 0;
 
-      // Notify progress if callback provided
-      if (onProgress) {
-        onProgress({ downloaded: 100, total: 100, percentage: 100 });
-      }
+      await update.downloadAndInstall((event) => {
+        switch (event.event) {
+          case 'Started':
+            downloaded = 0;
+            contentLength = event.data.contentLength || 0;
+            onProgress?.({ downloaded, total: contentLength, percentage: 0 });
+            break;
+          case 'Progress':
+            downloaded += event.data.chunkLength || 0;
+            onProgress?.({
+              downloaded,
+              total: contentLength,
+              percentage: contentLength > 0 ? Math.round((downloaded / contentLength) * 100) : 0,
+            });
+            break;
+          case 'Finished':
+            onProgress?.({
+              downloaded: contentLength,
+              total: contentLength,
+              percentage: 100,
+            });
+            break;
+        }
+      });
 
-      // Install and relaunch
-      await update.install();
       await relaunch();
     } catch (error) {
       console.error('Failed to download/install update:', error);
