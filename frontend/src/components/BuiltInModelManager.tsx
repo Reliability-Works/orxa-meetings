@@ -33,6 +33,7 @@ interface BuiltInModelManagerProps {
   selectedModel: string;
   onModelSelect: (model: string) => void;
   layout?: 'inline' | 'dialog';
+  usage?: 'summary' | 'chat';
 }
 
 type SummaryModelGuidance = {
@@ -42,7 +43,64 @@ type SummaryModelGuidance = {
   isBest?: boolean;
 };
 
-function getSummaryModelGuidance(modelName: string): SummaryModelGuidance {
+function getModelGuidance(modelName: string, usage: 'summary' | 'chat'): SummaryModelGuidance {
+  if (usage === 'chat') {
+    if (modelName === 'qwen3.5:2b') {
+      return {
+        bestLabel: 'Best local chat default',
+        isBest: true,
+        pros: [
+          'Fastest good built-in choice for responsive meeting Q&A.',
+          'Enough reasoning for transcript-backed follow-ups on most meetings.',
+        ],
+        cons: [
+          'Less exhaustive than Qwen 3.5 4B for tangled technical discussions.',
+          'May need more explicit prompts for multi-meeting synthesis.',
+        ],
+      };
+    }
+
+    if (modelName === 'qwen3.5:4b') {
+      return {
+        bestLabel: 'Best deep chat reasoning',
+        pros: [
+          'Strongest built-in option for nuanced meeting questions.',
+          'Better at reconciling summary, evidence, and action items.',
+        ],
+        cons: [
+          'Slower responses than Qwen 3.5 2B.',
+          'Largest local download and memory footprint.',
+        ],
+      };
+    }
+
+    if (modelName === 'gemma3:4b') {
+      return {
+        bestLabel: 'Best alternate chat style',
+        pros: [
+          'Useful backup when Qwen answers feel too terse.',
+          'Good for concise interpretation and rewriting tasks.',
+        ],
+        cons: [
+          'Less preferred for evidence-heavy meeting agent answers.',
+          'May need tighter prompting to cite transcript evidence.',
+        ],
+      };
+    }
+
+    return {
+      bestLabel: 'Best lightweight chat fallback',
+      pros: [
+        'Smallest built-in option for quick local chat.',
+        'Good for simple lookup questions and short meetings.',
+      ],
+      cons: [
+        'Weakest reasoning on complex meetings.',
+        'Most likely to miss context across long transcripts.',
+      ],
+    };
+  }
+
   if (modelName === 'qwen3.5:4b') {
     return {
       bestLabel: 'Best local summary quality',
@@ -99,6 +157,24 @@ function getSummaryModelGuidance(modelName: string): SummaryModelGuidance {
   };
 }
 
+function getModelDescription(model: ModelInfo, usage: 'summary' | 'chat') {
+  if (usage === 'summary') return model.description;
+
+  if (model.name === 'qwen3.5:2b') {
+    return 'Best default for responsive local meeting chat. Balanced speed, context use, and answer quality.';
+  }
+
+  if (model.name === 'qwen3.5:4b') {
+    return 'Highest-quality local chat model for nuanced questions, evidence synthesis, and technical follow-ups.';
+  }
+
+  if (model.name === 'gemma3:4b') {
+    return 'Alternative local chat model with a concise answer style and moderate local requirements.';
+  }
+
+  return 'Fast lightweight chat fallback for simple meeting lookup questions on lower-memory Macs.';
+}
+
 function summaryModelPriority(modelName: string) {
   if (modelName === 'qwen3.5:4b') return 40;
   if (modelName === 'qwen3.5:2b') return 30;
@@ -111,6 +187,7 @@ export function BuiltInModelManager({
   selectedModel,
   onModelSelect,
   layout = 'inline',
+  usage = 'summary',
 }: BuiltInModelManagerProps) {
   const [models, setModels] = useState<ModelInfo[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -369,7 +446,8 @@ export function BuiltInModelManager({
           const isNotDownloaded = model.status.type === 'not_downloaded';
           const isCorrupted = model.status.type === 'corrupted';
           const isError = model.status.type === 'error';
-          const guidance = getSummaryModelGuidance(model.name);
+          const guidance = getModelGuidance(model.name, usage);
+          const description = getModelDescription(model, usage);
 
           return (
             <div
@@ -517,8 +595,8 @@ export function BuiltInModelManager({
                 </div>
               </div>
               <div className="text-sm text-gray-600">
-                {model.description && (
-                  <p className="mb-1">{model.description}</p>
+                {description && (
+                  <p className="mb-1">{description}</p>
                 )}
                 <div className="mb-3 grid gap-3 text-xs sm:grid-cols-2">
                   <div className="rounded-md bg-emerald-50 p-3 text-emerald-900">

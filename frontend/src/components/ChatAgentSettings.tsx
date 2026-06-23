@@ -87,6 +87,7 @@ export function ChatAgentSettings() {
           useGlobalConfig={false}
           heading="Agent Model"
           modelLabel="Chat Agent Model"
+          usage="chat"
         />
       </section>
     </div>

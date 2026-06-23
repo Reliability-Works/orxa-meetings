@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 
-export type RuntimeStatus = 'ready' | 'adapter_pending' | 'research';
+export type RuntimeStatus = 'ready' | 'research';
 export type LocalModelDownloadState = 'missing' | 'downloading' | 'downloaded' | 'error';
 
 export interface LocalModelCatalogItem {
@@ -38,7 +38,7 @@ export const EXPERIMENTAL_TRANSCRIPTION_MODELS: LocalModelCatalogItem[] = [
     size: '~0.6B parameters',
     bestFor: 'Low-latency live meeting transcription',
     sourceUrl: 'https://huggingface.co/nvidia/nemotron-3.5-asr-streaming-0.6b',
-    runtimeStatus: 'adapter_pending',
+    runtimeStatus: 'research',
     recommended: true,
     bestLabel: 'Best new live-transcription candidate',
     pros: [
@@ -46,7 +46,7 @@ export const EXPERIMENTAL_TRANSCRIPTION_MODELS: LocalModelCatalogItem[] = [
       'Small enough to be plausible for always-on local meeting capture.',
     ],
     cons: [
-      'Not selectable until Orxa has a runtime adapter.',
+      'Research-only until a dedicated streaming runtime is implemented.',
       'Needs benchmarking on real Orxa recordings before replacing Lightning.',
     ],
     notes: 'Closest fit for replacing Lightning with a newer streaming local model.',
@@ -58,7 +58,7 @@ export const EXPERIMENTAL_TRANSCRIPTION_MODELS: LocalModelCatalogItem[] = [
     size: '~4B parameters',
     bestFor: 'Higher-quality realtime transcription on stronger Apple silicon',
     sourceUrl: 'https://huggingface.co/mistralai/Voxtral-Mini-4B-Realtime-2602',
-    runtimeStatus: 'adapter_pending',
+    runtimeStatus: 'research',
     bestLabel: 'Best stronger-hardware realtime candidate',
     pros: [
       'Promising for higher-quality realtime capture.',
@@ -77,7 +77,7 @@ export const EXPERIMENTAL_TRANSCRIPTION_MODELS: LocalModelCatalogItem[] = [
     size: '~1.7B parameters',
     bestFor: 'Offline retranscription and multilingual accuracy tests',
     sourceUrl: 'https://huggingface.co/Qwen/Qwen3-ASR-1.7B',
-    runtimeStatus: 'adapter_pending',
+    runtimeStatus: 'research',
     bestLabel: 'Best offline accuracy experiment',
     pros: [
       'Better suited to slower, high-quality retranscription passes.',
@@ -85,7 +85,7 @@ export const EXPERIMENTAL_TRANSCRIPTION_MODELS: LocalModelCatalogItem[] = [
     ],
     cons: [
       'Not a live streaming replacement yet.',
-      'Needs adapter and accuracy benchmarking before it is trusted.',
+      'Needs accuracy benchmarking before it is trusted.',
     ],
     notes: 'Better suited to a high-accuracy retranscription path than the current live chunker.',
   },
@@ -156,7 +156,7 @@ export const PLAYBACK_MODELS: LocalModelCatalogItem[] = [
     size: '~82M parameters',
     bestFor: 'Fast local summary playback',
     sourceUrl: 'https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX',
-    runtimeStatus: 'adapter_pending',
+    runtimeStatus: 'research',
     recommended: true,
     bestLabel: 'Best first local playback target',
     pros: [
@@ -164,7 +164,7 @@ export const PLAYBACK_MODELS: LocalModelCatalogItem[] = [
       'Practical first step beyond macOS system speech.',
     ],
     cons: [
-      'Needs a Orxa playback runtime adapter.',
+      'Uses macOS speech today; this model needs a dedicated future voice runtime.',
       'Less expressive than the larger voice models.',
     ],
     notes: 'Best first target for a small, fast local playback engine.',
@@ -176,7 +176,7 @@ export const PLAYBACK_MODELS: LocalModelCatalogItem[] = [
     size: 'Medium local TTS stack',
     bestFor: 'More human, expressive summary playback',
     sourceUrl: 'https://github.com/resemble-ai/chatterbox',
-    runtimeStatus: 'adapter_pending',
+    runtimeStatus: 'research',
     bestLabel: 'Best human-like voice target',
     pros: [
       'More expressive and natural than tiny TTS engines.',
@@ -230,7 +230,6 @@ export const PLAYBACK_MODELS: LocalModelCatalogItem[] = [
 
 export function runtimeStatusLabel(status: RuntimeStatus) {
   if (status === 'ready') return 'Ready';
-  if (status === 'adapter_pending') return 'Adapter needed';
   return 'Research';
 }
 

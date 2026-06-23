@@ -118,9 +118,42 @@ interface ModelSettingsModalProps {
   useGlobalConfig?: boolean;
   heading?: string;
   modelLabel?: string;
+  usage?: 'summary' | 'chat';
 }
 
-function getSummaryProviderGuidance(provider: ModelConfig['provider']) {
+function getProviderGuidance(provider: ModelConfig['provider'], usage: 'summary' | 'chat') {
+  if (usage === 'chat') {
+    if (provider === 'builtin-ai') {
+      return {
+        label: 'Best private meeting chat path',
+        pros: ['No API key required.', 'Works against local meeting transcripts and summaries.'],
+        cons: ['Local models are slower than cloud agents.', 'Reasoning quality depends on the selected built-in model.'],
+      };
+    }
+
+    if (provider === 'custom-openai') {
+      return {
+        label: 'Best self-hosted agent path',
+        pros: ['Can point at a private OpenAI-compatible agent server.', 'Good when you want stronger local/server-side chat models.'],
+        cons: ['You manage endpoint uptime and context limits.', 'Tool behavior depends on the server model.'],
+      };
+    }
+
+    if (provider === 'ollama') {
+      return {
+        label: 'Best simple local agent server path',
+        pros: ['Works with an existing Ollama setup.', 'Easy to test chat-oriented models for meeting Q&A.'],
+        cons: ['Ollama must stay running while chatting.', 'Some models may ignore evidence more than built-in Qwen.'],
+      };
+    }
+
+    return {
+      label: 'Best high-capability remote agent path',
+      pros: ['Can use stronger remote reasoning models.', 'Usually better for complex follow-up questions.'],
+      cons: ['Requires API configuration.', 'Meeting content leaves the fully local path.'],
+    };
+  }
+
   if (provider === 'builtin-ai') {
     return {
       label: 'Best private/offline path',
@@ -161,6 +194,7 @@ export function ModelSettingsModal({
   useGlobalConfig = true,
   heading = 'Model Settings',
   modelLabel = 'Summarization Model',
+  usage = 'summary',
 }: ModelSettingsModalProps) {
   // Use ConfigContext if available, fallback to props for backward compatibility
   const configContext = useConfig();
@@ -849,7 +883,7 @@ export function ModelSettingsModal({
       loadedText.includes(query)
     );
   });
-  const providerGuidance = getSummaryProviderGuidance(modelConfig.provider);
+  const providerGuidance = getProviderGuidance(modelConfig.provider, usage);
 
   return (
     <div>
@@ -1440,6 +1474,7 @@ export function ModelSettingsModal({
             <BuiltInModelManager
               selectedModel={modelConfig.model}
               layout={layout}
+              usage={usage}
               onModelSelect={(model) =>
                 setModelConfig((prev: ModelConfig) => ({ ...prev, model }))
               }

@@ -17,7 +17,6 @@ interface LocalModelCatalogCardsProps {
 
 function statusClass(status: LocalModelCatalogItem['runtimeStatus']) {
   if (status === 'ready') return 'bg-emerald-50 text-emerald-700 border-emerald-200';
-  if (status === 'adapter_pending') return 'bg-amber-50 text-amber-700 border-amber-200';
   return 'bg-gray-100 text-gray-600 border-gray-200';
 }
 
@@ -268,7 +267,7 @@ export function LocalModelCatalogCards({ models }: LocalModelCatalogCardsProps) 
                   size="sm"
                   disabled={isDownloading}
                   onClick={() => isDownloaded ? handleOpenFolder(model.id) : handleDownload(model)}
-                  title="Download model artifacts locally. Running this model still requires the matching Orxa runtime adapter."
+                  title={model.runtimeStatus === 'ready' ? 'Download model artifacts locally.' : 'Download model artifacts locally for research and benchmarking.'}
                 >
                   {isDownloading ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
