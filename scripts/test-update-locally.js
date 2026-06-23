@@ -31,7 +31,7 @@ if (!fs.existsSync(LATEST_JSON_PATH)) {
   console.error('\nPlease generate it first:');
   console.error('  node scripts/generate-update-manifest-github.js <version>');
   console.error('\nExample:');
-  console.error('  node scripts/generate-update-manifest-github.js 0.1.2 \\');
+  console.error('  node scripts/generate-update-manifest-github.js 0.0.1 \\');
   console.error('    frontend/src-tauri/target/release/bundle/updater \\');
   console.error('    latest.json \\');
   console.error('    "Bug fixes and improvements"');
@@ -89,7 +89,7 @@ server.listen(PORT, () => {
   console.log(`   "endpoints": ["http://localhost:${PORT}/latest.json"]\n`);
 
   console.log('2. Build an older version:');
-  console.log('   - Update version in tauri.conf.json to something older (e.g., 0.1.0)');
+  console.log('   - Update version in tauri.conf.json to something older (e.g., 0.0.0)');
   console.log('   - Run: cd frontend && pnpm tauri:build\n');
 
   console.log('3. Run the app and test updates:');

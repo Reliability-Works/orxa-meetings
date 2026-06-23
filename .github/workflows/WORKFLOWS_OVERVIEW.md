@@ -2,7 +2,7 @@
 
 This document provides a quick overview of all available CI/CD workflows in this repository.
 
-**Note:** All workflows in this repository use **manual triggers only** (`workflow_dispatch`). There are no automatic triggers from push or pull request events.
+**Note:** Development and validation workflows use manual triggers (`workflow_dispatch`). The production release workflow also runs when a `v*` tag is pushed.
 
 ## Workflow Files
 
@@ -138,10 +138,11 @@ This document provides a quick overview of all available CI/CD workflows in this
 - Uploads release assets
 - **macOS and Windows only** (Linux excluded from production releases)
 - Auto-generates `latest.json` for Tauri updater
-- **Auto-increment versioning**: If tag exists, auto-increments (e.g., `0.1.1` -> `0.1.1.1` -> `0.1.1.2`, up to `.100`)
+- Release version comes from the pushed `v*` tag, or from `frontend/src-tauri/tauri.conf.json` during manual dispatch.
 
 **Triggers:**
-- Manual dispatch only
+- Manual dispatch
+- Push a `v*` tag, for example `v0.0.1`
 
 **Use When:**
 - Ready to publish a new version
@@ -155,10 +156,9 @@ This document provides a quick overview of all available CI/CD workflows in this
 - Release notes auto-generated
 
 **Version Behavior:**
-- If `v0.1.1` tag doesn't exist: creates `v0.1.1`
-- If `v0.1.1` exists: creates `v0.1.1.1`
-- If `v0.1.1.1` exists: creates `v0.1.1.2`
-- Maximum: `v0.1.1.100` (then update `tauri.conf.json`)
+- Tag-triggered runs publish the exact pushed tag version.
+- Manual runs read the version from `frontend/src-tauri/tauri.conf.json`.
+- The release workflow creates a draft GitHub Release, uploads installers and updater assets, then leaves the release ready for review.
 
 **Note:** Linux builds are not included in releases. Use `build-linux.yml` for Linux testing.
 
@@ -267,9 +267,9 @@ orxa-{workflow}-{platform}-{target}-{version}
 ```
 
 **Examples:**
-- `orxa-devtest-macOS-aarch64-apple-darwin-0.1.3`
-- `orxa-test-windows-x86_64-pc-windows-msvc-0.1.3`
-- `orxa-macos-aarch64-release-0.1.3`
+- `orxa-devtest-macOS-aarch64-apple-darwin-0.0.1`
+- `orxa-test-windows-x86_64-pc-windows-msvc-0.0.1`
+- `orxa-macos-aarch64-release-0.0.1`
 
 ---
 
@@ -317,7 +317,7 @@ All workflows require these secrets to be configured:
 
 ### Build fails with version error (Windows MSI)
 - Ensure version in `tauri.conf.json` doesn't contain non-numeric pre-release identifiers
-- Use `0.1.3` not `0.1.2-pro-trial`
+- Use `0.0.1` rather than a pre-release string such as `0.0.1-beta`
 
 ### Signing fails
 - Verify all required secrets are configured

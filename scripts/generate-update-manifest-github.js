@@ -9,7 +9,7 @@
  *   node scripts/generate-update-manifest-github.js <version> [bundle-dir] [output-file] [notes]
  *
  * Example:
- *   node scripts/generate-update-manifest-github.js 0.1.2 frontend/src-tauri/target/release/bundle/updater latest.json "Release notes here"
+ *   node scripts/generate-update-manifest-github.js 0.0.1 frontend/src-tauri/target/release/bundle/updater latest.json "Release notes here"
  */
 
 const fs = require('fs');
@@ -20,7 +20,7 @@ const repository = process.env.GITHUB_REPOSITORY || 'Reliability-Works/orxa-meet
 
 if (!version) {
   console.error('Usage: node generate-update-manifest-github.js <version> [bundle-dir] [output-file] [notes]');
-  console.error('Example: node generate-update-manifest-github.js 0.1.2 frontend/src-tauri/target/release/bundle/updater latest.json "Release notes"');
+  console.error('Example: node generate-update-manifest-github.js 0.0.1 frontend/src-tauri/target/release/bundle/updater latest.json "Release notes"');
   process.exit(1);
 }
 
