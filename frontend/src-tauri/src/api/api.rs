@@ -152,6 +152,19 @@ pub struct MeetingMetadata {
     pub folder_path: Option<String>,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MeetingCalendarItem {
+    pub id: String,
+    pub title: String,
+    pub created_at: String,
+    pub updated_at: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub folder_path: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub recording_duration_seconds: Option<f64>,
+    pub transcript_count: i64,
+}
+
 /// Paginated transcripts response with total count
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PaginatedTranscriptsResponse {
@@ -382,6 +395,61 @@ pub async fn api_get_meetings<R: Runtime>(
             Err(e.to_string())
         }
     }
+}
+
+#[tauri::command]
+pub async fn api_get_meeting_calendar_items<R: Runtime>(
+    _app: AppHandle<R>,
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<MeetingCalendarItem>, String> {
+    log_info!("api_get_meeting_calendar_items called");
+    let pool = state.db_manager.pool();
+
+    sqlx::query_as::<_, (String, String, String, String, Option<String>, Option<f64>, i64)>(
+        r#"
+        SELECT
+            m.id,
+            m.title,
+            m.created_at,
+            m.updated_at,
+            m.folder_path,
+            MAX(COALESCE(t.audio_end_time, t.audio_start_time, t.duration)) AS recording_duration_seconds,
+            COUNT(t.id) AS transcript_count
+        FROM meetings m
+        LEFT JOIN transcripts t ON t.meeting_id = m.id
+        GROUP BY m.id, m.title, m.created_at, m.updated_at, m.folder_path
+        ORDER BY m.created_at DESC
+        "#,
+    )
+    .fetch_all(pool)
+    .await
+    .map(|rows| {
+        rows.into_iter()
+            .map(
+                |(
+                    id,
+                    title,
+                    created_at,
+                    updated_at,
+                    folder_path,
+                    recording_duration_seconds,
+                    transcript_count,
+                )| MeetingCalendarItem {
+                    id,
+                    title,
+                    created_at,
+                    updated_at,
+                    folder_path,
+                    recording_duration_seconds,
+                    transcript_count,
+                },
+            )
+            .collect()
+    })
+    .map_err(|error| {
+        log_error!("Failed to load meeting calendar items: {}", error);
+        format!("Failed to load meeting calendar items: {}", error)
+    })
 }
 
 #[tauri::command]

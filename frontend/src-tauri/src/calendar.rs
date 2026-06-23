@@ -149,6 +149,24 @@ pub async fn request_calendar_permission() -> Result<CalendarPermissionStatus, S
     request_calendar_access().await
 }
 
+#[tauri::command]
+pub async fn list_calendar_events(
+    start_unix_ms: i64,
+    end_unix_ms: i64,
+    include_all_day_events: Option<bool>,
+) -> Result<Vec<CalendarEvent>, String> {
+    if end_unix_ms <= start_unix_ms {
+        return Err("Calendar range end must be after start".to_string());
+    }
+
+    let include_all_day_events = include_all_day_events.unwrap_or(false);
+    tauri::async_runtime::spawn_blocking(move || {
+        platform::calendar_events_in_range(start_unix_ms, end_unix_ms, include_all_day_events)
+    })
+    .await
+    .map_err(|error| format!("Failed to join calendar query task: {}", error))?
+}
+
 pub fn start_calendar_auto_start_watcher<R>(app: AppHandle<R>)
 where
     R: Runtime + 'static,
@@ -355,13 +373,23 @@ mod platform {
         lead_time_minutes: u32,
         include_all_day_events: bool,
     ) -> Result<Vec<CalendarEvent>, String> {
+        let now_ms = chrono::Utc::now().timestamp_millis();
+        let start_ms = now_ms - (START_GRACE_SECONDS * 1_000);
+        let end_ms = now_ms + i64::from(lead_time_minutes) * 60_000;
+
+        calendar_events_in_range(start_ms, end_ms.max(now_ms + 1), include_all_day_events)
+    }
+
+    pub fn calendar_events_in_range(
+        start_ms: i64,
+        end_ms: i64,
+        include_all_day_events: bool,
+    ) -> Result<Vec<CalendarEvent>, String> {
         if !calendar_permission_status()?.can_read_events() {
             return Ok(Vec::new());
         }
 
-        let now_ms = chrono::Utc::now().timestamp_millis();
-        let start_ms = now_ms - (START_GRACE_SECONDS * 1_000);
-        let end_ms = now_ms + i64::from(lead_time_minutes) * 60_000;
+        let end_ms = end_ms.max(start_ms + 1);
 
         unsafe {
             autoreleasepool(|| {
@@ -371,7 +399,7 @@ mod platform {
                 }
 
                 let start_date = nsdate_from_unix_ms(start_ms);
-                let end_date = nsdate_from_unix_ms(end_ms.max(now_ms));
+                let end_date = nsdate_from_unix_ms(end_ms);
                 let predicate: Id = msg_send![store,
                     predicateForEventsWithStartDate: start_date
                     endDate: end_date
@@ -520,6 +548,14 @@ mod platform {
 
     pub fn upcoming_calendar_events(
         _lead_time_minutes: u32,
+        _include_all_day_events: bool,
+    ) -> Result<Vec<CalendarEvent>, String> {
+        Ok(Vec::new())
+    }
+
+    pub fn calendar_events_in_range(
+        _start_unix_ms: i64,
+        _end_unix_ms: i64,
         _include_all_day_events: bool,
     ) -> Result<Vec<CalendarEvent>, String> {
         Ok(Vec::new())

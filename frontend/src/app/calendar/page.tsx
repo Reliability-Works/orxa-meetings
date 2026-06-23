@@ -1,22 +1,67 @@
 "use client";
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { invoke } from '@tauri-apps/api/core';
-import { CalendarDays, ChevronLeft, ChevronRight, FileText, Loader2 } from 'lucide-react';
+import {
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  FileText,
+  Loader2,
+  ShieldCheck,
+} from 'lucide-react';
 import { toast } from 'sonner';
-import { MeetingMetadata } from '@/types';
 import { Button } from '@/components/ui/button';
 import { useSidebar } from '@/components/Sidebar/SidebarProvider';
 
-interface MeetingListItem {
+interface MeetingCalendarItem {
   id: string;
   title: string;
+  created_at: string;
+  updated_at: string;
+  folder_path?: string | null;
+  recording_duration_seconds?: number | null;
+  transcript_count: number;
 }
 
-type CalendarMeeting = MeetingMetadata;
+interface CalendarEvent {
+  id: string;
+  title: string;
+  calendar_title?: string | null;
+  start_unix_ms: number;
+  end_unix_ms: number;
+  is_all_day: boolean;
+}
+
+type CalendarPermissionStatus =
+  | 'not_determined'
+  | 'restricted'
+  | 'denied'
+  | 'full_access'
+  | 'write_only'
+  | 'unavailable'
+  | 'unknown';
+
+interface EventAgendaItem {
+  type: 'event';
+  id: string;
+  startMs: number;
+  event: CalendarEvent;
+  meetings: MeetingCalendarItem[];
+}
+
+interface RecordingAgendaItem {
+  type: 'recording';
+  id: string;
+  startMs: number;
+  meeting: MeetingCalendarItem;
+}
+
+type AgendaItem = EventAgendaItem | RecordingAgendaItem;
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const FALLBACK_RECORDING_DURATION_MS = 5 * 60 * 1000;
 
 function dateKey(date: Date) {
   return [
@@ -26,7 +71,7 @@ function dateKey(date: Date) {
   ].join('-');
 }
 
-function parseMeetingDate(value: string) {
+function parseDate(value: string) {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? new Date() : date;
 }
@@ -35,11 +80,17 @@ function formatMonth(value: Date) {
   return value.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
 }
 
-function formatMeetingTime(value: string) {
-  return parseMeetingDate(value).toLocaleTimeString(undefined, {
+function formatTime(value: number | string) {
+  const date = typeof value === 'number' ? new Date(value) : parseDate(value);
+  return date.toLocaleTimeString(undefined, {
     hour: '2-digit',
     minute: '2-digit',
   });
+}
+
+function formatTimeRange(event: CalendarEvent) {
+  if (event.is_all_day) return 'All day';
+  return `${formatTime(event.start_unix_ms)} - ${formatTime(event.end_unix_ms)}`;
 }
 
 function buildCalendarDays(month: Date) {
@@ -55,75 +106,208 @@ function buildCalendarDays(month: Date) {
   });
 }
 
+function calendarRangeForMonth(month: Date) {
+  const days = buildCalendarDays(month);
+  const start = new Date(days[0]);
+  start.setHours(0, 0, 0, 0);
+
+  const end = new Date(days[days.length - 1]);
+  end.setDate(end.getDate() + 1);
+  end.setHours(0, 0, 0, 0);
+
+  return { start, end };
+}
+
+function meetingStartMs(meeting: MeetingCalendarItem) {
+  return parseDate(meeting.created_at).getTime();
+}
+
+function meetingEndMs(meeting: MeetingCalendarItem) {
+  const start = meetingStartMs(meeting);
+  const durationMs = Math.max(0, meeting.recording_duration_seconds ?? 0) * 1000;
+  const updated = parseDate(meeting.updated_at).getTime();
+
+  return Math.max(
+    start + (durationMs || FALLBACK_RECORDING_DURATION_MS),
+    Number.isNaN(updated) ? start : updated
+  );
+}
+
+function overlapMs(
+  leftStart: number,
+  leftEnd: number,
+  rightStart: number,
+  rightEnd: number
+) {
+  return Math.max(0, Math.min(leftEnd, rightEnd) - Math.max(leftStart, rightStart));
+}
+
+function matchMeetingToEvent(meeting: MeetingCalendarItem, events: CalendarEvent[]) {
+  const start = meetingStartMs(meeting);
+  const end = meetingEndMs(meeting);
+  let best: { event: CalendarEvent; overlap: number } | null = null;
+
+  for (const event of events) {
+    if (event.is_all_day) continue;
+    const overlap = overlapMs(start, end, event.start_unix_ms, event.end_unix_ms);
+    const startsInsideEvent = start >= event.start_unix_ms && start <= event.end_unix_ms;
+
+    if ((overlap > 0 || startsInsideEvent) && (!best || overlap > best.overlap)) {
+      best = { event, overlap };
+    }
+  }
+
+  return best?.event ?? null;
+}
+
+function buildAgenda(events: CalendarEvent[], meetings: MeetingCalendarItem[]) {
+  const itemsByDate = new Map<string, AgendaItem[]>();
+  const eventItems = new Map<string, EventAgendaItem>();
+
+  for (const event of events) {
+    const item: EventAgendaItem = {
+      type: 'event',
+      id: `event-${event.id}`,
+      startMs: event.start_unix_ms,
+      event,
+      meetings: [],
+    };
+    eventItems.set(event.id, item);
+
+    const key = dateKey(new Date(event.start_unix_ms));
+    const list = itemsByDate.get(key) ?? [];
+    list.push(item);
+    itemsByDate.set(key, list);
+  }
+
+  for (const meeting of meetings) {
+    const event = matchMeetingToEvent(meeting, events);
+
+    if (event) {
+      eventItems.get(event.id)?.meetings.push(meeting);
+      continue;
+    }
+
+    const key = dateKey(parseDate(meeting.created_at));
+    const list = itemsByDate.get(key) ?? [];
+    list.push({
+      type: 'recording',
+      id: `recording-${meeting.id}`,
+      startMs: meetingStartMs(meeting),
+      meeting,
+    });
+    itemsByDate.set(key, list);
+  }
+
+  for (const items of itemsByDate.values()) {
+    items.sort((a, b) => a.startMs - b.startMs);
+    for (const item of items) {
+      if (item.type === 'event') {
+        item.meetings.sort((a, b) => meetingStartMs(a) - meetingStartMs(b));
+      }
+    }
+  }
+
+  return itemsByDate;
+}
+
+function itemTitle(item: AgendaItem) {
+  return item.type === 'event' ? item.event.title : item.meeting.title;
+}
+
 export default function CalendarPage() {
   const router = useRouter();
   const { setCurrentMeeting } = useSidebar();
-  const [meetings, setMeetings] = useState<CalendarMeeting[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [meetings, setMeetings] = useState<MeetingCalendarItem[]>([]);
+  const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
+  const [permissionStatus, setPermissionStatus] = useState<CalendarPermissionStatus>('unknown');
+  const [isLoadingMeetings, setIsLoadingMeetings] = useState(true);
+  const [isLoadingEvents, setIsLoadingEvents] = useState(true);
   const [visibleMonth, setVisibleMonth] = useState(() => new Date());
   const [selectedDate, setSelectedDate] = useState(() => dateKey(new Date()));
 
-  useEffect(() => {
-    const loadMeetings = async () => {
-      setIsLoading(true);
-      try {
-        const list = await invoke<MeetingListItem[]>('api_get_meetings', { authToken: null });
-        const metadata = await Promise.all(
-          list.map(async (meeting) => {
-            try {
-              return await invoke<MeetingMetadata>('api_get_meeting_metadata', { meetingId: meeting.id });
-            } catch (error) {
-              console.warn('Failed to load meeting metadata:', meeting.id, error);
-              return null;
-            }
-          })
-        );
+  const calendarDays = useMemo(() => buildCalendarDays(visibleMonth), [visibleMonth]);
+  const range = useMemo(() => calendarRangeForMonth(visibleMonth), [visibleMonth]);
 
-        const loaded = metadata
-          .filter((meeting): meeting is MeetingMetadata => !!meeting)
-          .sort((a, b) => parseMeetingDate(b.created_at).getTime() - parseMeetingDate(a.created_at).getTime());
+  const loadMeetings = useCallback(async () => {
+    setIsLoadingMeetings(true);
+    try {
+      const loaded = await invoke<MeetingCalendarItem[]>('api_get_meeting_calendar_items');
+      setMeetings(loaded);
 
-        setMeetings(loaded);
-        if (loaded.length > 0) {
-          const newest = parseMeetingDate(loaded[0].created_at);
-          setVisibleMonth(new Date(newest.getFullYear(), newest.getMonth(), 1));
-          setSelectedDate(dateKey(newest));
-        }
-      } catch (error) {
-        console.error('Failed to load calendar meetings:', error);
-        toast.error('Could not load calendar');
-      } finally {
-        setIsLoading(false);
+      if (loaded.length > 0) {
+        const newest = parseDate(loaded[0].created_at);
+        setVisibleMonth(new Date(newest.getFullYear(), newest.getMonth(), 1));
+        setSelectedDate(dateKey(newest));
       }
-    };
-
-    void loadMeetings();
+    } catch (error) {
+      console.error('Failed to load meeting calendar items:', error);
+      toast.error('Could not load meeting recordings');
+    } finally {
+      setIsLoadingMeetings(false);
+    }
   }, []);
 
-  const meetingsByDate = useMemo(() => {
-    const grouped = new Map<string, CalendarMeeting[]>();
-    for (const meeting of meetings) {
-      const key = dateKey(parseMeetingDate(meeting.created_at));
-      const current = grouped.get(key) ?? [];
-      current.push(meeting);
-      grouped.set(key, current);
+  const loadCalendarEvents = useCallback(async () => {
+    setIsLoadingEvents(true);
+    try {
+      const status = await invoke<CalendarPermissionStatus>('get_calendar_permission_status');
+      setPermissionStatus(status);
+
+      if (status !== 'full_access') {
+        setCalendarEvents([]);
+        return;
+      }
+
+      const events = await invoke<CalendarEvent[]>('list_calendar_events', {
+        startUnixMs: range.start.getTime(),
+        endUnixMs: range.end.getTime(),
+        includeAllDayEvents: false,
+      });
+      setCalendarEvents(events);
+    } catch (error) {
+      console.error('Failed to load macOS Calendar events:', error);
+      setCalendarEvents([]);
+      toast.error('Could not load macOS Calendar events');
+    } finally {
+      setIsLoadingEvents(false);
     }
-    return grouped;
-  }, [meetings]);
+  }, [range.end, range.start]);
 
-  const calendarDays = useMemo(() => buildCalendarDays(visibleMonth), [visibleMonth]);
-  const monthMeetings = useMemo(
-    () => meetings.filter((meeting) => {
-      const date = parseMeetingDate(meeting.created_at);
-      return date.getFullYear() === visibleMonth.getFullYear() && date.getMonth() === visibleMonth.getMonth();
-    }),
-    [meetings, visibleMonth]
+  useEffect(() => {
+    void loadMeetings();
+  }, [loadMeetings]);
+
+  useEffect(() => {
+    void loadCalendarEvents();
+  }, [loadCalendarEvents]);
+
+  const agendaByDate = useMemo(
+    () => buildAgenda(calendarEvents, meetings),
+    [calendarEvents, meetings]
   );
-  const selectedMeetings = meetingsByDate.get(selectedDate) ?? [];
 
-  const openMeeting = (meeting: CalendarMeeting) => {
+  const selectedItems = agendaByDate.get(selectedDate) ?? [];
+  const isLoading = isLoadingMeetings || isLoadingEvents;
+
+  const openMeeting = (meeting: MeetingCalendarItem) => {
     setCurrentMeeting({ id: meeting.id, title: meeting.title });
     router.push(`/meeting-details?id=${meeting.id}`);
+  };
+
+  const requestCalendarAccess = async () => {
+    try {
+      const status = await invoke<CalendarPermissionStatus>('request_calendar_permission');
+      setPermissionStatus(status);
+      if (status === 'full_access') {
+        await loadCalendarEvents();
+      } else {
+        toast.warning('Calendar access is not enabled');
+      }
+    } catch (error) {
+      console.error('Failed to request calendar access:', error);
+      toast.error('Could not request calendar access');
+    }
   };
 
   const moveMonth = (amount: number) => {
@@ -140,7 +324,9 @@ export default function CalendarPage() {
             </div>
             <div>
               <h1 className="text-2xl font-semibold tracking-normal text-gray-950">Calendar</h1>
-              <p className="text-sm text-gray-500">Browse previous meetings by date and reopen transcripts or summaries.</p>
+              <p className="text-sm text-gray-500">
+                Browse Calendar events and attached Orxa transcripts.
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -154,13 +340,25 @@ export default function CalendarPage() {
           </div>
         </div>
 
+        {permissionStatus !== 'full_access' && permissionStatus !== 'unknown' && permissionStatus !== 'unavailable' && (
+          <div className="mb-4 flex items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 text-gray-500" />
+              <span>Allow Calendar access to show your real meeting events here.</span>
+            </div>
+            <Button variant="outline" size="sm" onClick={requestCalendarAccess}>
+              Allow Access
+            </Button>
+          </div>
+        )}
+
         {isLoading ? (
           <div className="flex flex-1 items-center justify-center text-sm text-gray-500">
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             Loading calendar
           </div>
         ) : (
-          <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1.45fr)_minmax(300px,0.8fr)] gap-5">
+          <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1.45fr)_minmax(320px,0.8fr)] gap-5">
             <section className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
               <div className="grid grid-cols-7 gap-1 pb-2">
                 {WEEKDAYS.map((weekday) => (
@@ -172,7 +370,8 @@ export default function CalendarPage() {
               <div className="grid grid-cols-7 gap-1">
                 {calendarDays.map((day) => {
                   const key = dateKey(day);
-                  const count = meetingsByDate.get(key)?.length ?? 0;
+                  const items = agendaByDate.get(key) ?? [];
+                  const count = items.length;
                   const inMonth = day.getMonth() === visibleMonth.getMonth();
                   const selected = selectedDate === key;
 
@@ -198,9 +397,9 @@ export default function CalendarPage() {
                         )}
                       </div>
                       <div className="mt-2 space-y-1">
-                        {(meetingsByDate.get(key) ?? []).slice(0, 2).map((meeting) => (
-                          <div key={meeting.id} className={`truncate text-xs ${selected ? 'text-white/80' : 'text-gray-500'}`}>
-                            {meeting.title}
+                        {items.slice(0, 2).map((item) => (
+                          <div key={item.id} className={`truncate text-xs ${selected ? 'text-white/80' : 'text-gray-500'}`}>
+                            {itemTitle(item)}
                           </div>
                         ))}
                       </div>
@@ -220,30 +419,72 @@ export default function CalendarPage() {
                   })}
                 </h2>
                 <p className="text-sm text-gray-500">
-                  {selectedMeetings.length ? `${selectedMeetings.length} meeting${selectedMeetings.length === 1 ? '' : 's'}` : 'No meetings on this day'}
+                  {selectedItems.length
+                    ? `${selectedItems.length} item${selectedItems.length === 1 ? '' : 's'}`
+                    : 'No events or recordings on this day'}
                 </p>
               </div>
 
               <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
-                {(selectedMeetings.length ? selectedMeetings : monthMeetings).map((meeting) => (
-                  <button
-                    key={meeting.id}
-                    type="button"
-                    onClick={() => openMeeting(meeting)}
-                    className="flex w-full gap-3 rounded-lg border border-gray-100 p-3 text-left transition-colors hover:border-gray-200 hover:bg-gray-50"
-                  >
-                    <FileText className="mt-0.5 h-4 w-4 shrink-0 text-gray-500" />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-medium text-gray-900">{meeting.title}</span>
-                      <span className="mt-1 block text-xs text-gray-500">
-                        {formatMeetingTime(meeting.created_at)}
+                {selectedItems.map((item) => (
+                  item.type === 'event' ? (
+                    <div
+                      key={item.id}
+                      className="rounded-lg border border-gray-100 p-3"
+                    >
+                      <div className="flex gap-3">
+                        <CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-gray-500" />
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-sm font-medium text-gray-900">{item.event.title}</div>
+                          <div className="mt-1 text-xs text-gray-500">{formatTimeRange(item.event)}</div>
+                          {item.event.calendar_title && (
+                            <div className="mt-0.5 truncate text-xs text-gray-400">{item.event.calendar_title}</div>
+                          )}
+                        </div>
+                      </div>
+
+                      {item.meetings.length > 0 && (
+                        <div className="mt-3 space-y-2 border-t border-gray-100 pt-3">
+                          {item.meetings.map((meeting) => (
+                            <button
+                              key={meeting.id}
+                              type="button"
+                              onClick={() => openMeeting(meeting)}
+                              className="flex w-full items-start gap-2 rounded-md px-2 py-2 text-left hover:bg-gray-50"
+                            >
+                              <FileText className="mt-0.5 h-4 w-4 shrink-0 text-gray-500" />
+                              <span className="min-w-0 flex-1">
+                                <span className="block truncate text-sm font-medium text-gray-900">{meeting.title}</span>
+                                <span className="mt-0.5 block text-xs text-gray-500">
+                                  Transcript attached - {meeting.transcript_count} segment{meeting.transcript_count === 1 ? '' : 's'}
+                                </span>
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => openMeeting(item.meeting)}
+                      className="flex w-full gap-3 rounded-lg border border-gray-100 p-3 text-left transition-colors hover:border-gray-200 hover:bg-gray-50"
+                    >
+                      <FileText className="mt-0.5 h-4 w-4 shrink-0 text-gray-500" />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-medium text-gray-900">{item.meeting.title}</span>
+                        <span className="mt-1 block text-xs text-gray-500">
+                          {formatTime(item.meeting.created_at)} - no matching Calendar event
+                        </span>
                       </span>
-                    </span>
-                  </button>
+                    </button>
+                  )
                 ))}
-                {!selectedMeetings.length && !monthMeetings.length && (
+
+                {!selectedItems.length && (
                   <div className="rounded-lg border border-dashed border-gray-200 p-6 text-center text-sm text-gray-400">
-                    No meetings in {formatMonth(visibleMonth)}
+                    No Calendar events or Orxa recordings for this date.
                   </div>
                 )}
               </div>
