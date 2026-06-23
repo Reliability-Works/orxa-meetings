@@ -11,6 +11,7 @@ import "sonner/dist/styles.css"
 import { useState, useEffect, useCallback } from 'react'
 import { listen, UnlistenFn } from '@tauri-apps/api/event'
 import { invoke } from '@tauri-apps/api/core'
+import { getCurrentWindow } from '@tauri-apps/api/window'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { RecordingStateProvider } from '@/contexts/RecordingStateContext'
 import { OllamaDownloadProvider } from '@/contexts/OllamaDownloadContext'
@@ -32,6 +33,34 @@ const sourceSans3 = Source_Sans_3({
   weight: ['400', '500', '600', '700'],
   variable: '--font-source-sans-3',
 })
+
+function WindowDragStrip() {
+  const startWindowDrag = () => {
+    void getCurrentWindow().startDragging().catch((error) => {
+      console.warn('[Layout] Failed to start native window drag:', error);
+    });
+  };
+
+  const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0) return;
+    startWindowDrag();
+  };
+
+  const handleMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (event.button !== 0) return;
+    startWindowDrag();
+  };
+
+  return (
+    <div
+      data-tauri-drag-region
+      className="fixed right-0 top-0 z-50 h-10 bg-transparent"
+      style={{ left: 190, WebkitAppRegion: 'drag', userSelect: 'none' } as React.CSSProperties}
+      onPointerDown={handlePointerDown}
+      onMouseDown={handleMouseDown}
+    />
+  );
+}
 
 // Module-level component — stable reference across RootLayout re-renders.
 // Defined here (not inside RootLayout) so React never sees a new function type
@@ -252,6 +281,7 @@ export default function RootLayout({
                                 <OnboardingFlow onComplete={handleOnboardingComplete} />
                               ) : (
                                 <div className="flex">
+                                  <WindowDragStrip />
                                   <Sidebar />
                                   <MainContent>{children}</MainContent>
                                 </div>
