@@ -499,9 +499,13 @@ const Sidebar: React.FC = () => {
 
   return (
     <div
-      className="fixed left-0 top-0 z-40 h-screen border-r border-gray-200 bg-white"
+      className="fixed left-0 top-0 z-40 h-screen bg-white"
       style={{ width: isCollapsed ? COLLAPSED_WIDTH : sidebarWidth }}
     >
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute bottom-0 right-0 top-0 z-10 w-px bg-gray-200"
+      />
       <div
         className={`relative flex h-screen flex-col bg-white ${isResizing ? '' : 'transition-[width] duration-200'}`}
         style={{ width: isCollapsed ? COLLAPSED_WIDTH : sidebarWidth }}
