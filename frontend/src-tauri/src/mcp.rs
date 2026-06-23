@@ -2,9 +2,9 @@ use serde::Serialize;
 use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Manager, Runtime};
 
-const MCP_SCRIPT_FILENAME: &str = "meetily_mcp.py";
+const MCP_SCRIPT_FILENAME: &str = "orxa_mcp.py";
 const DATABASE_FILENAME: &str = "meeting_minutes.sqlite";
-const DATABASE_ENV: &str = "MEETILY_DB_PATH";
+const DATABASE_ENV: &str = "ORXA_DB_PATH";
 
 #[derive(Serialize)]
 pub struct McpSetupInfo {
@@ -28,7 +28,7 @@ pub fn get_mcp_setup_info<R: Runtime>(app: AppHandle<R>) -> Result<McpSetupInfo,
     let command = "python3".to_string();
     let config = serde_json::json!({
         "mcpServers": {
-            "meetily": {
+            "orxa": {
                 "command": command,
                 "args": [server_script_path.to_string_lossy()],
                 "env": {
@@ -87,7 +87,7 @@ fn resolve_mcp_script_path<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, St
         return Ok(checkout_candidate);
     }
 
-    Err("Bundled Meetily MCP server script was not found.".to_string())
+    Err("Bundled Orxa MCP server script was not found.".to_string())
 }
 
 fn find_file_by_name(root: &Path, filename: &str) -> Option<PathBuf> {

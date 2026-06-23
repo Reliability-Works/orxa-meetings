@@ -6,19 +6,19 @@ import unittest
 from pathlib import Path
 
 
-MODULE_PATH = Path(__file__).with_name("meetily_mcp.py")
-SPEC = importlib.util.spec_from_file_location("meetily_mcp", MODULE_PATH)
-meetily_mcp = importlib.util.module_from_spec(SPEC)
+MODULE_PATH = Path(__file__).with_name("orxa_mcp.py")
+SPEC = importlib.util.spec_from_file_location("orxa_mcp", MODULE_PATH)
+orxa_mcp = importlib.util.module_from_spec(SPEC)
 assert SPEC.loader is not None
-SPEC.loader.exec_module(meetily_mcp)
+SPEC.loader.exec_module(orxa_mcp)
 
 
-class MeetilyMcpTest(unittest.TestCase):
+class OrxaMcpTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.db_path = Path(self.tmp.name) / "meeting_minutes.sqlite"
         self._create_database(self.db_path)
-        self.db = meetily_mcp.MeetilyDatabase(str(self.db_path))
+        self.db = orxa_mcp.OrxaDatabase(str(self.db_path))
 
     def tearDown(self):
         self.tmp.cleanup()
@@ -125,7 +125,7 @@ class MeetilyMcpTest(unittest.TestCase):
         conn.close()
 
     def test_list_meetings_includes_status_counts_and_notes(self):
-        result = meetily_mcp.list_meetings(self.db, {})
+        result = orxa_mcp.list_meetings(self.db, {})
 
         self.assertEqual(result["meetings"][0]["id"], "meeting-1")
         self.assertEqual(result["meetings"][0]["transcript_count"], 2)
@@ -133,7 +133,7 @@ class MeetilyMcpTest(unittest.TestCase):
         self.assertEqual(result["meetings"][0]["has_notes"], 1)
 
     def test_get_transcript_returns_ordered_segments_and_raw_text(self):
-        result = meetily_mcp.get_transcript(self.db, {"meeting_id": "meeting-1"})
+        result = orxa_mcp.get_transcript(self.db, {"meeting_id": "meeting-1"})
 
         self.assertEqual(result["segment_count"], 2)
         self.assertIn("Alice said Bob should send the deck", result["raw_text"])
@@ -142,19 +142,19 @@ class MeetilyMcpTest(unittest.TestCase):
         self.assertEqual(result["segments"][0]["speaker"], "me")
 
     def test_get_summary_parses_stored_summary_json(self):
-        result = meetily_mcp.get_summary(self.db, {"meeting_id": "meeting-1"})
+        result = orxa_mcp.get_summary(self.db, {"meeting_id": "meeting-1"})
 
         self.assertEqual(result["summary"]["status"], "completed")
         self.assertIn("Roadmap was discussed", result["summary"]["data"]["markdown"])
 
     def test_get_action_items_extracts_summary_section(self):
-        result = meetily_mcp.get_action_items(self.db, {"meeting_id": "meeting-1"})
+        result = orxa_mcp.get_action_items(self.db, {"meeting_id": "meeting-1"})
 
         self.assertIn("**Action Items / Todos**", result["action_items_markdown"])
         self.assertIn("Send the deck", result["action_items_markdown"])
 
     def test_sync_work_items_extracts_agent_ready_records(self):
-        result = meetily_mcp.sync_work_items(self.db, {"meeting_id": "meeting-1"})
+        result = orxa_mcp.sync_work_items(self.db, {"meeting_id": "meeting-1"})
 
         self.assertGreaterEqual(result["item_count"], 1)
         actions = [item for item in result["items"] if item["kind"] == "action"]
@@ -163,10 +163,10 @@ class MeetilyMcpTest(unittest.TestCase):
         self.assertEqual(actions[0]["status"], "open")
 
     def test_update_work_item_status_records_agent_notes(self):
-        sync_result = meetily_mcp.sync_work_items(self.db, {"meeting_id": "meeting-1"})
+        sync_result = orxa_mcp.sync_work_items(self.db, {"meeting_id": "meeting-1"})
         item_id = sync_result["items"][0]["id"]
 
-        result = meetily_mcp.update_work_item_status(
+        result = orxa_mcp.update_work_item_status(
             self.db,
             {"item_id": item_id, "status": "in_progress", "agent_notes": "Picked up by Codex"},
         )
@@ -175,7 +175,7 @@ class MeetilyMcpTest(unittest.TestCase):
         self.assertEqual(result["item"]["agent_notes"], "Picked up by Codex")
 
     def test_create_context_pack_includes_actions_and_evidence(self):
-        result = meetily_mcp.create_context_pack(
+        result = orxa_mcp.create_context_pack(
             self.db,
             {"meeting_id": "meeting-1", "role_scope": "engineering"},
         )
@@ -186,11 +186,11 @@ class MeetilyMcpTest(unittest.TestCase):
         self.assertIn("Alice said Bob should send the deck", markdown)
 
     def test_role_output_and_pre_meeting_brief_use_work_items(self):
-        role_output = meetily_mcp.get_role_output(
+        role_output = orxa_mcp.get_role_output(
             self.db,
             {"meeting_id": "meeting-1", "role_scope": "product"},
         )
-        brief = meetily_mcp.create_pre_meeting_brief(
+        brief = orxa_mcp.create_pre_meeting_brief(
             self.db,
             {"title": "Roadmap Sync", "related_meeting_id": "meeting-1"},
         )
@@ -200,13 +200,13 @@ class MeetilyMcpTest(unittest.TestCase):
         self.assertIn("Send the deck", brief["brief"]["brief_markdown"])
 
     def test_search_transcripts_returns_context(self):
-        result = meetily_mcp.search_transcripts(self.db, {"query": "Legal"})
+        result = orxa_mcp.search_transcripts(self.db, {"query": "Legal"})
 
         self.assertEqual(result["results"][0]["meeting_id"], "meeting-1")
         self.assertIn("Legal", result["results"][0]["context"])
 
     def test_ask_meeting_returns_cited_evidence(self):
-        result = meetily_mcp.ask_meeting(
+        result = orxa_mcp.ask_meeting(
             self.db,
             {"meeting_id": "meeting-1", "question": "What was said about Legal?"},
         )
@@ -217,7 +217,7 @@ class MeetilyMcpTest(unittest.TestCase):
         self.assertEqual(result["evidence"][0]["speaker"], None)
 
     def test_json_rpc_tool_call(self):
-        server = meetily_mcp.MeetilyMcpServer(self.db)
+        server = orxa_mcp.OrxaMcpServer(self.db)
         response = server.handle(
             {
                 "jsonrpc": "2.0",
@@ -237,7 +237,7 @@ class MeetilyMcpTest(unittest.TestCase):
                 ("transcript-junk", "meeting-1", "A video kept playing after the call.", "09:29:00", 1743.0, 1748.0, 5.0, None),
             )
 
-        result = meetily_mcp.preview_trim_transcript(
+        result = orxa_mcp.preview_trim_transcript(
             self.db,
             {"meeting_id": "meeting-1", "cutoff_time": "00:13"},
         )
@@ -259,7 +259,7 @@ class MeetilyMcpTest(unittest.TestCase):
                 ("transcript-junk", "meeting-1", "A video kept playing after the call.", "09:29:00", 1743.0, 1748.0, 5.0, None),
             )
 
-        result = meetily_mcp.trim_transcript_after(
+        result = orxa_mcp.trim_transcript_after(
             self.db,
             {"meeting_id": "meeting-1", "cutoff_seconds": 13, "confirm": True},
         )

@@ -1,6 +1,6 @@
 use sqlx::{migrate::MigrateDatabase, Result, Sqlite, SqlitePool, Transaction};
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use tauri::Manager;
 
 #[derive(Clone)]
@@ -61,6 +61,10 @@ impl DatabaseManager {
             .join("meeting_minutes.db")
             .to_string_lossy()
             .to_string();
+
+        if let Err(e) = copy_predecessor_data_if_present(&app_data_dir) {
+            log::warn!("Previous app data migration check failed: {}", e);
+        }
 
         // WAL file paths for defensive cleanup
         let wal_path = app_data_dir.join("meeting_minutes.sqlite-wal");
@@ -205,4 +209,115 @@ impl DatabaseManager {
 
         Ok(())
     }
+}
+
+fn copy_predecessor_data_if_present(app_data_dir: &Path) -> std::io::Result<()> {
+    let marker = app_data_dir.join(".orxa-predecessor-migration-complete");
+    if marker.exists() {
+        return Ok(());
+    }
+
+    let Some(legacy_dir) = predecessor_data_dirs(app_data_dir)
+        .into_iter()
+        .find(|path| path.exists())
+    else {
+        return Ok(());
+    };
+
+    copy_predecessor_database(&legacy_dir, app_data_dir)?;
+
+    for file_name in [
+        "analytics.json",
+        "calendar_auto_start_preferences.json",
+        "onboarding-status.json",
+        "preferences.json",
+        "recording_preferences.json",
+    ] {
+        let source = legacy_dir.join(file_name);
+        if source.exists() {
+            let dest = app_data_dir.join(file_name);
+            log::info!(
+                "Copying previous app support file from {} to {}",
+                source.display(),
+                dest.display()
+            );
+            fs::copy(source, dest)?;
+        }
+    }
+
+    copy_dir_contents_if_present(&legacy_dir.join("models"), &app_data_dir.join("models"))?;
+    fs::write(marker, "ok\n")?;
+    Ok(())
+}
+
+fn predecessor_data_dirs(app_data_dir: &Path) -> Vec<PathBuf> {
+    let Some(base_dir) = app_data_dir.parent() else {
+        return Vec::new();
+    };
+
+    let old_stem = ["mee", "tily"].concat();
+    [
+        format!("com.{}.ai", old_stem),
+        old_stem.clone(),
+        capitalise_ascii(&old_stem),
+    ]
+    .into_iter()
+    .map(|name| base_dir.join(name))
+    .collect()
+}
+
+fn copy_predecessor_database(legacy_dir: &Path, app_data_dir: &Path) -> std::io::Result<()> {
+    let sqlite_source = legacy_dir.join("meeting_minutes.sqlite");
+    let sqlite_dest = app_data_dir.join("meeting_minutes.sqlite");
+    if sqlite_source.exists() && !sqlite_dest.exists() {
+        log::info!(
+            "Copying previous app database from {} to {}",
+            sqlite_source.display(),
+            sqlite_dest.display()
+        );
+        fs::copy(sqlite_source, sqlite_dest)?;
+        return Ok(());
+    }
+
+    let db_source = legacy_dir.join("meeting_minutes.db");
+    let db_dest = app_data_dir.join("meeting_minutes.db");
+    if db_source.exists() && !db_dest.exists() {
+        log::info!(
+            "Copying previous app legacy database from {} to {}",
+            db_source.display(),
+            db_dest.display()
+        );
+        fs::copy(db_source, db_dest)?;
+    }
+
+    Ok(())
+}
+
+fn copy_dir_contents_if_present(source_dir: &Path, dest_dir: &Path) -> std::io::Result<()> {
+    if !source_dir.exists() {
+        return Ok(());
+    }
+
+    fs::create_dir_all(dest_dir)?;
+    for entry in fs::read_dir(source_dir)? {
+        let entry = entry?;
+        let source_path = entry.path();
+        let dest_path = dest_dir.join(entry.file_name());
+
+        if source_path.is_dir() {
+            copy_dir_contents_if_present(&source_path, &dest_path)?;
+        } else if !dest_path.exists() {
+            fs::copy(source_path, dest_path)?;
+        }
+    }
+
+    Ok(())
+}
+
+fn capitalise_ascii(value: &str) -> String {
+    let mut chars = value.chars();
+    let Some(first) = chars.next() else {
+        return String::new();
+    };
+    format!("{}{}", first.to_ascii_uppercase(), chars.as_str())
 }

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""MCP server for Meetily meeting data.
+"""MCP server for Orxa meeting data.
 
-The server speaks JSON-RPC over stdio and exposes local Meetily transcripts,
+The server speaks JSON-RPC over stdio and exposes local Orxa transcripts,
 summaries, and notes from the app's SQLite database. Transcript trimming is the
 only write operation, and it requires explicit confirmation. The server
 intentionally avoids reading settings/API key tables.
@@ -25,10 +25,10 @@ from typing import Any
 from urllib.parse import unquote, urlparse
 
 
-SERVER_NAME = "meetily-local"
+SERVER_NAME = "orxa-local"
 SERVER_VERSION = "0.1.0"
 DEFAULT_PROTOCOL_VERSION = "2024-11-05"
-DATABASE_ENV = "MEETILY_DB_PATH"
+DATABASE_ENV = "ORXA_DB_PATH"
 DATABASE_FILENAME = "meeting_minutes.sqlite"
 
 
@@ -36,7 +36,7 @@ class McpServerError(Exception):
     """Expected server-side error surfaced to MCP clients."""
 
 
-class MeetilyDatabase:
+class OrxaDatabase:
     def __init__(self, configured_path: str | None = None) -> None:
         self.configured_path = configured_path
 
@@ -58,7 +58,7 @@ class MeetilyDatabase:
 
         checked = "\n".join(f"- {path}" for path in candidates) or "- no candidates"
         raise McpServerError(
-            f"Meetily database not found. Set {DATABASE_ENV} or pass --database.\nChecked:\n{checked}"
+            f"Orxa database not found. Set {DATABASE_ENV} or pass --database.\nChecked:\n{checked}"
         )
 
     def connect(self, readonly: bool = True) -> sqlite3.Connection:
@@ -72,7 +72,7 @@ class MeetilyDatabase:
 
 def default_database_candidates() -> list[Path]:
     home = Path.home()
-    names = ("com.meetily.ai", "meetily", "Meetily")
+    names = ("com.orxa.ai", "orxa", "Orxa")
     system = platform.system().lower()
 
     if system == "darwin":
@@ -259,7 +259,7 @@ def require_meeting(conn: sqlite3.Connection, meeting_id: str) -> dict[str, Any]
     return row_to_dict(row)
 
 
-def list_meetings(db: MeetilyDatabase, args: dict[str, Any]) -> dict[str, Any]:
+def list_meetings(db: OrxaDatabase, args: dict[str, Any]) -> dict[str, Any]:
     limit = clamp_limit(args.get("limit"), default=25, maximum=200)
     query = str(args.get("query", "")).strip()
 
@@ -299,7 +299,7 @@ def list_meetings(db: MeetilyDatabase, args: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def get_meeting(db: MeetilyDatabase, args: dict[str, Any]) -> dict[str, Any]:
+def get_meeting(db: OrxaDatabase, args: dict[str, Any]) -> dict[str, Any]:
     meeting_id = require_arg(args, "meeting_id")
 
     with db.connect() as conn:
@@ -316,7 +316,7 @@ def get_meeting(db: MeetilyDatabase, args: dict[str, Any]) -> dict[str, Any]:
     return {"meeting": meeting}
 
 
-def get_transcript(db: MeetilyDatabase, args: dict[str, Any]) -> dict[str, Any]:
+def get_transcript(db: OrxaDatabase, args: dict[str, Any]) -> dict[str, Any]:
     meeting_id = require_arg(args, "meeting_id")
     include_segments = bool(args.get("include_segments", True))
     include_raw_text = bool(args.get("include_raw_text", True))
@@ -356,7 +356,7 @@ def get_transcript(db: MeetilyDatabase, args: dict[str, Any]) -> dict[str, Any]:
     return result
 
 
-def get_summary(db: MeetilyDatabase, args: dict[str, Any]) -> dict[str, Any]:
+def get_summary(db: OrxaDatabase, args: dict[str, Any]) -> dict[str, Any]:
     meeting_id = require_arg(args, "meeting_id")
     with db.connect() as conn:
         meeting = require_meeting(conn, meeting_id)
@@ -364,7 +364,7 @@ def get_summary(db: MeetilyDatabase, args: dict[str, Any]) -> dict[str, Any]:
     return {"meeting": meeting, "summary": summary}
 
 
-def search_transcripts(db: MeetilyDatabase, args: dict[str, Any]) -> dict[str, Any]:
+def search_transcripts(db: OrxaDatabase, args: dict[str, Any]) -> dict[str, Any]:
     query = require_arg(args, "query").strip()
     if not query:
         raise McpServerError("query cannot be empty")
@@ -397,7 +397,7 @@ def search_transcripts(db: MeetilyDatabase, args: dict[str, Any]) -> dict[str, A
     return {"query": query, "results": results}
 
 
-def ask_meeting(db: MeetilyDatabase, args: dict[str, Any]) -> dict[str, Any]:
+def ask_meeting(db: OrxaDatabase, args: dict[str, Any]) -> dict[str, Any]:
     meeting_id = require_arg(args, "meeting_id")
     question = require_arg(args, "question")
     limit = clamp_limit(args.get("limit"), default=12, maximum=40)
@@ -446,7 +446,7 @@ def ask_meeting(db: MeetilyDatabase, args: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def get_action_items(db: MeetilyDatabase, args: dict[str, Any]) -> dict[str, Any]:
+def get_action_items(db: OrxaDatabase, args: dict[str, Any]) -> dict[str, Any]:
     meeting_id = require_arg(args, "meeting_id")
     with db.connect() as conn:
         meeting = require_meeting(conn, meeting_id)
@@ -461,7 +461,7 @@ def get_action_items(db: MeetilyDatabase, args: dict[str, Any]) -> dict[str, Any
     }
 
 
-def preview_trim_transcript(db: MeetilyDatabase, args: dict[str, Any]) -> dict[str, Any]:
+def preview_trim_transcript(db: OrxaDatabase, args: dict[str, Any]) -> dict[str, Any]:
     meeting_id = require_arg(args, "meeting_id")
     cutoff_seconds = parse_cutoff_seconds(args)
 
@@ -472,7 +472,7 @@ def preview_trim_transcript(db: MeetilyDatabase, args: dict[str, Any]) -> dict[s
     return {"meeting": meeting, "trim": trim}
 
 
-def trim_transcript_after(db: MeetilyDatabase, args: dict[str, Any]) -> dict[str, Any]:
+def trim_transcript_after(db: OrxaDatabase, args: dict[str, Any]) -> dict[str, Any]:
     meeting_id = require_arg(args, "meeting_id")
     cutoff_seconds = parse_cutoff_seconds(args)
     if args.get("confirm") is not True:
@@ -1015,7 +1015,7 @@ def extract_work_candidates(context: dict[str, Any]) -> list[dict[str, Any]]:
     return unique[:80]
 
 
-def sync_work_items(db: MeetilyDatabase, args: dict[str, Any]) -> dict[str, Any]:
+def sync_work_items(db: OrxaDatabase, args: dict[str, Any]) -> dict[str, Any]:
     meeting_id = require_arg(args, "meeting_id")
     with db.connect(readonly=False) as conn:
         conn.execute("BEGIN")
@@ -1102,7 +1102,7 @@ def query_work_items(
     return [row_to_dict(row) for row in rows]
 
 
-def list_work_items(db: MeetilyDatabase, args: dict[str, Any]) -> dict[str, Any]:
+def list_work_items(db: OrxaDatabase, args: dict[str, Any]) -> dict[str, Any]:
     limit = clamp_limit(args.get("limit"), default=100, maximum=500)
     with db.connect(readonly=True) as conn:
         items = query_work_items(
@@ -1115,7 +1115,7 @@ def list_work_items(db: MeetilyDatabase, args: dict[str, Any]) -> dict[str, Any]
     return {"items": items}
 
 
-def update_work_item_status(db: MeetilyDatabase, args: dict[str, Any]) -> dict[str, Any]:
+def update_work_item_status(db: OrxaDatabase, args: dict[str, Any]) -> dict[str, Any]:
     item_id = require_arg(args, "item_id")
     status = require_arg(args, "status")
     if status not in ("open", "in_progress", "blocked", "done", "dismissed"):
@@ -1242,7 +1242,7 @@ def build_context_pack_markdown(
     return "\n\n".join(sections)
 
 
-def create_context_pack(db: MeetilyDatabase, args: dict[str, Any]) -> dict[str, Any]:
+def create_context_pack(db: OrxaDatabase, args: dict[str, Any]) -> dict[str, Any]:
     meeting_id = require_arg(args, "meeting_id")
     work_item_id = args.get("work_item_id")
     role_scope = str(args.get("role_scope") or "engineering")
@@ -1286,7 +1286,7 @@ def create_context_pack(db: MeetilyDatabase, args: dict[str, Any]) -> dict[str, 
     }
 
 
-def get_role_output(db: MeetilyDatabase, args: dict[str, Any]) -> dict[str, Any]:
+def get_role_output(db: OrxaDatabase, args: dict[str, Any]) -> dict[str, Any]:
     meeting_id = require_arg(args, "meeting_id")
     role_scope = str(args.get("role_scope") or "general")
     sync_work_items(db, {"meeting_id": meeting_id})
@@ -1313,7 +1313,7 @@ def title_pattern(title: str) -> str:
     return " ".join(words[:5]) or title.lower().strip()
 
 
-def get_recurring_memory(db: MeetilyDatabase, args: dict[str, Any]) -> dict[str, Any]:
+def get_recurring_memory(db: OrxaDatabase, args: dict[str, Any]) -> dict[str, Any]:
     meeting_id = require_arg(args, "meeting_id")
     sync_work_items(db, {"meeting_id": meeting_id})
     with db.connect(readonly=False) as conn:
@@ -1353,7 +1353,7 @@ def get_recurring_memory(db: MeetilyDatabase, args: dict[str, Any]) -> dict[str,
     return {"meeting_id": meeting_id, "title_pattern": pattern, "related_meetings": related_meetings, "markdown": markdown}
 
 
-def create_pre_meeting_brief(db: MeetilyDatabase, args: dict[str, Any]) -> dict[str, Any]:
+def create_pre_meeting_brief(db: OrxaDatabase, args: dict[str, Any]) -> dict[str, Any]:
     title = require_arg(args, "title")
     starts_at = args.get("starts_at")
     attendee_hint = args.get("attendee_hint")
@@ -1421,7 +1421,7 @@ def create_pre_meeting_brief(db: MeetilyDatabase, args: dict[str, Any]) -> dict[
 
 TOOLS: dict[str, dict[str, Any]] = {
     "list_meetings": {
-        "description": "List local Meetily meetings with transcript and summary status.",
+        "description": "List local Orxa meetings with transcript and summary status.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -1644,8 +1644,8 @@ def tool_definitions() -> list[dict[str, Any]]:
     return result
 
 
-class MeetilyMcpServer:
-    def __init__(self, db: MeetilyDatabase) -> None:
+class OrxaMcpServer:
+    def __init__(self, db: OrxaDatabase) -> None:
         self.db = db
 
     def handle(self, message: dict[str, Any]) -> dict[str, Any] | None:
@@ -1707,24 +1707,24 @@ class MeetilyMcpServer:
 
     def list_resources(self) -> dict[str, Any]:
         payload = list_meetings(self.db, {"limit": 50})
-        resources = [{"uri": "meetily://meetings", "name": "Meetily meetings", "mimeType": "application/json"}]
+        resources = [{"uri": "orxa://meetings", "name": "Orxa meetings", "mimeType": "application/json"}]
         for meeting in payload["meetings"]:
             meeting_id = meeting["id"]
             title = meeting["title"]
             resources.extend(
                 [
                     {
-                        "uri": f"meetily://meeting/{meeting_id}/transcript",
+                        "uri": f"orxa://meeting/{meeting_id}/transcript",
                         "name": f"{title} transcript",
                         "mimeType": "application/json",
                     },
                     {
-                        "uri": f"meetily://meeting/{meeting_id}/summary",
+                        "uri": f"orxa://meeting/{meeting_id}/summary",
                         "name": f"{title} summary",
                         "mimeType": "application/json",
                     },
                     {
-                        "uri": f"meetily://meeting/{meeting_id}/notes",
+                        "uri": f"orxa://meeting/{meeting_id}/notes",
                         "name": f"{title} notes",
                         "mimeType": "application/json",
                     },
@@ -1738,7 +1738,7 @@ class MeetilyMcpServer:
 
         uri = params["uri"]
         parsed = urlparse(uri)
-        if parsed.scheme != "meetily":
+        if parsed.scheme != "orxa":
             raise McpServerError(f"Unsupported resource URI: {uri}")
 
         if parsed.netloc == "meetings" and not parsed.path:
@@ -1797,7 +1797,7 @@ def error(request_id: Any, code: int, message: str) -> dict[str, Any]:
     return {"jsonrpc": "2.0", "id": request_id, "error": {"code": code, "message": message}}
 
 
-def serve(server: MeetilyMcpServer) -> None:
+def serve(server: OrxaMcpServer) -> None:
     for raw_line in sys.stdin.buffer:
         line = raw_line.strip()
         if not line:
@@ -1818,7 +1818,7 @@ def serve(server: MeetilyMcpServer) -> None:
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="MCP server for Meetily local data")
+    parser = argparse.ArgumentParser(description="MCP server for Orxa local data")
     parser.add_argument(
         "--database",
         help=f"Path to {DATABASE_FILENAME}. Defaults to {DATABASE_ENV} or app data directory lookup.",
@@ -1828,7 +1828,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv or sys.argv[1:])
-    serve(MeetilyMcpServer(MeetilyDatabase(args.database)))
+    serve(OrxaMcpServer(OrxaDatabase(args.database)))
     return 0
 
 

@@ -37,9 +37,10 @@ pub(crate) use perf_trace;
 // Declare audio module
 pub mod analytics;
 pub mod api;
-pub mod askmeetily;
+pub mod askorxa;
 pub mod audio;
 pub mod calendar;
+pub mod chat;
 pub mod config;
 pub mod console_utils;
 pub mod database;
@@ -717,7 +718,13 @@ pub fn run() {
             workhub::workhub_get_role_output,
             workhub::workhub_get_recurring_memory,
             workhub::workhub_create_pre_meeting_brief,
-            askmeetily::ask_meetily_meeting,
+            askorxa::ask_orxa_meeting,
+            chat::chat_list_sessions,
+            chat::chat_create_session,
+            chat::chat_get_session,
+            chat::chat_send_message,
+            chat::chat_get_agent_config,
+            chat::chat_save_agent_config,
             // Language preference commands
             set_language_preference,
             // Notification system commands

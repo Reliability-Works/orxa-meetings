@@ -167,7 +167,7 @@ async fn download_model_inner<R: Runtime>(
     );
 
     let client = Client::builder()
-        .user_agent("Meetily model downloader")
+        .user_agent("Orxa model downloader")
         .build()
         .map_err(|e| format!("Failed to build download client: {}", e))?;
 
@@ -186,7 +186,7 @@ async fn download_model_inner<R: Runtime>(
         );
     };
 
-    let manifest_path = folder.join("meetily-model-manifest.json");
+    let manifest_path = folder.join("orxa-model-manifest.json");
     let manifest_json = serde_json::to_string_pretty(&manifest)
         .map_err(|e| format!("Failed to write model manifest: {}", e))?;
     tokio::fs::write(&manifest_path, manifest_json)
@@ -428,7 +428,7 @@ fn model_dir(root: &Path, model_id: &str) -> PathBuf {
 }
 
 fn manifest_path(root: &Path, model_id: &str) -> PathBuf {
-    model_dir(root, model_id).join("meetily-model-manifest.json")
+    model_dir(root, model_id).join("orxa-model-manifest.json")
 }
 
 fn read_status(root: &Path, model_id: &str) -> Result<LocalModelDownloadStatus, String> {

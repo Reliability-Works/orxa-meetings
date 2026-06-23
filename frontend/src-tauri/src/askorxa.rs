@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::{Row, SqlitePool};
 use tauri::{AppHandle, Manager, Runtime};
 
-const MAX_SUMMARY_CHARS: usize = 6_000;
+pub(crate) const MAX_SUMMARY_CHARS: usize = 6_000;
 const MAX_PROMPT_EVIDENCE: usize = 14;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -32,7 +32,7 @@ pub struct AskMeetingResponse {
 }
 
 #[tauri::command]
-pub async fn ask_meetily_meeting<R: Runtime>(
+pub async fn ask_orxa_meeting<R: Runtime>(
     app: AppHandle<R>,
     state: tauri::State<'_, AppState>,
     meeting_id: String,
@@ -40,7 +40,7 @@ pub async fn ask_meetily_meeting<R: Runtime>(
 ) -> Result<AskMeetingResponse, String> {
     let clean_question = question.trim();
     if clean_question.len() < 3 {
-        return Err("Ask Meetily needs a question with at least 3 characters.".to_string());
+        return Err("Meeting queries need a question with at least 3 characters.".to_string());
     }
 
     let pool = state.db_manager.pool();
@@ -79,7 +79,7 @@ pub async fn ask_meetily_meeting<R: Runtime>(
     })
 }
 
-async fn load_meeting(pool: &SqlitePool, meeting_id: &str) -> Result<(String, String), String> {
+pub(crate) async fn load_meeting(pool: &SqlitePool, meeting_id: &str) -> Result<(String, String), String> {
     let row = sqlx::query("SELECT id, title FROM meetings WHERE id = ?")
         .bind(meeting_id)
         .fetch_optional(pool)
@@ -90,7 +90,7 @@ async fn load_meeting(pool: &SqlitePool, meeting_id: &str) -> Result<(String, St
     Ok((row.get("id"), row.get("title")))
 }
 
-async fn load_relevant_evidence(
+pub(crate) async fn load_relevant_evidence(
     pool: &SqlitePool,
     meeting_id: &str,
     question: &str,
@@ -219,7 +219,7 @@ async fn generate_answer<R: Runtime>(
     Ok((answer.trim().to_string(), Some(format!("{} / {}", setting.provider, model_name))))
 }
 
-async fn load_summary_markdown(pool: &SqlitePool, meeting_id: &str) -> Result<Option<String>, String> {
+pub(crate) async fn load_summary_markdown(pool: &SqlitePool, meeting_id: &str) -> Result<Option<String>, String> {
     let row = sqlx::query("SELECT result FROM summary_processes WHERE meeting_id = ?")
         .bind(meeting_id)
         .fetch_optional(pool)
@@ -266,7 +266,7 @@ fn build_ask_prompt(
     )
 }
 
-fn build_extract_answer(question: &str, evidence: &[AskEvidence]) -> String {
+pub(crate) fn build_extract_answer(question: &str, evidence: &[AskEvidence]) -> String {
     if evidence.is_empty() {
         return format!(
             "I could not find transcript evidence for \"{}\" in this meeting.",
@@ -287,7 +287,7 @@ fn build_extract_answer(question: &str, evidence: &[AskEvidence]) -> String {
     )
 }
 
-fn format_evidence_line(item: &AskEvidence) -> String {
+pub(crate) fn format_evidence_line(item: &AskEvidence) -> String {
     let time = item
         .audio_start_time
         .map(format_seconds)
@@ -327,7 +327,7 @@ fn keywords(text: &str) -> Vec<String> {
         .collect()
 }
 
-fn truncate_chars(value: &str, limit: usize) -> String {
+pub(crate) fn truncate_chars(value: &str, limit: usize) -> String {
     if value.chars().count() <= limit {
         return value.to_string();
     }
