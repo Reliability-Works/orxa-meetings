@@ -259,7 +259,7 @@ export default function PageContent({
         />
         {isRightSidebarOpen && (
           <aside className="hidden min-w-[360px] max-w-[42vw] flex-col border-l border-gray-200 bg-white lg:flex lg:w-[420px] xl:w-[480px]">
-            <div className="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-gray-200 px-3">
+            <div className="flex h-12 shrink-0 items-center gap-3 border-b border-gray-200 px-3">
               <div className="flex min-w-0 items-center gap-2">
                 <BriefcaseBusiness className="h-4 w-4 shrink-0 text-gray-500" />
                 <Select value={workHubView} onValueChange={(value) => setWorkHubView(value as WorkHubPanelView)}>
@@ -273,15 +273,6 @@ export default function PageContent({
                   </SelectContent>
                 </Select>
               </div>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsRightSidebarOpen(false)}
-                title="Hide right sidebar"
-              >
-                <PanelRightClose className="h-4 w-4" />
-              </Button>
             </div>
             <WorkHubPanel
               meetingId={meeting.id}
@@ -295,14 +286,14 @@ export default function PageContent({
       </div>
 
       <Dialog open={isSummaryOpen} onOpenChange={setIsSummaryOpen}>
-        <DialogContent className="h-[calc(100vh-48px)] w-[calc(100vw-48px)] max-w-none gap-0 overflow-hidden p-0">
+        <DialogContent className="flex h-[calc(100vh-48px)] w-[calc(100vw-48px)] max-w-none flex-col gap-0 overflow-hidden p-0 sm:max-w-none">
           <DialogHeader className="shrink-0 border-b border-gray-200 px-5 py-3">
             <DialogTitle className="truncate text-base">Meeting Summary</DialogTitle>
             <DialogDescription className="truncate">
               {meetingData.meetingTitle}
             </DialogDescription>
           </DialogHeader>
-          <div className="min-h-0 flex-1 overflow-hidden">
+          <div className="min-h-0 flex-1 overflow-y-auto">
             <SummaryPanel
               meeting={meeting}
               meetingTitle={meetingData.meetingTitle}
