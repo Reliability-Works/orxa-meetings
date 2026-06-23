@@ -1,5 +1,6 @@
 use tauri::{
     Emitter,
+    image::Image,
     menu::{MenuBuilder, MenuItemBuilder, PredefinedMenuItem},
     tray::TrayIconBuilder,
     AppHandle, Manager, Runtime,
@@ -20,11 +21,13 @@ pub fn create_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
     // Start with default menu, will update with actual state after initialization
     // Pass can_record=true initially, will be updated by update_tray_menu immediately
     let menu = build_menu(app, RecordingState::Stopped, true)?;
+    let tray_icon = Image::new(include_bytes!("../icons/tray-template.rgba"), 64, 64);
 
     TrayIconBuilder::with_id("main-tray")
         .menu(&menu)
         .tooltip("Orxa")
-        .icon(app.default_window_icon().unwrap().clone())
+        .icon(tray_icon)
+        .icon_as_template(true)
         .on_menu_event(|app, event| handle_menu_event(app, event.id.as_ref()))
         .build(app)?;
 
