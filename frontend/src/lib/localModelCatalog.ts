@@ -1,4 +1,7 @@
+import { invoke } from '@tauri-apps/api/core';
+
 export type RuntimeStatus = 'ready' | 'adapter_pending' | 'research';
+export type LocalModelDownloadState = 'missing' | 'downloading' | 'downloaded' | 'error';
 
 export interface LocalModelCatalogItem {
   id: string;
@@ -10,6 +13,18 @@ export interface LocalModelCatalogItem {
   runtimeStatus: RuntimeStatus;
   recommended?: boolean;
   notes: string;
+}
+
+export interface LocalModelDownloadStatus {
+  model_id: string;
+  state: LocalModelDownloadState;
+  path: string;
+  source_url: string | null;
+  downloaded_bytes: number;
+  total_bytes: number;
+  file_count: number;
+  updated_at: string | null;
+  error: string | null;
 }
 
 export const EXPERIMENTAL_TRANSCRIPTION_MODELS: LocalModelCatalogItem[] = [
@@ -124,4 +139,23 @@ export function runtimeStatusLabel(status: RuntimeStatus) {
   if (status === 'ready') return 'Ready';
   if (status === 'adapter_pending') return 'Adapter needed';
   return 'Research';
+}
+
+export class LocalModelCatalogAPI {
+  static async getStatuses(modelIds: string[]) {
+    if (modelIds.length === 0) return [];
+    return invoke<LocalModelDownloadStatus[]>('local_model_get_statuses', { modelIds });
+  }
+
+  static async downloadModel(model: LocalModelCatalogItem) {
+    return invoke<LocalModelDownloadStatus>('local_model_download_model', {
+      modelId: model.id,
+      name: model.name,
+      sourceUrl: model.sourceUrl,
+    });
+  }
+
+  static async openFolder(modelId: string) {
+    return invoke<void>('local_model_open_folder', { modelId });
+  }
 }

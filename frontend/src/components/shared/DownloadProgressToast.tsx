@@ -348,6 +348,60 @@ export function useDownloadProgressToast() {
     };
   }, [updateDownload, cleanupDownload]);
 
+  // Listen to experimental local model catalog downloads
+  useEffect(() => {
+    const unlisten = listen<{
+      modelId: string;
+      modelName: string;
+      progress: number;
+      downloaded_mb?: number;
+      total_mb?: number;
+      speed_mbps?: number;
+      status: string;
+      error?: string;
+    }>('local-model-download-progress', (event) => {
+      const {
+        modelId,
+        modelName,
+        progress,
+        downloaded_mb,
+        total_mb,
+        speed_mbps,
+        status,
+        error,
+      } = event.payload;
+      const downloadKey = `local-${modelId}`;
+
+      const downloadData: DownloadProgress = {
+        modelName: downloadKey,
+        displayName: modelName,
+        progress: progress ?? 0,
+        downloadedMb: downloaded_mb ?? 0,
+        totalMb: total_mb ?? 0,
+        speedMbps: speed_mbps ?? 0,
+        unitLabel: 'MiB',
+        status: status === 'completed' || progress >= 100
+          ? 'completed'
+          : status === 'error'
+            ? 'error'
+            : 'downloading',
+        error: status === 'error' ? categorizeError(error || 'Download failed') : undefined,
+      };
+
+      updateDownload(downloadKey, downloadData);
+
+      if (downloadData.status === 'completed') {
+        cleanupDownload(downloadKey, 4000);
+      } else if (downloadData.status === 'error') {
+        cleanupDownload(downloadKey, 11000);
+      }
+    });
+
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, [updateDownload, cleanupDownload]);
+
   return { downloads };
 }
 

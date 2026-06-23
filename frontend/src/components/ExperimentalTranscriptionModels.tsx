@@ -12,7 +12,7 @@ export function ExperimentalTranscriptionModels() {
         <div>
           <h3 className="text-base font-semibold text-gray-900">Next-Gen Transcription Candidates</h3>
           <p className="mt-1 text-sm text-gray-600">
-            These are newer local ASR models to benchmark against Lightning and Local Whisper. They are not selectable for live transcription until a compatible runtime adapter is added.
+            Download newer local ASR candidates for benchmarking against Lightning and Local Whisper. Downloaded assets are cached locally; models with pending adapters are not selectable for live transcription yet.
           </p>
         </div>
       </div>

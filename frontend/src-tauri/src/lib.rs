@@ -43,6 +43,7 @@ pub mod calendar;
 pub mod config;
 pub mod console_utils;
 pub mod database;
+pub mod local_models;
 pub mod mcp;
 pub mod notifications;
 pub mod ollama;
@@ -688,6 +689,9 @@ pub fn run() {
             summary::summary_engine::commands::builtin_ai_is_model_ready,
             summary::summary_engine::commands::builtin_ai_get_available_summary_model,
             summary::summary_engine::commands::builtin_ai_get_recommended_model,
+            local_models::local_model_get_statuses,
+            local_models::local_model_download_model,
+            local_models::local_model_open_folder,
             openrouter::get_openrouter_models,
             audio::recording_preferences::get_recording_preferences,
             audio::recording_preferences::set_recording_preferences,
