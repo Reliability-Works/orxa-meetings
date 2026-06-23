@@ -2,14 +2,9 @@
 
 import React, { useMemo, useState, useEffect } from 'react';
 import {
-  Bot,
-  BriefcaseBusiness,
-  CalendarClock,
-  CheckSquare,
-  ClipboardList,
   Database as DatabaseIcon,
-  FileSearch,
   FlaskConical,
+  FolderSearch,
   MessageSquareText,
   Mic,
   SearchIcon,
@@ -25,7 +20,7 @@ import { SummaryModelSettings } from '@/components/SummaryModelSettings';
 import { BetaSettings } from '@/components/BetaSettings';
 import { PlaybackSettings } from '@/components/PlaybackSettings';
 import { ChatAgentSettings } from '@/components/ChatAgentSettings';
-import { WorkflowFeatureSettings, type WorkflowFeatureTab } from '@/components/WorkflowFeatureSettings';
+import { AgentSourcesSettings } from '@/components/AgentSourcesSettings';
 import { useConfig } from '@/contexts/ConfigContext';
 
 const SETTINGS_ITEMS = [
@@ -35,13 +30,7 @@ const SETTINGS_ITEMS = [
   { value: 'summaryModels', label: 'Summary', icon: SparkleIcon, keywords: 'summary model ai actions todos decisions' },
   { value: 'chat', label: 'Chat', icon: MessageSquareText, keywords: 'agent ask model meeting chat' },
   { value: 'playback', label: 'Playback', icon: Volume2, keywords: 'voice tts audio read aloud' },
-  { value: 'agentHandoff', label: 'Agent handoff', icon: Bot, keywords: 'codex claude jira slack handoff packet brief' },
-  { value: 'actionInbox', label: 'Action inbox', icon: CheckSquare, keywords: 'todos actions decisions follow ups status evidence' },
-  { value: 'briefings', label: 'Briefings', icon: ClipboardList, keywords: 'daily weekly digest briefing commitments' },
-  { value: 'calendarIntelligence', label: 'Calendar intelligence', icon: CalendarClock, keywords: 'calendar prep follow up event attach' },
-  { value: 'projectMemory', label: 'Project memory', icon: BriefcaseBusiness, keywords: 'memory people projects decisions glossary context' },
-  { value: 'transcriptRepair', label: 'Transcript repair', icon: FileSearch, keywords: 'repair trim retranscribe speaker confidence cleanup' },
-  { value: 'agentTools', label: 'Agent tools', icon: MessageSquareText, keywords: 'mcp tools transcript query update agent chat' },
+  { value: 'agentSources', label: 'Agent Sources', icon: FolderSearch, keywords: 'codex claude cursor sessions memories chronicles history context' },
   { value: 'beta', label: 'Beta', icon: FlaskConical, keywords: 'experimental features preview' },
 ] as const;
 
@@ -50,8 +39,7 @@ type SettingsTab = typeof SETTINGS_ITEMS[number]['value'];
 const SETTINGS_GROUPS: { title: string; values: SettingsTab[] }[] = [
   { title: 'Personal', values: ['general', 'recording'] },
   { title: 'Models', values: ['Transcriptionmodels', 'summaryModels', 'chat', 'playback'] },
-  { title: 'Workflows', values: ['agentHandoff', 'actionInbox', 'briefings'] },
-  { title: 'Intelligence', values: ['calendarIntelligence', 'projectMemory', 'transcriptRepair', 'agentTools'] },
+  { title: 'Context', values: ['agentSources'] },
   { title: 'Advanced', values: ['beta'] },
 ];
 
@@ -114,14 +102,8 @@ export default function SettingsPage() {
         return <ChatAgentSettings />;
       case 'playback':
         return <PlaybackSettings />;
-      case 'agentHandoff':
-      case 'actionInbox':
-      case 'briefings':
-      case 'calendarIntelligence':
-      case 'projectMemory':
-      case 'transcriptRepair':
-      case 'agentTools':
-        return <WorkflowFeatureSettings featureId={activeTab as WorkflowFeatureTab} />;
+      case 'agentSources':
+        return <AgentSourcesSettings />;
       case 'beta':
         return <BetaSettings />;
       default:

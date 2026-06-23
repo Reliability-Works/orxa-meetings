@@ -7,7 +7,6 @@ import { invoke } from '@tauri-apps/api/core';
 import { toast } from 'sonner';
 import { TranscriptPanel } from '@/components/MeetingDetails/TranscriptPanel';
 import { SummaryPanel } from '@/components/MeetingDetails/SummaryPanel';
-import { WorkHubPanel, WorkHubPanelView } from '@/components/MeetingDetails/WorkHubPanel';
 import { ModelConfig } from '@/components/ModelSettingsModal';
 import { Button } from '@/components/ui/button';
 import {
@@ -17,14 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { BriefcaseBusiness, FileText, PanelRightClose, PanelRightOpen } from 'lucide-react';
+import { FileText } from 'lucide-react';
 
 // Custom hooks
 import { useMeetingData } from '@/hooks/meeting-details/useMeetingData';
@@ -78,8 +70,6 @@ export default function PageContent({
   const [customPrompt, setCustomPrompt] = useState<string>('');
   const [isRecording] = useState(false);
   const [summaryResponse] = useState<SummaryResponse | null>(null);
-  const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(true);
-  const [workHubView, setWorkHubView] = useState<WorkHubPanelView>('captured');
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
   const summaryAutoOpenHandledRef = useRef<string | null>(null);
 
@@ -233,20 +223,6 @@ export default function PageContent({
             <FileText className="h-4 w-4" />
             Summary
           </Button>
-          <Button
-            type="button"
-            variant={isRightSidebarOpen ? 'secondary' : 'outline'}
-            size="sm"
-            onClick={() => setIsRightSidebarOpen((open) => !open)}
-            title={isRightSidebarOpen ? 'Hide right sidebar' : 'Show right sidebar'}
-          >
-            {isRightSidebarOpen ? (
-              <PanelRightClose className="h-4 w-4" />
-            ) : (
-              <PanelRightOpen className="h-4 w-4" />
-            )}
-            <span className="hidden lg:inline">Work Hub</span>
-          </Button>
         </div>
       </div>
 
@@ -272,32 +248,6 @@ export default function PageContent({
           meetingFolderPath={meeting.folder_path}
           onRefetchTranscripts={handleTranscriptDataChanged}
         />
-        {isRightSidebarOpen && (
-          <aside className="hidden min-w-[360px] max-w-[42vw] flex-col border-l border-gray-200 bg-white lg:flex lg:w-[420px] xl:w-[480px]">
-            <div className="flex h-12 shrink-0 items-center gap-3 border-b border-gray-200 px-3">
-              <div className="flex min-w-0 items-center gap-2">
-                <BriefcaseBusiness className="h-4 w-4 shrink-0 text-gray-500" />
-                <Select value={workHubView} onValueChange={(value) => setWorkHubView(value as WorkHubPanelView)}>
-                  <SelectTrigger className="h-8 w-[190px] border-0 bg-gray-50 px-2 shadow-none">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="captured">Captured Work</SelectItem>
-                    <SelectItem value="context">Agent Context</SelectItem>
-                    <SelectItem value="brief">Pre-Meeting Brief</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <WorkHubPanel
-              meetingId={meeting.id}
-              meetingTitle={meetingData.meetingTitle}
-              view={workHubView}
-              hideHeader
-              compact
-            />
-          </aside>
-        )}
       </div>
 
       <Dialog open={isSummaryOpen} onOpenChange={setIsSummaryOpen}>

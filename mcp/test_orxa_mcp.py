@@ -81,6 +81,29 @@ class OrxaMcpTest(unittest.TestCase):
                 overlap INTEGER,
                 created_at TEXT NOT NULL
             );
+
+            CREATE TABLE agent_source_configs (
+                id TEXT PRIMARY KEY,
+                label TEXT NOT NULL,
+                enabled INTEGER NOT NULL,
+                paths_json TEXT NOT NULL,
+                index_full_content INTEGER NOT NULL DEFAULT 1,
+                updated_at TEXT NOT NULL
+            );
+
+            CREATE TABLE agent_source_documents (
+                id TEXT PRIMARY KEY,
+                source_id TEXT NOT NULL,
+                source_label TEXT NOT NULL,
+                title TEXT NOT NULL,
+                path TEXT NOT NULL UNIQUE,
+                project_path TEXT,
+                session_date TEXT,
+                modified_at TEXT NOT NULL,
+                content TEXT NOT NULL,
+                summary TEXT NOT NULL,
+                indexed_at TEXT NOT NULL
+            );
             """
         )
         conn.execute(
@@ -121,6 +144,33 @@ class OrxaMcpTest(unittest.TestCase):
             "INSERT INTO transcript_chunks VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             ("meeting-1", "Roadmap Sync", "Cached transcript content", "test", "test", None, None, "2026-06-22T09:05:00Z"),
         )
+        conn.execute(
+            "INSERT INTO agent_source_configs VALUES (?, ?, ?, ?, ?, ?)",
+            (
+                "codex_sessions",
+                "Codex sessions",
+                1,
+                json.dumps(["/Users/callumspencer/.codex/sessions"]),
+                1,
+                "2026-06-22T09:05:00Z",
+            ),
+        )
+        conn.execute(
+            "INSERT INTO agent_source_documents VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                "agent-doc-1",
+                "codex_sessions",
+                "Codex sessions",
+                "Fix calendar access",
+                "/Users/callumspencer/.codex/sessions/rollout.jsonl",
+                "/Users/callumspencer/Repos/mac/orxa-meetings",
+                "2026-06-22T09:06:00Z",
+                "2026-06-22T09:06:00Z",
+                "Calendar permission was fixed by switching to EventKit full access and reloading Orxa events.",
+                "Calendar permission was fixed by switching to EventKit full access.",
+                "2026-06-22T09:07:00Z",
+            ),
+        )
         conn.commit()
         conn.close()
 
@@ -153,51 +203,15 @@ class OrxaMcpTest(unittest.TestCase):
         self.assertIn("**Action Items / Todos**", result["action_items_markdown"])
         self.assertIn("Send the deck", result["action_items_markdown"])
 
-    def test_sync_work_items_extracts_agent_ready_records(self):
-        result = orxa_mcp.sync_work_items(self.db, {"meeting_id": "meeting-1"})
+    def test_agent_sources_can_be_listed_and_searched(self):
+        sources = orxa_mcp.list_agent_sources(self.db, {})
+        search = orxa_mcp.search_agent_sessions(self.db, {"query": "calendar permission"})
+        activity = orxa_mcp.get_agent_activity(self.db, {"day": "2026-06-22"})
 
-        self.assertGreaterEqual(result["item_count"], 1)
-        actions = [item for item in result["items"] if item["kind"] == "action"]
-        self.assertTrue(actions)
-        self.assertIn("Send the deck", actions[0]["title"])
-        self.assertEqual(actions[0]["status"], "open")
-
-    def test_update_work_item_status_records_agent_notes(self):
-        sync_result = orxa_mcp.sync_work_items(self.db, {"meeting_id": "meeting-1"})
-        item_id = sync_result["items"][0]["id"]
-
-        result = orxa_mcp.update_work_item_status(
-            self.db,
-            {"item_id": item_id, "status": "in_progress", "agent_notes": "Picked up by Codex"},
-        )
-
-        self.assertEqual(result["item"]["status"], "in_progress")
-        self.assertEqual(result["item"]["agent_notes"], "Picked up by Codex")
-
-    def test_create_context_pack_includes_actions_and_evidence(self):
-        result = orxa_mcp.create_context_pack(
-            self.db,
-            {"meeting_id": "meeting-1", "role_scope": "engineering"},
-        )
-
-        markdown = result["context_pack"]["pack_markdown"]
-        self.assertIn("Agent Context Pack", markdown)
-        self.assertIn("Open Actions", markdown)
-        self.assertIn("Alice said Bob should send the deck", markdown)
-
-    def test_role_output_and_pre_meeting_brief_use_work_items(self):
-        role_output = orxa_mcp.get_role_output(
-            self.db,
-            {"meeting_id": "meeting-1", "role_scope": "product"},
-        )
-        brief = orxa_mcp.create_pre_meeting_brief(
-            self.db,
-            {"title": "Roadmap Sync", "related_meeting_id": "meeting-1"},
-        )
-
-        self.assertIn("Product Output", role_output["markdown"])
-        self.assertIn("Open Follow-Ups", brief["brief"]["brief_markdown"])
-        self.assertIn("Send the deck", brief["brief"]["brief_markdown"])
+        self.assertEqual(sources["indexed_documents"], 1)
+        self.assertEqual(search["results"][0]["source_label"], "Codex sessions")
+        self.assertIn("EventKit", search["results"][0]["snippet"])
+        self.assertEqual(activity["results"][0]["title"], "Fix calendar access")
 
     def test_search_transcripts_returns_context(self):
         result = orxa_mcp.search_transcripts(self.db, {"query": "Legal"})

@@ -1,3 +1,4 @@
+use crate::agent_sources::{format_agent_sources_context_for_chat, search_agent_sources_for_chat};
 use crate::askorxa::{
     build_extract_answer, format_evidence_line, load_meeting, load_relevant_evidence,
     load_summary_markdown, truncate_chars, AskEvidence, MAX_SUMMARY_CHARS,
@@ -158,33 +159,46 @@ pub async fn chat_send_message<R: Runtime>(
     let user_message = insert_message(pool, &session.id, "user", content, &[], None, None).await?;
     let history = list_recent_messages(pool, &session.id, CHAT_HISTORY_LIMIT).await?;
 
-    let (answer, evidence, model, warning) =
-        match generate_agent_answer(&app, pool, &session, content, &history).await {
-            Ok((answer, evidence, model)) => (answer, evidence, model, None),
-            Err(error) => {
-                let evidence = if let Some(meeting_id) = session.meeting_id.as_deref() {
-                    load_relevant_evidence(pool, meeting_id, content).await.unwrap_or_default()
-                } else {
-                    Vec::new()
-                };
-                let fallback = if evidence.is_empty() {
-                    format!(
-                        "I could not run the chat agent yet. {}",
-                        if session.meeting_id.is_some() {
-                            "Try checking the Chat agent model in Settings, or choose a meeting with transcript content."
-                        } else {
-                            "Choose a meeting under the composer so I have local context to inspect."
-                        }
-                    )
-                } else {
-                    build_extract_answer(content, &evidence)
-                };
-                (fallback, evidence, None, Some(error))
-            }
-        };
+    let (answer, evidence, model, warning) = match generate_agent_answer(
+        &app, pool, &session, content, &history,
+    )
+    .await
+    {
+        Ok((answer, evidence, model)) => (answer, evidence, model, None),
+        Err(error) => {
+            let evidence = if let Some(meeting_id) = session.meeting_id.as_deref() {
+                load_relevant_evidence(pool, meeting_id, content)
+                    .await
+                    .unwrap_or_default()
+            } else {
+                Vec::new()
+            };
+            let fallback = if evidence.is_empty() {
+                format!(
+                    "I could not run the chat agent yet. {}",
+                    if session.meeting_id.is_some() {
+                        "Try checking the Chat agent model in Settings, or choose a meeting with transcript content."
+                    } else {
+                        "Choose a meeting under the composer so I have local context to inspect."
+                    }
+                )
+            } else {
+                build_extract_answer(content, &evidence)
+            };
+            (fallback, evidence, None, Some(error))
+        }
+    };
 
-    let assistant_message =
-        insert_message(pool, &session.id, "assistant", &answer, &evidence, model, warning).await?;
+    let assistant_message = insert_message(
+        pool,
+        &session.id,
+        "assistant",
+        &answer,
+        &evidence,
+        model,
+        warning,
+    )
+    .await?;
     touch_session(pool, &session.id).await?;
     session = get_session(pool, &session.id).await?;
 
@@ -214,7 +228,11 @@ pub async fn chat_save_agent_config(
     ollama_endpoint: Option<String>,
 ) -> Result<ChatAgentConfig, String> {
     let pool = state.db_manager.pool();
-    if let Some(api_key) = api_key.as_deref().map(str::trim).filter(|value| !value.is_empty()) {
+    if let Some(api_key) = api_key
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
         if provider != "builtin-ai" && provider != "custom-openai" {
             SettingsRepository::save_api_key(pool, provider.trim(), api_key)
                 .await
@@ -354,7 +372,11 @@ async fn set_session_meeting(
     Ok(())
 }
 
-async fn update_session_title(pool: &SqlitePool, session_id: &str, title: &str) -> Result<(), String> {
+async fn update_session_title(
+    pool: &SqlitePool,
+    session_id: &str,
+    title: &str,
+) -> Result<(), String> {
     sqlx::query("UPDATE chat_sessions SET title = ?, updated_at = ? WHERE id = ?")
         .bind(short_title(title))
         .bind(Utc::now().to_rfc3339())
@@ -483,22 +505,35 @@ async fn generate_agent_answer<R: Runtime>(
             let (loaded_id, title) = load_meeting(pool, meeting_id).await?;
             let summary = load_summary_markdown(pool, meeting_id).await?;
             let evidence = load_relevant_evidence(pool, meeting_id, current_message).await?;
-            let work_items = load_work_items(pool, meeting_id).await.unwrap_or_default();
-            let context = format_meeting_context(&loaded_id, &title, summary.as_deref(), &evidence, &work_items);
+            let context = format_meeting_context(&loaded_id, &title, summary.as_deref(), &evidence);
             (context, evidence)
         }
         None => (format_recent_meetings(pool).await?, Vec::new()),
     };
+    let agent_history = search_agent_sources_for_chat(pool, current_message)
+        .await
+        .unwrap_or_default();
+    let agent_history_context = format_agent_sources_context_for_chat(&agent_history);
+    let combined_context = format!(
+        "{}\n\nIndexed local agent history:\n<agent_history>\n{}\n</agent_history>",
+        meeting_context, agent_history_context
+    );
 
-    let system_prompt = "You are Orxa's local meeting agent. You help the user reason over their saved meetings, transcripts, summaries, and Work Hub items. Use only the supplied local context and conversation history. When you use transcript evidence, cite bracketed timestamps such as [12:32]. If the answer is not supported, say what is missing and suggest the exact meeting/context needed. Be practical, precise, and willing to turn meeting discussion into plans, todos, risks, and explanations.";
+    let system_prompt = "You are Orxa's local meeting agent. You help the user reason over their saved meetings, transcripts, summaries, and indexed local agent-session history from enabled sources such as Codex, Claude, Cursor, and local memories. Use only the supplied local context and conversation history. When you use transcript evidence, cite bracketed timestamps such as [12:32]. When you use agent-history context, name the source and session/file title. If the answer is not supported, say what is missing and suggest the exact meeting or Agent Sources index needed. Be practical, precise, and willing to turn meeting discussion into plans and explanations without pretending Orxa is a task manager.";
     let history_block = history
         .iter()
-        .map(|message| format!("{}: {}", message.role, truncate_chars(&message.content, 2_000)))
+        .map(|message| {
+            format!(
+                "{}: {}",
+                message.role,
+                truncate_chars(&message.content, 2_000)
+            )
+        })
         .collect::<Vec<_>>()
         .join("\n\n");
     let user_prompt = format!(
         "Conversation so far:\n<conversation>\n{}\n</conversation>\n\nLocal tools/context available:\n<context>\n{}\n</context>\n\nUser message:\n{}",
-        history_block, meeting_context, current_message
+        history_block, combined_context, current_message
     );
 
     let client = Client::new();
@@ -538,7 +573,9 @@ async fn resolve_agent_config(pool: &SqlitePool) -> Result<ResolvedAgentConfig, 
         (
             row.get::<String, _>("provider"),
             row.get::<String, _>("model"),
-            row.try_get::<Option<String>, _>("ollamaEndpoint").ok().flatten(),
+            row.try_get::<Option<String>, _>("ollamaEndpoint")
+                .ok()
+                .flatten(),
         )
     } else {
         let summary = SettingsRepository::get_model_config(pool)
@@ -603,7 +640,9 @@ async fn load_chat_or_summary_config(pool: &SqlitePool) -> Result<ChatAgentConfi
             row.get::<String, _>("provider"),
             row.get::<String, _>("model"),
             row.try_get::<String, _>("whisperModel").unwrap_or_default(),
-            row.try_get::<Option<String>, _>("ollamaEndpoint").ok().flatten(),
+            row.try_get::<Option<String>, _>("ollamaEndpoint")
+                .ok()
+                .flatten(),
         )
     } else {
         let summary = SettingsRepository::get_model_config(pool)
@@ -634,7 +673,9 @@ async fn load_chat_or_summary_config(pool: &SqlitePool) -> Result<ChatAgentConfi
         ollama_endpoint,
         custom_open_ai_endpoint: custom_config.as_ref().map(|config| config.endpoint.clone()),
         custom_open_ai_model: custom_config.as_ref().map(|config| config.model.clone()),
-        custom_open_ai_api_key: custom_config.as_ref().and_then(|config| config.api_key.clone()),
+        custom_open_ai_api_key: custom_config
+            .as_ref()
+            .and_then(|config| config.api_key.clone()),
         max_tokens: custom_config
             .as_ref()
             .and_then(|config| config.max_tokens)
@@ -648,11 +689,20 @@ fn row_to_session(row: sqlx::sqlite::SqliteRow) -> ChatSession {
     ChatSession {
         id: row.get("id"),
         title: row.get("title"),
-        meeting_id: row.try_get::<Option<String>, _>("meeting_id").ok().flatten(),
-        meeting_title: row.try_get::<Option<String>, _>("meeting_title").ok().flatten(),
+        meeting_id: row
+            .try_get::<Option<String>, _>("meeting_id")
+            .ok()
+            .flatten(),
+        meeting_title: row
+            .try_get::<Option<String>, _>("meeting_title")
+            .ok()
+            .flatten(),
         created_at: row.get("created_at"),
         updated_at: row.get("updated_at"),
-        last_message: row.try_get::<Option<String>, _>("last_message").ok().flatten(),
+        last_message: row
+            .try_get::<Option<String>, _>("last_message")
+            .ok()
+            .flatten(),
     }
 }
 
@@ -679,7 +729,6 @@ fn format_meeting_context(
     title: &str,
     summary: Option<&str>,
     evidence: &[AskEvidence],
-    work_items: &[String],
 ) -> String {
     let summary = summary
         .map(|value| truncate_chars(value, CHAT_CONTEXT_SUMMARY_CHARS))
@@ -690,58 +739,9 @@ fn format_meeting_context(
         .map(format_evidence_line)
         .collect::<Vec<_>>()
         .join("\n");
-    let work_block = if work_items.is_empty() {
-        "No Work Hub items are stored for this meeting.".to_string()
-    } else {
-        work_items.join("\n")
-    };
-
     format!(
-        "Selected meeting:\n- id: {meeting_id}\n- title: {title}\n\nMeeting summary:\n<summary>\n{summary}\n</summary>\n\nRelevant transcript search results:\n<transcript_evidence>\n{evidence_block}\n</transcript_evidence>\n\nWork Hub items:\n<work_items>\n{work_block}\n</work_items>"
+        "Selected meeting:\n- id: {meeting_id}\n- title: {title}\n\nMeeting summary:\n<summary>\n{summary}\n</summary>\n\nRelevant transcript search results:\n<transcript_evidence>\n{evidence_block}\n</transcript_evidence>"
     )
-}
-
-async fn load_work_items(pool: &SqlitePool, meeting_id: &str) -> Result<Vec<String>, String> {
-    let rows = sqlx::query(
-        r#"
-        SELECT kind, title, details, owner, due_date, status, evidence
-        FROM work_items
-        WHERE meeting_id = ?
-        ORDER BY
-            CASE status
-                WHEN 'open' THEN 0
-                WHEN 'in_progress' THEN 1
-                WHEN 'blocked' THEN 2
-                ELSE 3
-            END,
-            updated_at DESC
-        LIMIT 30
-        "#,
-    )
-    .bind(meeting_id)
-    .fetch_all(pool)
-    .await
-    .map_err(|e| format!("Failed to load Work Hub items: {}", e))?;
-
-    Ok(rows
-        .into_iter()
-        .map(|row| {
-            let kind: String = row.get("kind");
-            let title: String = row.get("title");
-            let status: String = row.get("status");
-            let owner: Option<String> = row.try_get::<Option<String>, _>("owner").ok().flatten();
-            let due_date: Option<String> = row.try_get::<Option<String>, _>("due_date").ok().flatten();
-            let details: Option<String> = row.try_get::<Option<String>, _>("details").ok().flatten();
-            let evidence: Option<String> = row.try_get::<Option<String>, _>("evidence").ok().flatten();
-            format!(
-                "- [{kind}/{status}] {title}{}{}{}{}",
-                owner.map(|value| format!(" | owner: {value}")).unwrap_or_default(),
-                due_date.map(|value| format!(" | due: {value}")).unwrap_or_default(),
-                details.map(|value| format!(" | details: {value}")).unwrap_or_default(),
-                evidence.map(|value| format!(" | evidence: {value}")).unwrap_or_default(),
-            )
-        })
-        .collect())
 }
 
 async fn format_recent_meetings(pool: &SqlitePool) -> Result<String, String> {

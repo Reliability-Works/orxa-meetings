@@ -35,6 +35,7 @@ pub(crate) use perf_trace;
 // Re-export async logging macros for external use (removed due to macro conflicts)
 
 // Declare audio module
+pub mod agent_sources;
 pub mod analytics;
 pub mod api;
 pub mod askorxa;
@@ -59,7 +60,6 @@ pub mod summary;
 pub mod tray;
 pub mod utils;
 pub mod whisper_engine;
-pub mod workhub;
 
 use audio::{list_audio_devices, AudioDevice, trigger_audio_permission};
 use log::{error as log_error, info as log_info};
@@ -711,19 +711,11 @@ pub fn run() {
             calendar::list_calendar_events,
             mcp::get_mcp_setup_info,
             mcp::open_mcp_server_folder,
-            workhub::workhub_sync_meeting,
-            workhub::workhub_get_overview,
-            workhub::workhub_list_items,
-            workhub::workhub_update_item_status,
-            workhub::workhub_create_context_pack,
-            workhub::workhub_list_context_packs,
-            workhub::workhub_get_role_output,
-            workhub::workhub_get_recurring_memory,
-            workhub::workhub_create_pre_meeting_brief,
-            workhub::workhub_create_agent_handoff,
-            workhub::workhub_generate_briefing,
-            workhub::workhub_suggest_transcript_repairs,
-            workhub::workhub_get_agent_tool_capabilities,
+            agent_sources::agent_sources_get_config,
+            agent_sources::agent_sources_save_config,
+            agent_sources::agent_sources_reindex,
+            agent_sources::agent_sources_search,
+            agent_sources::agent_sources_activity_on,
             askorxa::ask_orxa_meeting,
             chat::chat_list_sessions,
             chat::chat_create_session,
