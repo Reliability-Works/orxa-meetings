@@ -44,7 +44,7 @@ import {
 import { VisuallyHidden } from '@/components/ui/visually-hidden';
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from '../ui/input-group';
 
-const COLLAPSED_WIDTH = 64;
+const COLLAPSED_WIDTH = 0;
 const DEFAULT_SIDEBAR_WIDTH = 286;
 const MIN_SIDEBAR_WIDTH = 240;
 const MAX_SIDEBAR_WIDTH = 440;
@@ -351,10 +351,6 @@ const Sidebar: React.FC = () => {
     setGlobalSearchOpen(true);
   };
 
-  const openGlobalSearchFromCollapsed = () => {
-    setGlobalSearchOpen(true);
-  };
-
   const closeGlobalSearch = () => {
     setGlobalSearchOpen(false);
     setGlobalSearchQuery('');
@@ -373,134 +369,50 @@ const Sidebar: React.FC = () => {
     router.push(`/chat?id=${session.id}`);
   };
 
-  if (isFullScreenRoute) {
-    return (
-      <TooltipProvider>
-        <div className="fixed left-0 top-0 z-50 h-10 w-[190px] bg-transparent">
-          <div
-            className="flex h-10 items-center gap-1 pr-3"
-            style={{ paddingLeft: TITLEBAR_CONTROL_OFFSET, transform: `translateY(${TITLEBAR_CONTROL_LIFT}px)` }}
-          >
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button type="button" onClick={toggleCollapse} className={TITLEBAR_BUTTON_CLASS} aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
-                  {isCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">{isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button type="button" onClick={() => window.history.back()} className={TITLEBAR_BUTTON_CLASS} aria-label="Go back">
-                  <ArrowLeft className="h-4 w-4" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">Go back</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button type="button" onClick={() => window.history.forward()} className={TITLEBAR_FORWARD_BUTTON_CLASS} aria-label="Go forward">
-                  <ArrowRight className="h-4 w-4" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">Go forward</TooltipContent>
-            </Tooltip>
-          </div>
-        </div>
-      </TooltipProvider>
-    );
-  }
-
-  const renderCollapsed = () => (
+  const renderTitlebarControls = () => (
     <TooltipProvider>
-      <div className="flex h-full flex-col justify-between pb-2 pt-0">
-        <div>
-          <div
-            className="flex h-10 w-[190px] items-center gap-1 pr-3"
-            style={{ paddingLeft: TITLEBAR_CONTROL_OFFSET, transform: `translateY(${TITLEBAR_CONTROL_LIFT}px)` }}
-          >
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button onClick={toggleCollapse} className={TITLEBAR_BUTTON_CLASS}>
-                  <PanelLeftOpen className="h-4 w-4 text-gray-600" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">Expand sidebar</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  onClick={() => window.history.back()}
-                  className={TITLEBAR_BUTTON_CLASS}
-                  aria-label="Go back"
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">Go back</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  onClick={() => window.history.forward()}
-                  className={TITLEBAR_FORWARD_BUTTON_CLASS}
-                  aria-label="Go forward"
-                >
-                  <ArrowRight className="h-4 w-4" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">Go forward</TooltipContent>
-            </Tooltip>
-          </div>
-          <div className="flex flex-col items-center gap-1.5">
-          <CollapsedButton title="Home" active={pathname === '/'} onClick={() => router.push('/')}>
-            <Home className="h-4 w-4" />
-          </CollapsedButton>
-          <CollapsedButton title="Calendar" active={pathname === '/calendar'} onClick={() => router.push('/calendar')}>
-            <CalendarDays className="h-4 w-4" />
-          </CollapsedButton>
-          <CollapsedButton title="Search" onClick={openGlobalSearchFromCollapsed}>
-            <SearchIcon className="h-4 w-4" />
-          </CollapsedButton>
-          <CollapsedButton title={isRecording ? 'Recording in progress' : 'Start recording'} onClick={handleRecordingToggle}>
-            {isRecording ? <Square className="h-4 w-4 text-red-500" /> : <Mic className="h-4 w-4" />}
-          </CollapsedButton>
-          </div>
-        </div>
-        <div className="flex flex-col items-center gap-1.5">
-          {updateInfo?.available && (
-            <CollapsedButton
-              title={isUpdateDownloading ? 'Downloading update' : `Update to ${updateInfo.version}`}
-              onClick={() => {
-                if (isUpdateDownloading || updateError) {
-                  showUpdateDialog();
-                } else {
-                  void installUpdate();
-                }
-              }}
-            >
-              {isUpdateDownloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-            </CollapsedButton>
-          )}
-          {betaFeatures.importAndRetranscribe && (
-            <CollapsedButton title="Import audio" onClick={() => openImportDialog()}>
-              <Upload className="h-4 w-4" />
-            </CollapsedButton>
-          )}
-          <CollapsedButton title="Settings" active={pathname === '/settings'} onClick={() => router.push('/settings')}>
-            <Settings className="h-4 w-4" />
-          </CollapsedButton>
+      <div className="fixed left-0 top-0 z-50 h-10 w-[190px] bg-transparent">
+        <div
+          className="flex h-10 items-center gap-1 pr-3"
+          style={{ paddingLeft: TITLEBAR_CONTROL_OFFSET, transform: `translateY(${TITLEBAR_CONTROL_LIFT}px)` }}
+        >
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button type="button" onClick={toggleCollapse} className={TITLEBAR_BUTTON_CLASS} aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
+                {isCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">{isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button type="button" onClick={() => window.history.back()} className={TITLEBAR_BUTTON_CLASS} aria-label="Go back">
+                <ArrowLeft className="h-4 w-4" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">Go back</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button type="button" onClick={() => window.history.forward()} className={TITLEBAR_FORWARD_BUTTON_CLASS} aria-label="Go forward">
+                <ArrowRight className="h-4 w-4" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">Go forward</TooltipContent>
+          </Tooltip>
         </div>
       </div>
     </TooltipProvider>
   );
 
+  if (isFullScreenRoute || isCollapsed) {
+    return renderTitlebarControls();
+  }
+
   return (
     <div
       className="fixed left-0 top-0 z-40 h-screen bg-white"
-      style={{ width: isCollapsed ? COLLAPSED_WIDTH : sidebarWidth }}
+      style={{ width: sidebarWidth }}
     >
       <div
         aria-hidden="true"
@@ -508,7 +420,7 @@ const Sidebar: React.FC = () => {
       />
       <div
         className={`relative flex h-screen flex-col bg-white ${isResizing ? '' : 'transition-[width] duration-200'}`}
-        style={{ width: isCollapsed ? COLLAPSED_WIDTH : sidebarWidth }}
+        style={{ width: sidebarWidth }}
       >
         {!isCollapsed && (
           <button
@@ -522,10 +434,7 @@ const Sidebar: React.FC = () => {
           />
         )}
 
-        {isCollapsed ? (
-          renderCollapsed()
-        ) : (
-          <>
+        <>
             <div
               className="flex h-10 shrink-0 items-center gap-1 pr-3"
               style={{ paddingLeft: TITLEBAR_CONTROL_OFFSET, transform: `translateY(${TITLEBAR_CONTROL_LIFT}px)` }}
@@ -740,8 +649,7 @@ const Sidebar: React.FC = () => {
                 </div>
               </TooltipProvider>
             </div>
-          </>
-        )}
+        </>
       </div>
 
       <ConfirmationModal
@@ -908,33 +816,6 @@ const Sidebar: React.FC = () => {
     </div>
   );
 };
-
-function CollapsedButton({
-  title,
-  active,
-  onClick,
-  children,
-}: {
-  title: string;
-  active?: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <button
-          type="button"
-          onClick={onClick}
-          className={`flex h-9 w-9 items-center justify-center rounded-lg text-gray-600 hover:bg-gray-100 ${active ? 'bg-gray-100 text-gray-950' : ''}`}
-        >
-          {children}
-        </button>
-      </TooltipTrigger>
-      <TooltipContent side="right">{title}</TooltipContent>
-    </Tooltip>
-  );
-}
 
 function IconFooterButton({
   title,

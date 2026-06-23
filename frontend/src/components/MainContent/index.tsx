@@ -19,7 +19,7 @@ const MainContent: React.FC<MainContentProps> = ({ children }) => {
     <main
       className="h-screen flex-1 overflow-hidden bg-white transition-[margin] duration-300"
       style={{
-        marginLeft: isFullScreenRoute ? 0 : isCollapsed ? 64 : 'var(--orxa-sidebar-width, 286px)',
+        marginLeft: isFullScreenRoute ? 0 : isCollapsed ? 0 : 'var(--orxa-sidebar-width, 286px)',
       }}
     >
       {!isFullScreenRoute && <div className="bg-white" style={{ height: TITLEBAR_SAFE_AREA }} />}
