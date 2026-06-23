@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { ChevronDown, ChevronRight, File, Settings, ChevronLeftCircle, ChevronRightCircle, Calendar, StickyNote, Home, Trash2, Mic, Square, Plus, Search, Pencil, NotebookPen, SearchIcon, X, Upload, Inbox } from 'lucide-react';
+import { ChevronDown, ChevronRight, File, Settings, Calendar, Home, Trash2, Mic, Square, Plus, Pencil, NotebookPen, SearchIcon, X, Upload, Inbox, MessageSquareText, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useSidebar } from './SidebarProvider';
 import type { CurrentMeeting } from '@/components/Sidebar/SidebarProvider';
@@ -38,6 +38,11 @@ interface SidebarItem {
   type: 'folder' | 'file';
   children?: SidebarItem[];
 }
+
+const COLLAPSED_WIDTH = 64;
+const DEFAULT_SIDEBAR_WIDTH = 256;
+const MIN_SIDEBAR_WIDTH = 220;
+const MAX_SIDEBAR_WIDTH = 420;
 
 const Sidebar: React.FC = () => {
   const router = useRouter();
@@ -76,6 +81,13 @@ const Sidebar: React.FC = () => {
     model: 'parakeet-tdt-0.6b-v3-int8',
   });
   const [settingsSaveSuccess, setSettingsSaveSuccess] = useState<boolean | null>(null);
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    if (typeof window === 'undefined') return DEFAULT_SIDEBAR_WIDTH;
+    const stored = Number(window.localStorage.getItem('meetily-sidebar-width'));
+    if (!Number.isFinite(stored)) return DEFAULT_SIDEBAR_WIDTH;
+    return Math.min(MAX_SIDEBAR_WIDTH, Math.max(MIN_SIDEBAR_WIDTH, stored));
+  });
+  const [isResizing, setIsResizing] = useState(false);
 
   // State for edit modal
   const [editModalState, setEditModalState] = useState<{ isOpen: boolean; meetingId: string | null; currentTitle: string }>({
@@ -104,6 +116,34 @@ const Sidebar: React.FC = () => {
 
 
   const [deleteModalState, setDeleteModalState] = useState<{ isOpen: boolean; itemId: string | null }>({ isOpen: false, itemId: null });
+
+  useEffect(() => {
+    if (!isResizing || isCollapsed) return;
+
+    const handleMouseMove = (event: MouseEvent) => {
+      const nextWidth = Math.min(MAX_SIDEBAR_WIDTH, Math.max(MIN_SIDEBAR_WIDTH, event.clientX));
+      setSidebarWidth(nextWidth);
+      window.localStorage.setItem('meetily-sidebar-width', String(nextWidth));
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, [isCollapsed, isResizing]);
 
   useEffect(() => {
     // Note: Don't set hardcoded defaults - let DB be the source of truth
@@ -444,18 +484,32 @@ const Sidebar: React.FC = () => {
     };
   }, []);
 
-  const renderCollapsedIcons = () => {
+  const renderCollapsedNavIcons = () => {
     if (!isCollapsed) return null;
 
     const isHomePage = pathname === '/';
     const isMeetingPage = pathname?.includes('/meeting-details');
     const isWorkHubPage = pathname === '/work-hub';
-    const isSettingsPage = pathname === '/settings';
+    const isAskPage = pathname === '/ask-meetily';
 
     return (
       <TooltipProvider>
-        <div className="flex flex-col items-center space-y-4 mt-4">
+        <div className="flex flex-col items-center space-y-3 mt-3">
           <Logo isCollapsed={isCollapsed} />
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={toggleCollapse}
+                className="p-2 rounded-lg transition-colors duration-150 hover:bg-gray-100"
+              >
+                <PanelLeftOpen className="w-5 h-5 text-gray-600" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right">
+              <p>Expand Sidebar</p>
+            </TooltipContent>
+          </Tooltip>
 
           <Tooltip>
             <TooltipTrigger asChild>
@@ -475,25 +529,6 @@ const Sidebar: React.FC = () => {
           <Tooltip>
             <TooltipTrigger asChild>
               <button
-                onClick={handleRecordingToggle}
-                disabled={isRecording}
-                className={`p-2 ${isRecording ? 'bg-red-500 cursor-not-allowed' : 'bg-red-500 hover:bg-red-600'} rounded-full transition-colors duration-150 shadow-sm`}
-              >
-                {isRecording ? (
-                  <Square className="w-5 h-5 text-white" />
-                ) : (
-                  <Mic className="w-5 h-5 text-white" />
-                )}
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="right">
-              <p>{isRecording ? "Recording in progress..." : "Start Recording"}</p>
-            </TooltipContent>
-          </Tooltip>
-
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
                 onClick={() => router.push('/work-hub')}
                 className={`p-2 rounded-lg transition-colors duration-150 ${isWorkHubPage ? 'bg-gray-100' : 'hover:bg-gray-100'
                   }`}
@@ -506,21 +541,20 @@ const Sidebar: React.FC = () => {
             </TooltipContent>
           </Tooltip>
 
-          {betaFeatures.importAndRetranscribe && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  onClick={() => openImportDialog()}
-                  className="p-2 rounded-lg transition-colors duration-150 hover:bg-blue-100 bg-blue-50"
-                >
-                  <Upload className="w-5 h-5 text-blue-600" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="right">
-                <p>Import Audio</p>
-              </TooltipContent>
-            </Tooltip>
-          )}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => router.push('/ask-meetily')}
+                className={`p-2 rounded-lg transition-colors duration-150 ${isAskPage ? 'bg-gray-100' : 'hover:bg-gray-100'
+                  }`}
+              >
+                <MessageSquareText className="w-5 h-5 text-gray-600" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right">
+              <p>Ask Meetily</p>
+            </TooltipContent>
+          </Tooltip>
 
           <Tooltip>
             <TooltipTrigger asChild>
@@ -539,6 +573,52 @@ const Sidebar: React.FC = () => {
               <p>Meeting Notes</p>
             </TooltipContent>
           </Tooltip>
+        </div>
+      </TooltipProvider>
+    );
+  };
+
+  const renderCollapsedFooterActions = () => {
+    if (!isCollapsed) return null;
+    const isSettingsPage = pathname === '/settings';
+
+    return (
+      <TooltipProvider>
+        <div className="flex flex-col items-center gap-2 border-t border-gray-100 px-2 py-3">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={handleRecordingToggle}
+                disabled={isRecording}
+                className={`p-2 ${isRecording ? 'bg-red-500 cursor-not-allowed' : 'bg-red-500 hover:bg-red-600'} rounded-full transition-colors duration-150 shadow-sm`}
+              >
+                {isRecording ? (
+                  <Square className="w-5 h-5 text-white" />
+                ) : (
+                  <Mic className="w-5 h-5 text-white" />
+                )}
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right">
+              <p>{isRecording ? "Recording in progress..." : "Start Recording"}</p>
+            </TooltipContent>
+          </Tooltip>
+
+          {betaFeatures.importAndRetranscribe && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => openImportDialog()}
+                  className="p-2 rounded-lg transition-colors duration-150 hover:bg-blue-100 bg-blue-50"
+                >
+                  <Upload className="w-5 h-5 text-blue-600" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right">
+                <p>Import Audio</p>
+              </TooltipContent>
+            </Tooltip>
+          )}
 
           <Tooltip>
             <TooltipTrigger asChild>
@@ -569,7 +649,7 @@ const Sidebar: React.FC = () => {
 
   const renderItem = (item: SidebarItem, depth = 0) => {
     const isExpanded = expandedFolders.has(item.id);
-    const paddingLeft = `${depth * 12 + 12}px`;
+    const paddingLeft = `${depth * 8 + 8}px`;
     const isActive = item.type === 'file' && currentMeeting?.id === item.id;
     const isMeetingItem = item.id.includes('-') && !item.id.startsWith('intro-call');
 
@@ -584,7 +664,7 @@ const Sidebar: React.FC = () => {
         <div
           className={`flex items-center transition-all duration-150 group ${item.type === 'folder' && depth === 0
             ? 'p-3 text-lg font-semibold h-10 mx-3 mt-3 rounded-lg'
-            : `px-3 py-2 my-0.5 rounded-md text-sm ${isActive ? 'bg-blue-100 text-blue-700 font-medium' :
+            : `px-2 py-1.5 my-0.5 rounded-lg text-sm ${isActive ? 'bg-gray-100 text-gray-900 font-medium' :
               hasTranscriptMatch ? 'bg-yellow-50' : 'hover:bg-gray-50'
             } cursor-pointer`
             }`}
@@ -621,19 +701,19 @@ const Sidebar: React.FC = () => {
             </>
           ) : (
             <div className="flex flex-col w-full">
-              <div className="flex items-center w-full">
+              <div className="flex items-center w-full min-w-0">
                 {isMeetingItem ? (
-                  <div className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-full mr-2 bg-gray-100">
-                    <File className="w-3.5 h-3.5 text-gray-600" />
+                  <div className="flex-shrink-0 flex items-center justify-center w-5 h-5 mr-2 text-gray-500">
+                    <File className="w-3.5 h-3.5" />
                   </div>
                 ) : (
-                  <div className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-full mr-2 bg-blue-100">
+                  <div className="flex-shrink-0 flex items-center justify-center w-5 h-5 rounded-full mr-2 bg-blue-100">
                     <Plus className="w-3.5 h-3.5 text-blue-600" />
                   </div>
                 )}
-                <span className="flex-1 break-words">{item.title}</span>
+                <span className="min-w-0 flex-1 truncate text-[13px] leading-5">{item.title}</span>
                 {isMeetingItem && (
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+                  <div className="ml-1 flex flex-shrink-0 items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -642,7 +722,7 @@ const Sidebar: React.FC = () => {
                       className="hover:text-blue-600 p-1 rounded-md hover:bg-blue-50 flex-shrink-0"
                       aria-label="Edit meeting title"
                     >
-                      <Pencil className="w-4 h-4" />
+                      <Pencil className="w-3.5 h-3.5" />
                     </button>
                     <button
                       onClick={(e) => {
@@ -652,7 +732,7 @@ const Sidebar: React.FC = () => {
                       className="hover:text-red-600 p-1 rounded-md hover:bg-red-50 flex-shrink-0"
                       aria-label="Delete meeting"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 )}
@@ -677,62 +757,66 @@ const Sidebar: React.FC = () => {
   };
 
   return (
-    <div className="fixed top-0 left-0 h-screen z-40">
-      {/* Floating collapse button */}
-      <button
-        onClick={toggleCollapse}
-        className="absolute -right-6 top-20 z-50 p-1 bg-white hover:bg-gray-100 rounded-full shadow-lg border"
-        style={{ transform: 'translateX(50%)' }}
-      >
-        {isCollapsed ? (
-          <ChevronRightCircle className="w-6 h-6" />
-        ) : (
-          <ChevronLeftCircle className="w-6 h-6" />
-        )}
-      </button>
-
+    <div
+      className="fixed top-0 left-0 h-screen z-40"
+      style={{ width: isCollapsed ? COLLAPSED_WIDTH : sidebarWidth }}
+    >
       <div
-        className={`h-screen bg-white border-r shadow-sm flex flex-col transition-all duration-300 ${isCollapsed ? 'w-16' : 'w-64'
-          }`}
+        className={`relative h-screen bg-white border-r shadow-sm flex flex-col ${isResizing ? '' : 'transition-[width] duration-200'}`}
+        style={{ width: isCollapsed ? COLLAPSED_WIDTH : sidebarWidth }}
       >
-        {/*  Header with traffic light spacing */}
-        <div className="flex-shrink-0 h-22 flex items-center">
+        {!isCollapsed && (
+          <button
+            type="button"
+            aria-label="Resize sidebar"
+            className="absolute right-0 top-0 z-20 h-full w-1 cursor-col-resize bg-transparent hover:bg-blue-200"
+            onMouseDown={(event) => {
+              event.preventDefault();
+              setIsResizing(true);
+            }}
+          />
+        )}
 
-          {/* Title container */}
-
-
-
-          <div className="flex-1">
-            {!isCollapsed && (
-              <div className="p-3">
-                {/* <span className="text-lg text-center border rounded-full bg-blue-50 border-white font-semibold text-gray-700 mb-2 block items-center">
-                  <span>Meetily</span>
-                </span> */}
+        {!isCollapsed && (
+          <div className="flex-shrink-0 p-3">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <div className="min-w-0 flex-1">
                 <Logo isCollapsed={isCollapsed} />
-
-                <div className="relative mb-1">
-                  <InputGroup >
-                    <InputGroupInput placeholder='Search meeting content...' value={searchQuery}
-                      onChange={(e) => handleSearchChange(e.target.value)}
-                    />
-                    <InputGroupAddon>
-                      <SearchIcon />
-                    </InputGroupAddon>
-                    {searchQuery &&
-                      <InputGroupAddon align={'inline-end'}>
-                        <InputGroupButton
-                          onClick={() => handleSearchChange('')}
-                        >
-                          <X />
-                        </InputGroupButton>
-                      </InputGroupAddon>
-                    }
-                  </InputGroup>
-                </div>
               </div>
-            )}
+              <button
+                type="button"
+                onClick={toggleCollapse}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-gray-600 transition-colors hover:bg-gray-100"
+                aria-label="Collapse sidebar"
+                title="Collapse Sidebar"
+              >
+                <PanelLeftClose className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="relative mb-1">
+              <InputGroup>
+                <InputGroupInput
+                  placeholder='Search meeting content...'
+                  value={searchQuery}
+                  onChange={(e) => handleSearchChange(e.target.value)}
+                />
+                <InputGroupAddon>
+                  <SearchIcon />
+                </InputGroupAddon>
+                {searchQuery &&
+                  <InputGroupAddon align={'inline-end'}>
+                    <InputGroupButton
+                      onClick={() => handleSearchChange('')}
+                    >
+                      <X />
+                    </InputGroupButton>
+                  </InputGroupAddon>
+                }
+              </InputGroup>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Main content - scrollable area */}
         <div className="flex-1 flex flex-col min-h-0">
@@ -742,17 +826,24 @@ const Sidebar: React.FC = () => {
               <>
                 <div
                   onClick={() => router.push('/')}
-                  className={`p-3 text-lg font-semibold items-center h-10 flex mx-3 mt-3 rounded-lg cursor-pointer ${pathname === '/' ? 'bg-gray-100' : 'hover:bg-gray-100'}`}
+                  className={`px-3 py-2 text-[15px] font-semibold items-center h-10 flex mx-3 mt-2 rounded-lg cursor-pointer ${pathname === '/' ? 'bg-gray-100' : 'hover:bg-gray-100'}`}
                 >
                   <Home className="w-4 h-4 mr-2" />
                   <span>Home</span>
                 </div>
                 <div
                   onClick={() => router.push('/work-hub')}
-                  className={`p-3 text-lg font-semibold items-center h-10 flex mx-3 mt-1 rounded-lg cursor-pointer ${pathname === '/work-hub' ? 'bg-gray-100' : 'hover:bg-gray-100'}`}
+                  className={`px-3 py-2 text-[15px] font-semibold items-center h-10 flex mx-3 mt-1 rounded-lg cursor-pointer ${pathname === '/work-hub' ? 'bg-gray-100' : 'hover:bg-gray-100'}`}
                 >
                   <Inbox className="w-4 h-4 mr-2" />
                   <span>Work Hub</span>
+                </div>
+                <div
+                  onClick={() => router.push('/ask-meetily')}
+                  className={`px-3 py-2 text-[14px] font-medium items-center h-9 flex mx-3 mt-0.5 rounded-lg cursor-pointer ${pathname === '/ask-meetily' ? 'bg-gray-100' : 'hover:bg-gray-100'}`}
+                >
+                  <MessageSquareText className="w-4 h-4 mr-2" />
+                  <span>Ask Meetily</span>
                 </div>
               </>
             )}
@@ -760,14 +851,14 @@ const Sidebar: React.FC = () => {
 
           {/* Content area */}
           <div className="flex-1 flex flex-col min-h-0">
-            {renderCollapsedIcons()}
+            {renderCollapsedNavIcons()}
             {/* Meeting Notes folder header - fixed */}
             {!isCollapsed && (
               <div className="flex-shrink-0">
                 {filteredSidebarItems.filter(item => item.type === 'folder').map(item => (
                   <div key={item.id}>
                     <div
-                      className="flex items-center transition-all duration-150 p-3 text-lg font-semibold h-10 mx-3 mt-3 rounded-lg"
+                      className="flex items-center transition-all duration-150 px-3 py-2 text-[15px] font-semibold h-10 mx-3 mt-2 rounded-lg"
                     >
                       <NotebookPen className="w-4 h-4 mr-2 text-gray-600" />
                       <span className="text-gray-700">{item.title}</span>
@@ -796,45 +887,64 @@ const Sidebar: React.FC = () => {
         </div>
 
         {/* Footer */}
-        {!isCollapsed && (
+        {isCollapsed ? (
+          renderCollapsedFooterActions()
+        ) : (
+          <div className="flex-shrink-0 border-t border-gray-100 p-2">
+            <TooltipProvider>
+              <div className="flex items-center justify-center gap-1.5">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={handleRecordingToggle}
+                      disabled={isRecording}
+                      className={`flex h-10 w-10 items-center justify-center rounded-lg text-white transition-colors shadow-sm ${isRecording ? 'bg-red-300 cursor-not-allowed' : 'bg-red-500 hover:bg-red-600'}`}
+                    >
+                      {isRecording ? (
+                        <Square className="h-5 w-5" />
+                      ) : (
+                        <Mic className="h-5 w-5" />
+                      )}
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top">
+                    <p>{isRecording ? 'Recording in progress...' : 'Start Recording'}</p>
+                  </TooltipContent>
+                </Tooltip>
 
-          <div className="flex-shrink-0 p-2 border-t border-gray-100">
-            <button
-              onClick={handleRecordingToggle}
-              disabled={isRecording}
-              className={`w-full flex items-center justify-center px-3 py-2 text-sm font-medium text-white ${isRecording ? 'bg-red-300 cursor-not-allowed' : 'bg-red-500 hover:bg-red-600'} rounded-lg transition-colors shadow-sm`}
-            >
-              {isRecording ? (
-                <>
-                  <Square className="w-4 h-4 mr-2" />
-                  <span>Recording in progress...</span>
-                </>
-              ) : (
-                <>
-                  <Mic className="w-4 h-4 mr-2" />
-                  <span>Start Recording</span>
-                </>
-              )}
-            </button>
+                {betaFeatures.importAndRetranscribe && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={() => openImportDialog()}
+                        className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-blue-600 transition-colors hover:bg-blue-100"
+                      >
+                        <Upload className="h-5 w-5" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top">
+                      <p>Import Audio</p>
+                    </TooltipContent>
+                  </Tooltip>
+                )}
 
-            {betaFeatures.importAndRetranscribe && (
-              <button
-                onClick={() => openImportDialog()}
-                className="w-full flex items-center justify-center px-3 py-2 mt-1 text-sm font-medium text-gray-700 bg-blue-100 hover:bg-blue-200 rounded-lg transition-colors shadow-sm"
-              >
-                <Upload className="w-4 h-4 mr-2" />
-                <span>Import Audio</span>
-              </button>
-            )}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => router.push('/settings')}
+                      className={`flex h-10 w-10 items-center justify-center rounded-lg transition-colors ${pathname === '/settings' ? 'bg-gray-100 text-gray-900' : 'text-gray-600 hover:bg-gray-100'}`}
+                    >
+                      <Settings className="h-5 w-5" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top">
+                    <p>Settings</p>
+                  </TooltipContent>
+                </Tooltip>
 
-            <button
-              onClick={() => router.push('/settings')}
-              className="w-full flex items-center justify-center px-3 py-1.5 mt-1 mb-1 text-sm font-medium text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors shadow-sm"
-            >
-              <Settings className="w-4 h-4 mr-2" />
-              <span>Settings</span>
-            </button>
-            <Info isCollapsed={isCollapsed} />
+                <Info isCollapsed={false} compact />
+              </div>
+            </TooltipProvider>
             <div className="w-full flex items-center justify-center px-3 py-1 text-xs text-gray-400">
               v0.4.0
             </div>
