@@ -23,6 +23,7 @@ function MeetingDetailsContent() {
   const searchParams = useSearchParams();
   const meetingId = searchParams.get('id');
   const source = searchParams.get('source'); // Check if navigated from recording
+  const shouldOpenSummary = searchParams.get('openSummary') === '1';
   const { setCurrentMeeting, refetchMeetings, stopSummaryPolling } = useSidebar();
   const { isAutoSummary } = useConfig(); // Get auto-summary toggle state
   const router = useRouter();
@@ -335,6 +336,13 @@ function MeetingDetailsContent() {
     checkAutoGen();
   }, [meetingDetails, meetingSummary, hasCheckedAutoGen, setupAutoGeneration]);
 
+  const handleSummaryOpenHandled = useCallback(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete('openSummary');
+    const nextQuery = params.toString();
+    router.replace(`/meeting-details${nextQuery ? `?${nextQuery}` : ''}`);
+  }, [router, searchParams]);
+
   if (error) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -362,6 +370,8 @@ function MeetingDetailsContent() {
     meeting={meetingDetails}
     summaryData={meetingSummary}
     shouldAutoGenerate={shouldAutoGenerate}
+    openSummaryOnLoad={shouldOpenSummary}
+    onSummaryOpenHandled={handleSummaryOpenHandled}
     onAutoGenerateComplete={() => setShouldAutoGenerate(false)}
     onMeetingUpdated={async () => {
       // Refetch meeting details to get updated title from backend

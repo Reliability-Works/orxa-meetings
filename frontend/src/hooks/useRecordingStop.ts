@@ -322,14 +322,16 @@ export function useRecordingStop(
           // Mark as completed
           setStatus(RecordingStatus.COMPLETED);
 
+          const completedMeetingUrl = `/meeting-details?id=${meetingId}&source=recording&openSummary=1`;
+
           // Show success toast with navigation option
           toast.success('Recording saved successfully!', {
             description: `${freshTranscripts.length} transcript segments saved.`,
             action: {
-              label: 'View Meeting',
+              label: 'Open Summary',
               onClick: () => {
-                router.push(`/meeting-details?id=${meetingId}`);
-                Analytics.trackButtonClick('view_meeting_from_toast', 'recording_complete');
+                router.push(completedMeetingUrl);
+                Analytics.trackButtonClick('open_summary_from_toast', 'recording_complete');
               }
             },
             duration: 10000,
@@ -337,7 +339,7 @@ export function useRecordingStop(
 
           // Auto-navigate after a short delay with source parameter
           setTimeout(() => {
-            router.push(`/meeting-details?id=${meetingId}&source=recording`);
+            router.push(completedMeetingUrl);
             clearTranscripts()
             Analytics.trackPageView('meeting_details');
 

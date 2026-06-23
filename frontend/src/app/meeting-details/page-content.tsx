@@ -39,6 +39,8 @@ export default function PageContent({
   meeting,
   summaryData,
   shouldAutoGenerate = false,
+  openSummaryOnLoad = false,
+  onSummaryOpenHandled,
   onAutoGenerateComplete,
   onMeetingUpdated,
   onRefetchTranscripts,
@@ -53,6 +55,8 @@ export default function PageContent({
   meeting: any;
   summaryData: Summary | null;
   shouldAutoGenerate?: boolean;
+  openSummaryOnLoad?: boolean;
+  onSummaryOpenHandled?: () => void;
   onAutoGenerateComplete?: () => void;
   onMeetingUpdated?: () => Promise<void>;
   onRefetchTranscripts?: () => Promise<void>;
@@ -77,6 +81,7 @@ export default function PageContent({
   const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(true);
   const [workHubView, setWorkHubView] = useState<WorkHubPanelView>('captured');
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
+  const summaryAutoOpenHandledRef = useRef<string | null>(null);
 
   // Ref to store the modal open function from SummaryGeneratorButtonGroup
   const openModelSettingsRef = useRef<(() => void) | null>(null);
@@ -192,6 +197,16 @@ export default function PageContent({
       cancelled = true;
     };
   }, [shouldAutoGenerate, meeting.id]); // Re-run if meeting changes
+
+  useEffect(() => {
+    if (!openSummaryOnLoad) return;
+    if (summaryAutoOpenHandledRef.current === meeting.id) return;
+    if (meetingData.transcripts.length === 0) return;
+
+    summaryAutoOpenHandledRef.current = meeting.id;
+    setIsSummaryOpen(true);
+    onSummaryOpenHandled?.();
+  }, [meeting.id, meetingData.transcripts.length, onSummaryOpenHandled, openSummaryOnLoad]);
 
   return (
     <motion.div
