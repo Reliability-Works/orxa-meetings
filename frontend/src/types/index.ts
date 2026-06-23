@@ -187,3 +187,23 @@ export interface WorkPreMeetingBrief {
   created_at: string;
   updated_at: string;
 }
+
+export interface AskMeetilyEvidence {
+  transcript_id: string;
+  timestamp: string;
+  audio_start_time?: number | null;
+  speaker?: string | null;
+  text: string;
+  score: number;
+}
+
+export interface AskMeetilyResponse {
+  meeting_id: string;
+  meeting_title: string;
+  question: string;
+  answer: string;
+  evidence: AskMeetilyEvidence[];
+  generated: boolean;
+  model?: string | null;
+  warning?: string | null;
+}

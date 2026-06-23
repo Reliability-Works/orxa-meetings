@@ -205,6 +205,17 @@ class MeetilyMcpTest(unittest.TestCase):
         self.assertEqual(result["results"][0]["meeting_id"], "meeting-1")
         self.assertIn("Legal", result["results"][0]["context"])
 
+    def test_ask_meeting_returns_cited_evidence(self):
+        result = meetily_mcp.ask_meeting(
+            self.db,
+            {"meeting_id": "meeting-1", "question": "What was said about Legal?"},
+        )
+
+        self.assertFalse(result["generated"])
+        self.assertIn("Legal", result["answer"])
+        self.assertIn("[00:10]", result["evidence"][0]["citation"])
+        self.assertEqual(result["evidence"][0]["speaker"], None)
+
     def test_json_rpc_tool_call(self):
         server = meetily_mcp.MeetilyMcpServer(self.db)
         response = server.handle(

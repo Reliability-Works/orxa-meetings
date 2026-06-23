@@ -397,6 +397,55 @@ def search_transcripts(db: MeetilyDatabase, args: dict[str, Any]) -> dict[str, A
     return {"query": query, "results": results}
 
 
+def ask_meeting(db: MeetilyDatabase, args: dict[str, Any]) -> dict[str, Any]:
+    meeting_id = require_arg(args, "meeting_id")
+    question = require_arg(args, "question")
+    limit = clamp_limit(args.get("limit"), default=12, maximum=40)
+
+    with db.connect() as conn:
+        meeting = require_meeting(conn, meeting_id)
+        summary = get_summary_row(conn, meeting_id)
+        speaker_expr = transcript_speaker_expr(conn)
+        rows = conn.execute(
+            f"""
+            SELECT id AS transcript_id, transcript AS text, timestamp, {speaker_expr},
+                   audio_start_time, audio_end_time, duration
+            FROM transcripts
+            WHERE meeting_id = ?
+            ORDER BY
+                CASE WHEN audio_start_time IS NULL THEN 1 ELSE 0 END,
+                audio_start_time ASC,
+                timestamp ASC
+            LIMIT 4000
+            """,
+            (meeting_id,),
+        ).fetchall()
+
+    keywords_for_question = question_keywords(question)
+    evidence = []
+    for row in rows:
+        item = row_to_dict(row)
+        item["score"] = score_question_match(item["text"], keywords_for_question)
+        item["citation"] = format_evidence_citation(item)
+        evidence.append(item)
+
+    evidence.sort(key=lambda item: (-item["score"], item.get("audio_start_time") is None, item.get("audio_start_time") or 0))
+    selected = [item for item in evidence if item["score"] > 0][:limit]
+    if not selected:
+        selected = evidence[: min(limit, len(evidence))]
+    selected.sort(key=lambda item: (item.get("audio_start_time") is None, item.get("audio_start_time") or 0))
+
+    return {
+        "meeting": meeting,
+        "question": question,
+        "answer": build_extract_ask_answer(question, selected),
+        "evidence": selected,
+        "summary": summary,
+        "generated": False,
+        "note": "MCP ask_meeting returns transcript evidence only; let the calling agent synthesize further if needed.",
+    }
+
+
 def get_action_items(db: MeetilyDatabase, args: dict[str, Any]) -> dict[str, Any]:
     meeting_id = require_arg(args, "meeting_id")
     with db.connect() as conn:
@@ -576,6 +625,75 @@ def make_context(text: str, query: str, radius: int = 180) -> str:
     prefix = "..." if start > 0 else ""
     suffix = "..." if end < len(text) else ""
     return f"{prefix}{text[start:end]}{suffix}"
+
+
+def question_keywords(question: str) -> list[str]:
+    stopwords = {
+        "about",
+        "after",
+        "also",
+        "and",
+        "are",
+        "can",
+        "did",
+        "does",
+        "for",
+        "from",
+        "had",
+        "has",
+        "have",
+        "how",
+        "into",
+        "is",
+        "it",
+        "me",
+        "of",
+        "on",
+        "or",
+        "said",
+        "say",
+        "that",
+        "the",
+        "their",
+        "there",
+        "they",
+        "this",
+        "to",
+        "was",
+        "we",
+        "what",
+        "when",
+        "where",
+        "who",
+        "why",
+        "with",
+        "you",
+    }
+    words = []
+    for word in re.findall(r"[a-zA-Z0-9]+", question.lower()):
+        if len(word) > 2 and word not in stopwords:
+            words.append(word)
+        if len(words) >= 20:
+            break
+    return words
+
+
+def score_question_match(text: str, words: list[str]) -> int:
+    lower = text.lower()
+    return sum(2 for word in words if word in lower)
+
+
+def format_evidence_citation(item: dict[str, Any]) -> str:
+    timestamp = format_seconds(item.get("audio_start_time")) if item.get("audio_start_time") is not None else item.get("timestamp", "")
+    speaker = item.get("speaker") or "Unknown"
+    return f"[{timestamp}] {speaker}: {item.get('text', '').strip()}"
+
+
+def build_extract_ask_answer(question: str, evidence: list[dict[str, Any]]) -> str:
+    if not evidence:
+        return f"No transcript evidence found for: {question}"
+    bullets = "\n".join(f"- {item['citation']}" for item in evidence[:6])
+    return f"Relevant transcript evidence for: {question}\n\n{bullets}"
 
 
 def extract_action_section(markdown: str) -> str | None:
@@ -1356,6 +1474,19 @@ TOOLS: dict[str, dict[str, Any]] = {
             "required": ["query"],
         },
         "handler": search_transcripts,
+    },
+    "ask_meeting": {
+        "description": "Ask a question about one meeting and return timestamped transcript evidence for the calling agent to synthesize.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "meeting_id": {"type": "string"},
+                "question": {"type": "string"},
+                "limit": {"type": "integer", "minimum": 1, "maximum": 40},
+            },
+            "required": ["meeting_id", "question"],
+        },
+        "handler": ask_meeting,
     },
     "get_action_items": {
         "description": "Extract the action-items/todos section from a meeting summary, when present.",
