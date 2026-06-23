@@ -34,6 +34,9 @@ export interface ModelDisplayInfo {
   icon: string;
   tagline: string;
   recommended?: boolean;
+  bestLabel?: string;
+  pros: string[];
+  cons: string[];
   tier: 'fastest' | 'balanced' | 'precise';
 }
 
@@ -43,18 +46,45 @@ export const MODEL_DISPLAY_CONFIG: Record<string, ModelDisplayInfo> = {
     icon: '⚡',
     tagline: 'Real time • Best for speed, great accuracy',
     recommended: true,
+    bestLabel: 'Best live-meeting default',
+    pros: [
+      'Fast enough for live meeting capture.',
+      'Best default balance of latency and accuracy.',
+    ],
+    cons: [
+      'Less controllable than Whisper for manual language workflows.',
+      'Still benefits from offline retranscription for critical recordings.',
+    ],
     tier: 'fastest'
   },
   'parakeet-tdt-0.6b-v2-int8': {
     friendlyName: 'Compact',
     icon: '📦',
     tagline: 'Real time • Smaller size',
+    bestLabel: 'Best smaller Parakeet option',
+    pros: [
+      'Small realtime model footprint.',
+      'Good when disk and startup cost matter.',
+    ],
+    cons: [
+      'Older than Lightning.',
+      'Usually not the best first choice when Lightning is available.',
+    ],
     tier: 'balanced'
   },
   'parakeet-tdt-0.6b-v3-fp32': {
     friendlyName: 'Precise',
     icon: '🎯',
     tagline: '20x real-time • Higher accuracy',
+    bestLabel: 'Best Parakeet precision option',
+    pros: [
+      'Higher precision model variant.',
+      'Useful for comparing whether quantization is causing errors.',
+    ],
+    cons: [
+      'Much larger download.',
+      'Slower than the Lightning Int8 default.',
+    ],
     tier: 'precise'
   }
 };

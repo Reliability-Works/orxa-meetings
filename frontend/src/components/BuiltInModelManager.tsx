@@ -35,6 +35,78 @@ interface BuiltInModelManagerProps {
   layout?: 'inline' | 'dialog';
 }
 
+type SummaryModelGuidance = {
+  bestLabel: string;
+  pros: string[];
+  cons: string[];
+  isBest?: boolean;
+};
+
+function getSummaryModelGuidance(modelName: string): SummaryModelGuidance {
+  if (modelName === 'qwen3.5:4b') {
+    return {
+      bestLabel: 'Best local summary quality',
+      isBest: true,
+      pros: [
+        'Best built-in choice for expansive summaries.',
+        'Large context window for long meeting notes.',
+      ],
+      cons: [
+        'Largest built-in Qwen download.',
+        'Needs more memory than the 2B model.',
+      ],
+    };
+  }
+
+  if (modelName === 'qwen3.5:2b') {
+    return {
+      bestLabel: 'Best lighter Qwen option',
+      pros: [
+        'Good balance of quality and local resource use.',
+        'Safer default on lower-memory Macs.',
+      ],
+      cons: [
+        'Less detail retention than Qwen 3.5 4B.',
+        'May compress complex meetings more aggressively.',
+      ],
+    };
+  }
+
+  if (modelName === 'gemma3:4b') {
+    return {
+      bestLabel: 'Best legacy alternative',
+      pros: [
+        'Useful if you prefer Gemma-style summaries.',
+        'Good quality/speed trade-off.',
+      ],
+      cons: [
+        'Lower priority than the Qwen summary models.',
+        'Not the best option for exhaustive meeting coverage.',
+      ],
+    };
+  }
+
+  return {
+    bestLabel: 'Best fastest fallback',
+    pros: [
+      'Smallest built-in summary model.',
+      'Useful when speed and low memory matter most.',
+    ],
+    cons: [
+      'Most likely to miss details in longer meetings.',
+      'Not recommended for the expansive summary mode.',
+    ],
+  };
+}
+
+function summaryModelPriority(modelName: string) {
+  if (modelName === 'qwen3.5:4b') return 40;
+  if (modelName === 'qwen3.5:2b') return 30;
+  if (modelName === 'gemma3:4b') return 20;
+  if (modelName === 'gemma3:1b') return 10;
+  return 0;
+}
+
 export function BuiltInModelManager({
   selectedModel,
   onModelSelect,
@@ -55,9 +127,11 @@ export function BuiltInModelManager({
 
       // Auto-select first available model if none selected
       if (data.length > 0 && !selectedModel) {
-        const firstAvailable = data.find((m) => m.status.type === 'available');
-        if (firstAvailable) {
-          onModelSelect(firstAvailable.name);
+        const bestAvailable = data
+          .filter((m) => m.status.type === 'available')
+          .sort((a, b) => summaryModelPriority(b.name) - summaryModelPriority(a.name))[0];
+        if (bestAvailable) {
+          onModelSelect(bestAvailable.name);
         }
       }
     } catch (error) {
@@ -295,6 +369,7 @@ export function BuiltInModelManager({
           const isNotDownloaded = model.status.type === 'not_downloaded';
           const isCorrupted = model.status.type === 'corrupted';
           const isError = model.status.type === 'error';
+          const guidance = getSummaryModelGuidance(model.name);
 
           return (
             <div
@@ -320,6 +395,14 @@ export function BuiltInModelManager({
                 <div className="min-w-0 flex-1">
                   <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
                     <span className="min-w-0 break-words text-base font-bold leading-snug text-gray-900">{model.display_name || model.name}</span>
+                    {guidance.isBest && (
+                      <span className="shrink-0 rounded-full bg-blue-600 px-2 py-0.5 text-xs font-medium text-white">
+                        Best
+                      </span>
+                    )}
+                    <span className="shrink-0 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
+                      {guidance.bestLabel}
+                    </span>
                     {isAvailable && (
                       <>
                         <span className="flex shrink-0 items-center gap-1 text-xs font-medium text-green-600">
@@ -437,6 +520,24 @@ export function BuiltInModelManager({
                 {model.description && (
                   <p className="mb-1">{model.description}</p>
                 )}
+                <div className="mb-3 grid gap-3 text-xs sm:grid-cols-2">
+                  <div className="rounded-md bg-emerald-50 p-3 text-emerald-900">
+                    <p className="font-semibold">Pros</p>
+                    <ul className="mt-1 space-y-1">
+                      {guidance.pros.map((item) => (
+                        <li key={item}>+ {item}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div className="rounded-md bg-gray-50 p-3 text-gray-700">
+                    <p className="font-semibold text-gray-900">Cons</p>
+                    <ul className="mt-1 space-y-1">
+                      {guidance.cons.map((item) => (
+                        <li key={item}>- {item}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
                 {(isError || isCorrupted) && (
                   <p className="mb-1 text-xs text-red-600">
                     {isError && typeof model.status === 'object' && 'Error' in model.status

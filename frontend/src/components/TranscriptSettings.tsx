@@ -22,6 +22,35 @@ export interface TranscriptSettingsProps {
     onModelSelect?: () => void;
 }
 
+const TRANSCRIPT_PROVIDER_GUIDANCE: Record<'localWhisper' | 'parakeet', {
+    label: string;
+    pros: string[];
+    cons: string[];
+}> = {
+    parakeet: {
+        label: 'Best live-meeting default',
+        pros: [
+            'Realtime capture with low latency.',
+            'Good accuracy for continuous meeting transcription.',
+        ],
+        cons: [
+            'Automatic language detection only.',
+            'Use offline cleanup when raw transcript quality matters more than speed.',
+        ],
+    },
+    localWhisper: {
+        label: 'Best offline accuracy path',
+        pros: [
+            'Strong option for retranscribing imported or recorded audio.',
+            'Manual language selection is available outside Parakeet flows.',
+        ],
+        cons: [
+            'Slower and heavier than the live Parakeet path.',
+            'Large models take more disk and memory.',
+        ],
+    },
+};
+
 export function TranscriptSettings({ transcriptModelConfig, setTranscriptModelConfig, onModelSelect }: TranscriptSettingsProps) {
     const [apiKey, setApiKey] = useState<string | null>(transcriptModelConfig.apiKey || null);
     const [showApiKey, setShowApiKey] = useState<boolean>(false);
@@ -122,8 +151,8 @@ export function TranscriptSettings({ transcriptModelConfig, setTranscriptModelCo
                                     <SelectValue placeholder="Select provider" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="parakeet">⚡ Parakeet (Recommended - Real-time / Accurate)</SelectItem>
-                                    <SelectItem value="localWhisper">🏠 Local Whisper (High Accuracy)</SelectItem>
+                                    <SelectItem value="parakeet">⚡ Parakeet (Best live-meeting default)</SelectItem>
+                                    <SelectItem value="localWhisper">🏠 Local Whisper (Best offline accuracy)</SelectItem>
                                     {/* <SelectItem value="deepgram">☁️ Deepgram (Backup)</SelectItem>
                                     <SelectItem value="elevenLabs">☁️ ElevenLabs</SelectItem>
                                     <SelectItem value="groq">☁️ Groq</SelectItem>
@@ -151,6 +180,32 @@ export function TranscriptSettings({ transcriptModelConfig, setTranscriptModelCo
                             )}
 
                         </div>
+                        {(uiProvider === 'parakeet' || uiProvider === 'localWhisper') && (
+                            <div className="mx-1 mt-3 rounded-lg border border-gray-200 bg-white p-3 text-sm">
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <span className="rounded-full bg-blue-600 px-2 py-0.5 text-xs font-medium text-white">Best</span>
+                                    <span className="font-medium text-gray-900">{TRANSCRIPT_PROVIDER_GUIDANCE[uiProvider].label}</span>
+                                </div>
+                                <div className="mt-3 grid gap-3 text-xs text-gray-600 sm:grid-cols-2">
+                                    <div>
+                                        <p className="font-semibold text-gray-900">Pros</p>
+                                        <ul className="mt-1 space-y-1">
+                                            {TRANSCRIPT_PROVIDER_GUIDANCE[uiProvider].pros.map((item) => (
+                                                <li key={item}>+ {item}</li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                    <div>
+                                        <p className="font-semibold text-gray-900">Cons</p>
+                                        <ul className="mt-1 space-y-1">
+                                            {TRANSCRIPT_PROVIDER_GUIDANCE[uiProvider].cons.map((item) => (
+                                                <li key={item}>- {item}</li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     {uiProvider === 'localWhisper' && (
@@ -227,8 +282,6 @@ export function TranscriptSettings({ transcriptModelConfig, setTranscriptModelCo
         </div >
     )
 }
-
-
 
 
 

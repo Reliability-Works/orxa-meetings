@@ -318,8 +318,9 @@ pub fn format_prompt(
 // Configuration Constants
 // ============================================================================
 
-/// Default max tokens for generation (increased for better summary quality)
-pub const DEFAULT_MAX_TOKENS: i32 = 4096;
+/// Default max tokens for generation. Expansive meeting summaries need enough
+/// room to retain details instead of collapsing into short abstracts.
+pub const DEFAULT_MAX_TOKENS: i32 = 8192;
 
 /// Idle timeout for sidecar (seconds) - can be overridden via LLAMA_IDLE_TIMEOUT env var
 pub const DEFAULT_IDLE_TIMEOUT_SECS: u64 = 300; // 5 minutes

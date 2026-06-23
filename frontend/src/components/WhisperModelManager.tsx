@@ -10,6 +10,7 @@ import {
   formatFileSize,
   getModelPerformanceBadge,
   isQuantizedModel,
+  getModelBaseName,
   getModelTagline,
   WhisperAPI
 } from '../lib/whisper';
@@ -20,6 +21,85 @@ interface ModelManagerProps {
   onModelSelect?: (modelName: string) => void;
   className?: string;
   autoSave?: boolean;
+}
+
+type WhisperModelGuidance = {
+  bestLabel: string;
+  pros: string[];
+  cons: string[];
+};
+
+function getWhisperModelGuidance(modelName: string): WhisperModelGuidance {
+  const baseName = getModelBaseName(modelName);
+  const isQuantized = isQuantizedModel(modelName);
+
+  if (baseName === 'large-v3') {
+    return {
+      bestLabel: isQuantized ? 'Best lower-memory accuracy option' : 'Best raw offline accuracy',
+      pros: [
+        'Strongest choice for important post-meeting retranscription.',
+        isQuantized ? 'Lower memory footprint than full precision Large V3.' : 'Highest quality Whisper option in this list.',
+      ],
+      cons: [
+        'Slowest local Whisper path.',
+        isQuantized ? 'Quantization can lose some detail versus full precision.' : 'Largest download and memory requirement.',
+      ],
+    };
+  }
+
+  if (baseName === 'large-v3-turbo') {
+    return {
+      bestLabel: 'Best speed/accuracy compromise',
+      pros: [
+        'Good choice when Large V3 is too slow.',
+        'Keeps high accuracy while improving turnaround time.',
+      ],
+      cons: [
+        'Not the absolute highest-accuracy option.',
+        'Still heavier than Small or Medium quantized models.',
+      ],
+    };
+  }
+
+  if (baseName === 'medium') {
+    return {
+      bestLabel: 'Best balanced smaller fallback',
+      pros: [
+        'Solid quality without the Large model footprint.',
+        'Reasonable fallback for regular offline cleanup.',
+      ],
+      cons: [
+        'Less accurate than Large V3 on technical terms.',
+        'Still not as quick as Small/Base-class models.',
+      ],
+    };
+  }
+
+  if (baseName === 'small') {
+    return {
+      bestLabel: 'Best lightweight Whisper option',
+      pros: [
+        'Faster and smaller than Medium or Large models.',
+        'Useful for quick rough retranscription.',
+      ],
+      cons: [
+        'More likely to miss technical names and nuance.',
+        'Not ideal for important meeting records.',
+      ],
+    };
+  }
+
+  return {
+    bestLabel: 'Fastest Whisper fallback',
+    pros: [
+      'Small footprint and quick turnaround.',
+      'Useful when speed matters more than transcript fidelity.',
+    ],
+    cons: [
+      'Lower accuracy than the larger Whisper models.',
+      'Use only for rough transcript passes.',
+    ],
+  };
 }
 
 export function ModelManager({
@@ -420,7 +500,7 @@ export function ModelManager({
       {/* Basic Models */}
       <div className="space-y-3">
         {basicModels.map((model) => {
-          const isRecommended = model.name === 'base';
+          const isRecommended = model.name === 'large-v3';
           return (
             <ModelCard
               key={model.name}
@@ -437,6 +517,7 @@ export function ModelManager({
               onDelete={() => deleteModel(model.name)}
               isDownloading={downloadingModels.has(model.name)}
               displayName={getDisplayName(model.name)}
+              guidance={getWhisperModelGuidance(model.name)}
             />
           );
         })}
@@ -467,6 +548,7 @@ export function ModelManager({
                     onDelete={() => deleteModel(model.name)}
                     isDownloading={downloadingModels.has(model.name)}
                     displayName={getDisplayName(model.name)}
+                    guidance={getWhisperModelGuidance(model.name)}
                   />
                 ))}
               </div>
@@ -500,6 +582,7 @@ interface ModelCardProps {
   onDelete: () => void;
   isDownloading: boolean;
   displayName: string;
+  guidance: WhisperModelGuidance;
 }
 
 function ModelCard({
@@ -511,7 +594,8 @@ function ModelCard({
   onCancel,
   onDelete,
   isDownloading,
-  displayName
+  displayName,
+  guidance
 }: ModelCardProps) {
   const [isHovered, setIsHovered] = useState(false);
 
@@ -548,7 +632,7 @@ function ModelCard({
       {/* Recommended Badge */}
       {isRecommended && (
         <div className="absolute -top-2 -right-2 bg-blue-600 text-white text-xs px-2 py-0.5 rounded-full font-medium">
-          Recommended
+          Best
         </div>
       )}
 
@@ -559,6 +643,9 @@ function ModelCard({
             <div className="flex items-center gap-2 flex-wrap mb-2">
               <span className="text-2xl">{getModelIcon(model.accuracy)}</span>
               <h3 className="font-semibold text-gray-900">{displayName}</h3>
+              <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
+                {guidance.bestLabel}
+              </span>
               <span className="text-sm text-gray-500">•</span>
               <span className="text-sm text-gray-500">{getModelTagline(model.name, model.speed, model.accuracy)}</span>
               {isSelected && isAvailable && (
@@ -596,6 +683,24 @@ function ModelCard({
                 <span>⚡</span>
                 <span>{model.speed} processing</span>
               </span>
+            </div>
+            <div className="ml-9 mt-3 grid gap-3 text-xs text-gray-600 sm:grid-cols-2">
+              <div className="rounded-md bg-emerald-50 p-3 text-emerald-900">
+                <p className="font-semibold">Pros</p>
+                <ul className="mt-1 space-y-1">
+                  {guidance.pros.map((item) => (
+                    <li key={item}>+ {item}</li>
+                  ))}
+                </ul>
+              </div>
+              <div className="rounded-md bg-gray-50 p-3 text-gray-700">
+                <p className="font-semibold text-gray-900">Cons</p>
+                <ul className="mt-1 space-y-1">
+                  {guidance.cons.map((item) => (
+                    <li key={item}>- {item}</li>
+                  ))}
+                </ul>
+              </div>
             </div>
           </div>
 

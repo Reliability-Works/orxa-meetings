@@ -101,12 +101,52 @@ const GROQ_FALLBACK_MODELS = [
   'gemma2-9b-it',
 ];
 
+function summaryModelPriority(modelName: string) {
+  if (modelName === 'qwen3.5:4b') return 40;
+  if (modelName === 'qwen3.5:2b') return 30;
+  if (modelName === 'gemma3:4b') return 20;
+  if (modelName === 'gemma3:1b') return 10;
+  return 0;
+}
+
 interface ModelSettingsModalProps {
   modelConfig: ModelConfig;
   setModelConfig: (config: ModelConfig | ((prev: ModelConfig) => ModelConfig)) => void;
   onSave: (config: ModelConfig) => void;
   skipInitialFetch?: boolean; // Optional: skip fetching config from backend if parent manages it
   layout?: 'inline' | 'dialog';
+}
+
+function getSummaryProviderGuidance(provider: ModelConfig['provider']) {
+  if (provider === 'builtin-ai') {
+    return {
+      label: 'Best private/offline path',
+      pros: ['No API key required.', 'Best local quality is Qwen 3.5 4B when available.'],
+      cons: ['Limited by local model size and hardware.', 'Large models take disk and memory.'],
+    };
+  }
+
+  if (provider === 'custom-openai') {
+    return {
+      label: 'Best for local or self-hosted experiments',
+      pros: ['Can point at a private OpenAI-compatible server.', 'Good for testing newer local LLM runtimes.'],
+      cons: ['You manage endpoint reliability and model limits.', 'Quality depends entirely on the server model.'],
+    };
+  }
+
+  if (provider === 'ollama') {
+    return {
+      label: 'Best simple local server path',
+      pros: ['Works with an existing Ollama setup.', 'Easy to swap models for experiments.'],
+      cons: ['Requires Ollama to be installed and running.', 'Model quality varies widely.'],
+    };
+  }
+
+  return {
+    label: 'Best when you already use this cloud provider',
+    pros: ['Can use stronger remote models.', 'Less local disk and memory pressure.'],
+    cons: ['Requires API configuration.', 'Meeting content leaves the fully local path.'],
+  };
 }
 
 export function ModelSettingsModal({
@@ -512,9 +552,11 @@ export function ModelSettingsModal({
 
       // Auto-select first available model if none selected
       if (data.length > 0 && !modelConfig.model) {
-        const firstAvailable = data.find((m: any) => m.status?.type === 'available');
-        if (firstAvailable) {
-          setModelConfig((prev: ModelConfig) => ({ ...prev, model: firstAvailable.name }));
+        const bestAvailable = data
+          .filter((m: any) => m.status?.type === 'available')
+          .sort((a: any, b: any) => summaryModelPriority(b.name) - summaryModelPriority(a.name))[0];
+        if (bestAvailable) {
+          setModelConfig((prev: ModelConfig) => ({ ...prev, model: bestAvailable.name }));
         }
       }
     } catch (err) {
@@ -800,6 +842,7 @@ export function ModelSettingsModal({
       loadedText.includes(query)
     );
   });
+  const providerGuidance = getSummaryProviderGuidance(modelConfig.provider);
 
   return (
     <div>
@@ -874,7 +917,7 @@ export function ModelSettingsModal({
                 <SelectValue placeholder="Select provider" />
               </SelectTrigger>
               <SelectContent className="max-h-64 overflow-y-auto">
-                <SelectItem value="builtin-ai">Built-in AI (Offline, No API needed)</SelectItem>
+                <SelectItem value="builtin-ai">Built-in AI (Best private/offline)</SelectItem>
                 <SelectItem value="claude">Claude</SelectItem>
                 <SelectItem value="custom-openai">Custom Server (OpenAI)</SelectItem>
                 <SelectItem value="groq">Groq</SelectItem>
@@ -941,6 +984,32 @@ export function ModelSettingsModal({
                 </PopoverContent>
               </Popover>
             )}
+          </div>
+          <div className="mt-3 rounded-lg border border-gray-200 bg-white p-3 text-sm">
+            <div className="flex flex-wrap items-center gap-2">
+              {modelConfig.provider === 'builtin-ai' && (
+                <span className="rounded-full bg-blue-600 px-2 py-0.5 text-xs font-medium text-white">Best</span>
+              )}
+              <span className="font-medium text-gray-900">{providerGuidance.label}</span>
+            </div>
+            <div className="mt-3 grid gap-3 text-xs text-gray-600 sm:grid-cols-2">
+              <div>
+                <p className="font-semibold text-gray-900">Pros</p>
+                <ul className="mt-1 space-y-1">
+                  {providerGuidance.pros.map((item) => (
+                    <li key={item}>+ {item}</li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <p className="font-semibold text-gray-900">Cons</p>
+                <ul className="mt-1 space-y-1">
+                  {providerGuidance.cons.map((item) => (
+                    <li key={item}>- {item}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
           </div>
         </div>
 

@@ -473,7 +473,7 @@ function ModelCard({
       {/* Recommended Badge */}
       {isRecommended && (
         <div className="absolute -top-2 -right-2 bg-blue-600 text-white text-xs px-2 py-0.5 rounded-full font-medium">
-          Recommended
+          Best
         </div>
       )}
 
@@ -484,6 +484,11 @@ function ModelCard({
             <div className="flex items-center gap-2 mb-1">
               <span className="text-2xl">{icon}</span>
               <h3 className="font-semibold text-gray-900">{displayName}</h3>
+              {displayInfo?.bestLabel && (
+                <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
+                  {displayInfo.bestLabel}
+                </span>
+              )}
               {isSelected && isAvailable && (
                 <motion.span
                   initial={{ scale: 0 }}
@@ -497,6 +502,26 @@ function ModelCard({
 
             {/* Tagline */}
             <p className="text-sm text-gray-600 ml-9">{tagline}</p>
+            {displayInfo && displayInfo.pros.length > 0 && displayInfo.cons.length > 0 ? (
+              <div className="ml-9 mt-3 grid gap-3 text-xs text-gray-600 sm:grid-cols-2">
+                <div className="rounded-md bg-emerald-50 p-3 text-emerald-900">
+                  <p className="font-semibold">Pros</p>
+                  <ul className="mt-1 space-y-1">
+                    {displayInfo.pros.map((item) => (
+                      <li key={item}>+ {item}</li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="rounded-md bg-gray-50 p-3 text-gray-700">
+                  <p className="font-semibold text-gray-900">Cons</p>
+                  <ul className="mt-1 space-y-1">
+                    {displayInfo.cons.map((item) => (
+                      <li key={item}>- {item}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            ) : null}
           </div>
 
           {/* Status/Action */}

@@ -172,8 +172,13 @@ export function LocalModelCatalogCards({ models }: LocalModelCatalogCardsProps) 
                 <div className="flex flex-wrap items-center gap-2">
                   <h3 className="text-sm font-semibold text-gray-900">{model.name}</h3>
                   {model.recommended && (
+                    <span className="rounded-full bg-blue-600 px-2 py-0.5 text-xs font-medium text-white">
+                      Best
+                    </span>
+                  )}
+                  {model.bestLabel && (
                     <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
-                      Recommended
+                      {model.bestLabel}
                     </span>
                   )}
                   <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${statusClass(model.runtimeStatus)}`}>
@@ -194,6 +199,24 @@ export function LocalModelCatalogCards({ models }: LocalModelCatalogCardsProps) 
                 <p className="mt-1 text-xs text-gray-500">{model.family} · {model.size}</p>
                 <p className="mt-2 text-sm text-gray-700">{model.bestFor}</p>
                 <p className="mt-1 text-xs text-gray-500">{model.notes}</p>
+                <div className="mt-3 grid gap-3 text-xs sm:grid-cols-2">
+                  <div className="rounded-md bg-emerald-50 p-3 text-emerald-900">
+                    <p className="font-semibold">Pros</p>
+                    <ul className="mt-1 space-y-1">
+                      {model.pros.map((pro) => (
+                        <li key={pro}>+ {pro}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div className="rounded-md bg-gray-50 p-3 text-gray-700">
+                    <p className="font-semibold text-gray-900">Cons</p>
+                    <ul className="mt-1 space-y-1">
+                      {model.cons.map((con) => (
+                        <li key={con}>- {con}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
                 {isDownloading && (
                   <div className="mt-3 max-w-md">
                     <div className="h-1.5 overflow-hidden rounded-full bg-gray-200">
