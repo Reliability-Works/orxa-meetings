@@ -1,10 +1,10 @@
 #!/bin/bash
-# Build and install Meetily into /Applications, replacing the existing local app.
+# Build and install Orxa into /Applications, replacing the existing local app.
 
 set -euo pipefail
 
-APP_NAME="meetily"
-APP_BUNDLE_ID="com.meetily.ai"
+APP_NAME="Orxa"
+APP_BUNDLE_ID="com.orxa.ai"
 APPLICATIONS_DIR="/Applications"
 SKIP_BUILD=0
 KEEP_BACKUP=1
@@ -15,7 +15,7 @@ Usage: ./install-macos.sh [options]
 
 Options:
   --skip-build            Install the newest existing Tauri .app bundle.
-  --app-name NAME         Installed app name. Default: meetily.
+  --app-name NAME         Installed app name. Default: Orxa.
   --applications-dir DIR  Install destination. Default: /Applications.
   --no-backup             Remove the replaced app backup after install succeeds.
   -h, --help              Show this help.
@@ -72,7 +72,7 @@ run_maybe_sudo() {
 
 build_llama_helper() {
   if ! command_exists cargo || ! command_exists rustc; then
-    echo "Rust toolchain is required to build Meetily. Install Rust, then rerun this script." >&2
+    echo "Rust toolchain is required to build Orxa. Install Rust, then rerun this script." >&2
     echo "Suggested installer: https://rustup.rs/" >&2
     exit 1
   fi
@@ -110,7 +110,7 @@ build_llama_helper() {
 
 build_app() {
   if ! command_exists pnpm; then
-    echo "pnpm is required to build Meetily." >&2
+    echo "pnpm is required to build Orxa." >&2
     exit 1
   fi
 
@@ -158,7 +158,7 @@ existing_app_path() {
 }
 
 quit_existing_app() {
-  echo "Quitting existing Meetily app if it is running..."
+  echo "Quitting existing Orxa app if it is running..."
   osascript -e "tell application id \"$APP_BUNDLE_ID\" to quit" >/dev/null 2>&1 || true
   pkill -x "$APP_NAME" >/dev/null 2>&1 || true
 
@@ -206,7 +206,7 @@ install_app() {
   fi
 
   echo "Installed $dest_app"
-  echo "Launching Meetily..."
+  echo "Launching Orxa..."
   open "$dest_app"
 }
 

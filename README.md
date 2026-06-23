@@ -1,10 +1,8 @@
 <div align="center" style="border-bottom: none">
     <h1>
-        <img src="docs/Meetily-6.png" style="border-radius: 10px;" />
-        <br>
         Privacy-First AI Meeting Assistant
     </h1>
-    <a href="https://trendshift.io/repositories/21958" target="_blank"><img src="https://trendshift.io/api/badge/repositories/21958" alt="Zackriya-Solutions%2Fmeetily | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
+    <a href="https://trendshift.io/repositories/21958" target="_blank"><img src="https://trendshift.io/api/badge/repositories/21958" alt="Zackriya-Solutions%2Forxa | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
     <br>
     <br>
     <a href="https://github.com/Zackriya-Solutions/meeting-minutes/releases/"><img src="https://img.shields.io/badge/Pre_Release-Link-brightgreen" alt="Pre-Release"></a>
@@ -21,12 +19,12 @@
     Open Source • Privacy-First • Enterprise-Ready
     </h3>
     <p align="center">
-    Get latest <a href="https://www.zackriya.com/meetily-subscribe/"><b>Product updates</b></a> <br><br>
-    <a href="https://meetily.ai"><b>Website</b></a> •
+    Get latest <a href="https://www.zackriya.com/orxa-subscribe/"><b>Product updates</b></a> <br><br>
+    <a href="https://orxa.ai"><b>Website</b></a> •
     <a href="https://www.linkedin.com/company/106363062/"><b>LinkedIn</b></a> •
-    <a href="https://discord.gg/crRymMQBFH"><b>Meetily Discord</b></a> •
+    <a href="https://discord.gg/crRymMQBFH"><b>Orxa Discord</b></a> •
     <a href="https://discord.com/invite/vCFJvN4BwJ"><b>Privacy-First AI</b></a> •
-    <a href="https://www.reddit.com/r/meetily/"><b>Reddit</b></a>
+    <a href="https://www.reddit.com/r/orxa/"><b>Reddit</b></a>
 </p>
     <p align="center">
 
@@ -35,7 +33,7 @@ A privacy-first AI meeting assistant that captures, transcribes, and summarizes 
 </p>
 
 <p align="center">
-    <img src="docs/meetily_demo.gif" width="650" alt="Meetily Demo" />
+    <img src="docs/orxa_demo.gif" width="650" alt="Orxa Demo" />
     <br>
     <a href="https://youtu.be/6FnhSC_eSz8">View full Demo Video</a>
 </p>
@@ -44,7 +42,7 @@ A privacy-first AI meeting assistant that captures, transcribes, and summarizes 
 
 ---
 
-> **Meetily PRO Upgrade Offer** - Meetily PRO is available for users who need enhanced accuracy, advanced exports, custom summary workflows, and team-ready features. Use coupon code **LAUNCH20** for **20% off** until the next Meetily Community Edition release. Speaker diarization is also planned for PRO in mid-June. [Explore Meetily PRO →](https://meetily.ai/pro/)
+> **Orxa PRO Upgrade Offer** - Orxa PRO is available for users who need enhanced accuracy, advanced exports, custom summary workflows, and team-ready features. Use coupon code **LAUNCH20** for **20% off** until the next Orxa Community Edition release. Speaker diarization is also planned for PRO in mid-June. [Explore Orxa PRO →](https://orxa.ai/pro/)
 
 ---
 
@@ -52,13 +50,13 @@ A privacy-first AI meeting assistant that captures, transcribes, and summarizes 
 <summary>Table of Contents</summary>
 
 - [Introduction](#introduction)
-- [Why Meetily?](#why-meetily)
+- [Why Orxa?](#why-orxa)
 - [Features](#features)
 - [Installation](#installation)
 - [Key Features in Action](#key-features-in-action)
 - [System Architecture](#system-architecture)
 - [For Developers](#for-developers)
-- [Meetily PRO](#meetily-pro)
+- [Orxa PRO](#orxa-pro)
 - [Contributing](#contributing)
 - [License](#license)
 
@@ -66,9 +64,9 @@ A privacy-first AI meeting assistant that captures, transcribes, and summarizes 
 
 ## Introduction
 
-Meetily is a privacy-first AI meeting assistant that runs entirely on your local machine. It captures your meetings, transcribes them in real-time, and generates summaries, all without sending any data to the cloud. This makes it the perfect solution for professionals and enterprises who need to maintain complete control over their sensitive information.
+Orxa is a privacy-first AI meeting assistant that runs entirely on your local machine. It captures your meetings, transcribes them in real-time, and generates summaries, all without sending any data to the cloud. This makes it the perfect solution for professionals and enterprises who need to maintain complete control over their sensitive information.
 
-## Why Meetily?
+## Why Orxa?
 
 While there are many meeting transcription tools available, this solution stands out by offering:
 
@@ -88,7 +86,7 @@ Meeting AI tools create significant privacy and compliance risks across all sect
 
 Whether you're a defense consultant, enterprise executive, legal professional, or healthcare provider, your sensitive discussions shouldn't live on servers you don't control. Cloud meeting tools promise convenience but deliver privacy nightmares with unclear data storage practices and potential unauthorized access.
 
-**Meetily solves this:** Complete data sovereignty on your infrastructure, zero vendor lock-in, and full control over your sensitive conversations.
+**Orxa solves this:** Complete data sovereignty on your infrastructure, zero vendor lock-in, and full control over your sensitive conversations.
 
 </details>
 
@@ -99,7 +97,7 @@ Whether you're a defense consultant, enterprise executive, legal professional, o
 - **Local Speaker Labels:** Detect when the Mac's microphone is the active speaker and mark those transcript lines as `Me`.
 - **AI-Powered Summaries:** Generate summaries of your meetings using powerful language models.
 - **Multi-Platform:** Works on macOS, Windows, and Linux.
-- **Open Source:** Meetily is open source and free to use.
+- **Open Source:** Orxa is open source and free to use.
 - **Flexible AI Provider Support:** Choose from Ollama (local), Claude, Groq, OpenRouter, or use your own OpenAI-compatible endpoint.
 
 ## Installation
@@ -111,10 +109,10 @@ Whether you're a defense consultant, enterprise executive, legal professional, o
 
 ### 🍎 **macOS**
 
-1. Download `meetily_0.4.0_aarch64.dmg` from [Releases](https://github.com/Zackriya-Solutions/meeting-minutes/releases/latest)
+1. Download `orxa_0.4.0_aarch64.dmg` from [Releases](https://github.com/Zackriya-Solutions/meeting-minutes/releases/latest)
 2. Open the downloaded `.dmg` file
-3. Drag **Meetily** to your Applications folder
-4. Open **Meetily** from Applications folder
+3. Drag **Orxa** to your Applications folder
+4. Open **Orxa** from Applications folder
 
 ### 🐧 **Linux**
 
@@ -139,7 +137,7 @@ pnpm install
 Transcribe meetings entirely on your device using **Whisper** or **Parakeet** models. No cloud required.
 
 <p align="center">
-    <img src="docs/home.png" width="650" style="border-radius: 10px;" alt="Meetily Demo" />
+    <img src="docs/home.png" width="650" style="border-radius: 10px;" alt="Orxa Demo" />
 </p>
 
 ### 📥 Import & Enhance `Beta`
@@ -149,7 +147,7 @@ Import existing audio files to generate transcripts, or enhance to re-transcribe
 > Contributed by [Jeremi Joslin](https://github.com/jeremi), improved by [Vishnu P S](https://github.com/p-s-vishnu) and [Mohammed Safvan](https://github.com/mohammedsafvan)
 
 <p align="center">
-    <img src="docs/meetily-export.gif" width="650" style="border-radius: 10px;" alt="Import and Enhance" />
+    <img src="docs/orxa-export.gif" width="650" style="border-radius: 10px;" alt="Import and Enhance" />
 </p>
 
 ### 🤖 AI-Powered Summaries
@@ -174,7 +172,7 @@ All data stays on your machine. Transcription models, recordings, and transcript
 
 ### 🔌 Local MCP Access
 
-Agents can inspect local meetings through an MCP server for raw transcripts, local `Me` speaker labels, summaries, notes, and action items. The MCP server also supports confirmed cleanup of transcript tails recorded after a meeting ended. See [Meetily MCP Server](docs/MCP_SERVER.md) for setup.
+Agents can inspect local meetings through an MCP server for raw transcripts, local `Me` speaker labels, summaries, notes, and action items. The MCP server also supports confirmed cleanup of transcript tails recorded after a meeting ended. See [Orxa MCP Server](docs/MCP_SERVER.md) for setup.
 
 ### 🌐 Custom OpenAI Endpoint Support
 
@@ -203,27 +201,27 @@ Automatically enabled at build time - no configuration needed.
 
 ## System Architecture
 
-Meetily is a single, self-contained application built with [Tauri](https://tauri.app/). It uses a Rust-based backend to handle all the core logic, and a Next.js frontend for the user interface.
+Orxa is a single, self-contained application built with [Tauri](https://tauri.app/). It uses a Rust-based backend to handle all the core logic, and a Next.js frontend for the user interface.
 
 For more details, see the [Architecture documentation](docs/architecture.md).
 
 ## For Developers
 
-If you want to contribute to Meetily or build it from source, you'll need to have Rust and Node.js installed. For detailed build instructions, please see the [Building from Source guide](docs/BUILDING.md).
+If you want to contribute to Orxa or build it from source, you'll need to have Rust and Node.js installed. For detailed build instructions, please see the [Building from Source guide](docs/BUILDING.md).
 
-## Meetily Pro
+## Orxa Pro
 
 <p align="center">
     <img src="docs/pv2.1.png" width="650" style="border-radius: 10px;" alt="Upcoming version" />
 </p>
 
-**Meetily PRO** is a professional-grade solution with enhanced accuracy and advanced features for serious users and teams. Built on a different codebase with superior transcription models and enterprise-ready capabilities.
+**Orxa PRO** is a professional-grade solution with enhanced accuracy and advanced features for serious users and teams. Built on a different codebase with superior transcription models and enterprise-ready capabilities.
 
 ### Community Thank-You Offer
 
-Meetily Community Edition will remain free and open source. PRO exists for users and teams who want a more advanced meeting workflow, including higher transcription accuracy, custom summary templates, advanced exports, auto-meeting detection, and self-hosted deployment options.
+Orxa Community Edition will remain free and open source. PRO exists for users and teams who want a more advanced meeting workflow, including higher transcription accuracy, custom summary templates, advanced exports, auto-meeting detection, and self-hosted deployment options.
 
-For the community that helped Meetily grow, we are making the upgrade easier: use coupon code **LAUNCH20** for **20% off Meetily PRO** until the next Meetily Community Edition release.
+For the community that helped Orxa grow, we are making the upgrade easier: use coupon code **LAUNCH20** for **20% off Orxa PRO** until the next Orxa Community Edition release.
 
 Speaker diarization is planned for mid-June, bringing automatic speaker separation to PRO meetings.
 
@@ -247,11 +245,11 @@ Speaker diarization is planned for mid-June, bringing automatic speaker separati
 - **Power users** who need advanced export formats and custom workflows
 - **Compliance-focused organizations** requiring GDPR readiness
 
-> **Note:** Meetily Community Edition remains **free & open source forever** with local transcription, AI summaries, and core features. PRO is a separate professional solution for users who need enhanced accuracy and advanced capabilities.
+> **Note:** Orxa Community Edition remains **free & open source forever** with local transcription, AI summaries, and core features. PRO is a separate professional solution for users who need enhanced accuracy and advanced capabilities.
 
-For organizations needing 100+ users or managed compliance solutions, explore [Meetily Enterprise](https://meetily.ai/enterprise/).
+For organizations needing 100+ users or managed compliance solutions, explore [Orxa Enterprise](https://orxa.ai/enterprise/).
 
-**Learn more about pricing and features:** [https://meetily.ai/pro/](https://meetily.ai/pro/)
+**Learn more about pricing and features:** [https://orxa.ai/pro/](https://orxa.ai/pro/)
 
 ## Contributing
 
@@ -273,4 +271,4 @@ MIT License - Feel free to use this project for your own purposes.
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/chart?repos=Zackriya-Solutions/meetily&type=date&legend=top-left)](https://www.star-history.com/?repos=Zackriya-Solutions%2Fmeetily&type=date&legend=bottom-right)
+[![Star History Chart](https://api.star-history.com/chart?repos=Zackriya-Solutions/orxa&type=date&legend=top-left)](https://www.star-history.com/?repos=Zackriya-Solutions%2Forxa&type=date&legend=bottom-right)
