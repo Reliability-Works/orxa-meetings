@@ -47,6 +47,8 @@ const MIN_SIDEBAR_WIDTH = 240;
 const MAX_SIDEBAR_WIDTH = 440;
 const TITLEBAR_CONTROL_OFFSET = 82;
 const TITLEBAR_CONTROL_LIFT = -4;
+const TITLEBAR_BUTTON_CLASS = 'flex h-8 w-8 items-center justify-center rounded-lg bg-transparent text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900';
+const TITLEBAR_FORWARD_BUTTON_CLASS = 'flex h-8 w-8 items-center justify-center rounded-lg bg-transparent text-gray-300 transition-colors hover:bg-gray-100 hover:text-gray-700';
 
 function relativeTime(value?: string | null) {
   if (!value) return '';
@@ -144,6 +146,7 @@ const Sidebar: React.FC = () => {
   });
   const [editingTitle, setEditingTitle] = useState('');
   const globalSearchInputRef = useRef<HTMLInputElement | null>(null);
+  const isFullScreenRoute = pathname?.startsWith('/settings');
 
   useEffect(() => {
     const syncActiveChat = () => {
@@ -359,6 +362,44 @@ const Sidebar: React.FC = () => {
     router.push(`/chat?id=${session.id}`);
   };
 
+  if (isFullScreenRoute) {
+    return (
+      <TooltipProvider>
+        <div className="fixed left-0 top-0 z-50 h-10 w-[190px] bg-transparent">
+          <div
+            className="flex h-10 items-center gap-1 pr-3"
+            style={{ paddingLeft: TITLEBAR_CONTROL_OFFSET, transform: `translateY(${TITLEBAR_CONTROL_LIFT}px)` }}
+          >
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button type="button" onClick={toggleCollapse} className={TITLEBAR_BUTTON_CLASS} aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
+                  {isCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">{isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button type="button" onClick={() => window.history.back()} className={TITLEBAR_BUTTON_CLASS} aria-label="Go back">
+                  <ArrowLeft className="h-4 w-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Go back</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button type="button" onClick={() => window.history.forward()} className={TITLEBAR_FORWARD_BUTTON_CLASS} aria-label="Go forward">
+                  <ArrowRight className="h-4 w-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Go forward</TooltipContent>
+            </Tooltip>
+          </div>
+        </div>
+      </TooltipProvider>
+    );
+  }
+
   const renderCollapsed = () => (
     <TooltipProvider>
       <div className="flex h-full flex-col justify-between pb-2 pt-0">
@@ -366,11 +407,10 @@ const Sidebar: React.FC = () => {
           <div
             className="flex h-10 w-[190px] items-center gap-1 pr-3"
             style={{ paddingLeft: TITLEBAR_CONTROL_OFFSET, transform: `translateY(${TITLEBAR_CONTROL_LIFT}px)` }}
-            data-tauri-drag-region
           >
             <Tooltip>
               <TooltipTrigger asChild>
-                <button onClick={toggleCollapse} className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-gray-100">
+                <button onClick={toggleCollapse} className={TITLEBAR_BUTTON_CLASS}>
                   <PanelLeftOpen className="h-4 w-4 text-gray-600" />
                 </button>
               </TooltipTrigger>
@@ -381,7 +421,7 @@ const Sidebar: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => window.history.back()}
-                  className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+                  className={TITLEBAR_BUTTON_CLASS}
                   aria-label="Go back"
                 >
                   <ArrowLeft className="h-4 w-4" />
@@ -394,7 +434,7 @@ const Sidebar: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => window.history.forward()}
-                  className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-300 hover:bg-gray-100 hover:text-gray-700"
+                  className={TITLEBAR_FORWARD_BUTTON_CLASS}
                   aria-label="Go forward"
                 >
                   <ArrowRight className="h-4 w-4" />
@@ -460,12 +500,11 @@ const Sidebar: React.FC = () => {
             <div
               className="flex h-10 shrink-0 items-center gap-1 pr-3"
               style={{ paddingLeft: TITLEBAR_CONTROL_OFFSET, transform: `translateY(${TITLEBAR_CONTROL_LIFT}px)` }}
-              data-tauri-drag-region
             >
               <button
                 type="button"
                 onClick={toggleCollapse}
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-600 hover:bg-gray-100"
+                className={TITLEBAR_BUTTON_CLASS}
                 aria-label="Collapse sidebar"
               >
                 <PanelLeftClose className="h-4 w-4" />
@@ -473,7 +512,7 @@ const Sidebar: React.FC = () => {
               <button
                 type="button"
                 onClick={() => window.history.back()}
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+                className={TITLEBAR_BUTTON_CLASS}
                 aria-label="Go back"
                 title="Go back"
               >
@@ -482,7 +521,7 @@ const Sidebar: React.FC = () => {
               <button
                 type="button"
                 onClick={() => window.history.forward()}
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-300 hover:bg-gray-100 hover:text-gray-700"
+                className={TITLEBAR_FORWARD_BUTTON_CLASS}
                 aria-label="Go forward"
                 title="Go forward"
               >

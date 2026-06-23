@@ -124,21 +124,21 @@ export function SummaryModelSettings({ refetchTrigger }: SummaryModelSettingsPro
 
   return (
     <div className='flex flex-col gap-4'>
-      <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
-        <div className="flex items-center justify-between">
+      <section className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+        <div className="flex min-h-20 items-center justify-between gap-6 px-5 py-4">
           <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Auto Summary</h3>
-            <p className="text-sm text-gray-600">Auto Generating summary after meeting completion(Stopping)</p>
+            <h3 className="text-[15px] font-medium text-gray-950">Auto summary</h3>
+            <p className="mt-1 text-sm text-gray-500">Generate a summary when meeting recording stops.</p>
           </div>
           <Switch checked={isAutoSummary} onCheckedChange={toggleIsAutoSummary} />
         </div>
-      </div>
+      </section>
 
       <SummaryLanguageSettings />
 
-      <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
-        <h3 className="text-lg font-semibold mb-4">Summary Model Configuration</h3>
-        <p className="text-sm text-gray-600 mb-6">
+      <section>
+        <h2 className="mb-3 text-[15px] font-semibold text-gray-950">Summary model</h2>
+        <p className="mb-4 text-sm text-gray-500">
           Configure the AI model used for generating meeting summaries.
         </p>
 
@@ -148,7 +148,7 @@ export function SummaryModelSettings({ refetchTrigger }: SummaryModelSettingsPro
           onSave={handleSaveModelConfig}
           skipInitialFetch={true}
         />
-      </div>
+      </section>
     </div>
   );
 }

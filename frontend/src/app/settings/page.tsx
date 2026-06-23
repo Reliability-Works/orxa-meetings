@@ -1,10 +1,8 @@
 'use client';
 
-import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
-import { ArrowLeft, Settings2, Mic, Database as DatabaseIcon, SparkleIcon, FlaskConical, Volume2, MessageSquareText } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import React, { useMemo, useState, useEffect } from 'react';
+import { Settings2, Mic, Database as DatabaseIcon, SparkleIcon, FlaskConical, Volume2, MessageSquareText, SearchIcon } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
-import { motion } from 'framer-motion';
 import { TranscriptSettings } from '@/components/TranscriptSettings';
 import { RecordingSettings } from '@/components/RecordingSettings';
 import { PreferenceSettings } from '@/components/PreferenceSettings';
@@ -13,27 +11,30 @@ import { BetaSettings } from '@/components/BetaSettings';
 import { PlaybackSettings } from '@/components/PlaybackSettings';
 import { ChatAgentSettings } from '@/components/ChatAgentSettings';
 import { useConfig } from '@/contexts/ConfigContext';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
-// Tabs configuration (constant)
-const TABS = [
-  { value: 'general', label: 'General', icon: Settings2 },
-  { value: 'recording', label: 'Recordings', icon: Mic },
-  { value: 'Transcriptionmodels', label: 'Transcription', icon: DatabaseIcon },
-  { value: 'summaryModels', label: 'Summary', icon: SparkleIcon },
-  { value: 'chat', label: 'Chat', icon: MessageSquareText },
-  { value: 'playback', label: 'Playback', icon: Volume2 },
-  { value: 'beta', label: 'Beta', icon: FlaskConical }
+const SETTINGS_ITEMS = [
+  { value: 'general', label: 'General', icon: Settings2, keywords: 'preferences privacy analytics language' },
+  { value: 'recording', label: 'Recordings', icon: Mic, keywords: 'microphone audio capture recording' },
+  { value: 'Transcriptionmodels', label: 'Transcription', icon: DatabaseIcon, keywords: 'parakeet whisper models transcript speech' },
+  { value: 'summaryModels', label: 'Summary', icon: SparkleIcon, keywords: 'summary model ai actions todos decisions' },
+  { value: 'chat', label: 'Chat', icon: MessageSquareText, keywords: 'agent ask model meeting chat' },
+  { value: 'playback', label: 'Playback', icon: Volume2, keywords: 'voice tts audio read aloud' },
+  { value: 'beta', label: 'Beta', icon: FlaskConical, keywords: 'experimental features preview' },
 ] as const;
 
+type SettingsTab = typeof SETTINGS_ITEMS[number]['value'];
+
+const SETTINGS_GROUPS: { title: string; values: SettingsTab[] }[] = [
+  { title: 'Personal', values: ['general', 'recording'] },
+  { title: 'Models', values: ['Transcriptionmodels', 'summaryModels', 'chat', 'playback'] },
+  { title: 'Advanced', values: ['beta'] },
+];
+
 export default function SettingsPage() {
-  const router = useRouter();
   const { transcriptModelConfig, setTranscriptModelConfig } = useConfig();
 
-  // Animation state for tabs
-  const [activeTab, setActiveTab] = useState('general');
-  const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
-  const [underlineStyle, setUnderlineStyle] = useState({ left: 0, width: 0 });
+  const [activeTab, setActiveTab] = useState<SettingsTab>('general');
+  const [settingsSearch, setSettingsSearch] = useState('');
 
   // Load saved transcript configuration on mount
   useEffect(() => {
@@ -55,91 +56,96 @@ export default function SettingsPage() {
     loadTranscriptConfig();
   }, [setTranscriptModelConfig]);
 
-  // Update underline position when active tab changes
-  useLayoutEffect(() => {
-    const activeIndex = TABS.findIndex(tab => tab.value === activeTab);
-    const activeTabElement = tabRefs.current[activeIndex];
+  const filteredGroups = useMemo(() => {
+    const query = settingsSearch.trim().toLowerCase();
+    return SETTINGS_GROUPS.map((group) => {
+      const items = group.values
+        .map((value) => SETTINGS_ITEMS.find((item) => item.value === value))
+        .filter((item): item is typeof SETTINGS_ITEMS[number] => Boolean(item))
+        .filter((item) => {
+          if (!query) return true;
+          return `${item.label} ${item.keywords} ${group.title}`.toLowerCase().includes(query);
+        });
+      return { ...group, items };
+    }).filter((group) => group.items.length > 0);
+  }, [settingsSearch]);
 
-    if (activeTabElement) {
-      const { offsetLeft, offsetWidth } = activeTabElement;
-      setUnderlineStyle({ left: offsetLeft, width: offsetWidth });
+  const renderActiveSettings = () => {
+    switch (activeTab) {
+      case 'general':
+        return <PreferenceSettings />;
+      case 'recording':
+        return <RecordingSettings />;
+      case 'Transcriptionmodels':
+        return (
+          <TranscriptSettings
+            transcriptModelConfig={transcriptModelConfig}
+            setTranscriptModelConfig={setTranscriptModelConfig}
+          />
+        );
+      case 'summaryModels':
+        return <SummaryModelSettings />;
+      case 'chat':
+        return <ChatAgentSettings />;
+      case 'playback':
+        return <PlaybackSettings />;
+      case 'beta':
+        return <BetaSettings />;
+      default:
+        return <PreferenceSettings />;
     }
-  }, [activeTab]);
+  };
 
   return (
-    <div className="h-screen bg-gray-50 flex flex-col">
-      {/* Fixed Header */}
-      <div className="sticky top-0 z-10 bg-gray-50 border-b border-gray-200">
-        <div className="max-w-6xl mx-auto px-8 py-6">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => router.back()}
-              className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
-            >
-              <ArrowLeft className="w-5 h-5" />
-              <span>Back</span>
-            </button>
-            <h1 className="text-3xl font-bold">Settings</h1>
-          </div>
+    <div className="flex h-full min-h-0 bg-white">
+      <aside className="flex w-[304px] shrink-0 flex-col border-r border-gray-200 bg-white px-4 pb-5 pt-16">
+        <div className="relative mb-6">
+          <SearchIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          <input
+            value={settingsSearch}
+            onChange={(event) => setSettingsSearch(event.target.value)}
+            placeholder="Search settings..."
+            className="h-11 w-full rounded-xl border border-gray-200 bg-white pl-10 pr-3 text-[15px] text-gray-900 outline-none placeholder:text-gray-400 focus:border-gray-300 focus:ring-2 focus:ring-gray-100"
+          />
         </div>
-      </div>
 
-      {/* Scrollable Content */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="max-w-6xl mx-auto p-8 pt-6">
-          {/* Tabs */}
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="bg-transparent relative rounded-none border-b border-gray-200 p-0 h-auto">
-              {TABS.map((tab, index) => {
-                const Icon = tab.icon;
-                return (
-                  <TabsTrigger
-                    key={tab.value}
-                    value={tab.value}
-                    ref={el => { tabRefs.current[index] = el }}
-                    className="flex items-center gap-2 px-6 py-4 bg-transparent rounded-none border-0 data-[state=active]:bg-transparent data-[state=active]:text-blue-600 data-[state=active]:shadow-none text-gray-600 hover:text-gray-900 relative z-10"
-                  >
-                    <Icon className="w-4 h-4" />
-                    {tab.label}
-                  </TabsTrigger>
-                );
-              })}
+        <nav className="min-h-0 flex-1 overflow-y-auto pb-6">
+          {filteredGroups.length > 0 ? (
+            filteredGroups.map((group) => (
+              <div key={group.title} className="mb-6">
+                <h2 className="mb-2 px-3 text-[15px] font-medium text-gray-400">{group.title}</h2>
+                <div className="space-y-1">
+                  {group.items.map((item) => {
+                    const Icon = item.icon;
+                    const active = activeTab === item.value;
+                    return (
+                      <button
+                        key={item.value}
+                        type="button"
+                        onClick={() => setActiveTab(item.value)}
+                        className={`flex h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-[16px] transition-colors ${
+                          active ? 'bg-gray-100 text-gray-950' : 'text-gray-800 hover:bg-gray-100'
+                        }`}
+                      >
+                        <Icon className="h-5 w-5 shrink-0" />
+                        <span className="truncate">{item.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="px-3 py-8 text-sm text-gray-400">No settings found</div>
+          )}
+        </nav>
+      </aside>
 
-              <motion.div
-                className="absolute bottom-0 z-20 h-0.5 bg-blue-600"
-                layoutId="underline"
-                style={{ left: underlineStyle.left, width: underlineStyle.width }}
-                transition={{ type: 'spring', stiffness: 400, damping: 40 }}
-              />
-            </TabsList>
-
-            <TabsContent value="general">
-              <PreferenceSettings />
-            </TabsContent>
-            <TabsContent value="recording">
-              <RecordingSettings />
-            </TabsContent>
-            <TabsContent value="Transcriptionmodels">
-              <TranscriptSettings
-                transcriptModelConfig={transcriptModelConfig}
-                setTranscriptModelConfig={setTranscriptModelConfig}
-              />
-            </TabsContent>
-            <TabsContent value="summaryModels">
-              <SummaryModelSettings />
-            </TabsContent>
-            <TabsContent value="chat" className="mt-6">
-              <ChatAgentSettings />
-            </TabsContent>
-            <TabsContent value="playback" className="mt-6">
-              <PlaybackSettings />
-            </TabsContent>
-            <TabsContent value="beta" className="mt-6">
-              <BetaSettings />
-            </TabsContent>
-          </Tabs>
+      <section className="min-w-0 flex-1 overflow-y-auto bg-white">
+        <div className="mx-auto max-w-5xl px-8 pb-12 pt-16">
+          {renderActiveSettings()}
         </div>
-      </div>
+      </section>
     </div>
   );
 };

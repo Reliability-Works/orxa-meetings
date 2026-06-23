@@ -11,7 +11,6 @@ import {
   Loader2,
   Mic,
   Search,
-  Sparkles,
   User,
 } from 'lucide-react';
 import { ChatMessage, ChatSendResponse, ChatThread } from '@/types';
@@ -194,8 +193,8 @@ function ChatPageContent() {
   };
 
   return (
-    <div className="flex h-screen flex-col bg-[#f7f7f5]">
-      <div className="flex-1 overflow-y-auto">
+    <div className="flex h-full min-h-0 flex-col bg-white">
+      <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto flex min-h-full max-w-4xl flex-col px-6 py-8">
           {isLoading ? (
             <div className="flex flex-1 items-center justify-center text-sm text-gray-500">
@@ -203,9 +202,9 @@ function ChatPageContent() {
               Loading chat
             </div>
           ) : messages.length === 0 ? (
-            <div className="flex flex-1 items-end justify-center pb-8">
+            <div className="flex flex-1 items-center justify-center">
               <div className="w-full">
-                <h1 className="mb-12 text-center text-4xl font-normal tracking-normal text-gray-950">
+                <h1 className="mb-8 text-center text-4xl font-normal tracking-normal text-gray-950">
                   What should we work out from this meeting?
                 </h1>
               </div>
@@ -218,7 +217,7 @@ function ChatPageContent() {
               {isSending && (
                 <div className="flex gap-3">
                   <div className="mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-600">
-                    <Sparkles className="h-4 w-4" />
+                    <Bot className="h-4 w-4" />
                   </div>
                   <div className="rounded-2xl bg-white px-4 py-3 text-sm text-gray-500 shadow-sm ring-1 ring-gray-200">
                     <Loader2 className="mr-2 inline h-4 w-4 animate-spin" />
@@ -232,7 +231,7 @@ function ChatPageContent() {
         </div>
       </div>
 
-      <div className="shrink-0 bg-gradient-to-t from-[#f7f7f5] via-[#f7f7f5] to-transparent px-6 pb-7 pt-4">
+      <div className="shrink-0 bg-white px-6 pb-5 pt-3">
         <form onSubmit={submit} className="mx-auto max-w-4xl">
           <div className="rounded-[22px] border border-gray-200 bg-white shadow-[0_12px_35px_rgba(15,23,42,0.08)]">
             <textarea
@@ -254,7 +253,7 @@ function ChatPageContent() {
                   <Search className="h-5 w-5" />
                 </Button>
                 <Select value={selectedMeetingId || 'none'} onValueChange={(value) => setSelectedMeetingId(value === 'none' ? '' : value)}>
-                  <SelectTrigger className="h-9 max-w-[360px] rounded-full border-0 bg-gray-100 px-3 text-gray-700 shadow-none">
+                  <SelectTrigger className="h-9 max-w-[360px] rounded-full border border-gray-200 bg-white px-3 text-gray-700 shadow-none">
                     <Mic className="mr-2 h-4 w-4 text-gray-500" />
                     <SelectValue placeholder="Select meeting" />
                   </SelectTrigger>
@@ -294,7 +293,7 @@ function ChatPageContent() {
 
 export default function ChatPage() {
   return (
-    <Suspense fallback={<div className="h-screen bg-[#f7f7f5]" />}>
+    <Suspense fallback={<div className="h-full bg-white" />}>
       <ChatPageContent />
     </Suspense>
   );

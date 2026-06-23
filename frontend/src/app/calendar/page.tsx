@@ -131,7 +131,7 @@ export default function CalendarPage() {
   };
 
   return (
-    <main className="h-screen overflow-y-auto bg-gray-50">
+    <main className="h-full overflow-y-auto bg-white">
       <div className="mx-auto flex min-h-full max-w-6xl flex-col px-8 py-8">
         <div className="mb-6 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">

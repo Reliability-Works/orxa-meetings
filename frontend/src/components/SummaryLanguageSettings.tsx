@@ -16,12 +16,12 @@ export function SummaryLanguageSettings() {
   };
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm relative">
-      <div className="flex items-center gap-2 mb-2">
-        <Globe size={18} className="text-gray-500" />
-        <h3 className="text-lg font-semibold text-gray-900">Summary Language</h3>
+    <div className="relative rounded-xl border border-gray-200 bg-white px-5 py-4">
+      <div className="mb-2 flex items-center gap-2">
+        <Globe size={16} className="text-gray-500" />
+        <h3 className="text-[15px] font-medium text-gray-950">Summary language</h3>
       </div>
-      <p className="text-sm text-gray-600 mb-4">
+      <p className="mb-4 text-sm text-gray-500">
         Pin one language as the default for new meetings. Unpinned languages remain as
         quick-switch options in the summary generator. Auto uses the dominant transcript language.
       </p>

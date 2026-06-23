@@ -66,15 +66,14 @@ export function ChatAgentSettings() {
   };
 
   return (
-    <div className="mt-6 space-y-4">
-      <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-        <div className="mb-5 flex items-start gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-md bg-gray-100 text-gray-700">
-            <MessageSquareText className="h-4 w-4" />
-          </div>
+    <div className="space-y-4">
+      <section>
+        <h2 className="mb-3 text-[15px] font-semibold text-gray-950">Chat agent</h2>
+        <div className="mb-5 flex items-start gap-2">
+          <MessageSquareText className="mt-0.5 h-4 w-4 text-gray-500" />
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">Chat Agent</h3>
-            <p className="text-sm text-gray-600">
+            <h3 className="text-[15px] font-medium text-gray-950">Agent model</h3>
+            <p className="mt-1 text-sm text-gray-500">
               Select the model used for persistent meeting chat.
             </p>
           </div>
@@ -89,7 +88,7 @@ export function ChatAgentSettings() {
           heading="Agent Model"
           modelLabel="Chat Agent Model"
         />
-      </div>
+      </section>
     </div>
   );
 }

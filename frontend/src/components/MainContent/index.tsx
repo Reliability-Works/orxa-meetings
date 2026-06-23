@@ -13,19 +13,19 @@ const TITLEBAR_SAFE_AREA = 44;
 const MainContent: React.FC<MainContentProps> = ({ children }) => {
   const { isCollapsed } = useSidebar();
   const pathname = usePathname();
-  const pageBackground = pathname?.startsWith('/chat') ? 'bg-[#f7f7f5]' : 'bg-gray-50';
+  const isFullScreenRoute = pathname?.startsWith('/settings');
 
   return (
     <main
       className="h-screen flex-1 overflow-hidden bg-white transition-[margin] duration-300"
       style={{
-        marginLeft: isCollapsed ? 64 : 'var(--orxa-sidebar-width, 286px)',
+        marginLeft: isFullScreenRoute ? 0 : isCollapsed ? 64 : 'var(--orxa-sidebar-width, 286px)',
       }}
     >
-      <div className="bg-white" style={{ height: TITLEBAR_SAFE_AREA }} />
+      {!isFullScreenRoute && <div className="bg-white" style={{ height: TITLEBAR_SAFE_AREA }} />}
       <div
-        className={`min-h-0 overflow-hidden ${pageBackground}`}
-        style={{ height: `calc(100vh - ${TITLEBAR_SAFE_AREA}px)` }}
+        className="min-h-0 overflow-hidden bg-white [&>*]:h-full"
+        style={{ height: isFullScreenRoute ? '100vh' : `calc(100vh - ${TITLEBAR_SAFE_AREA}px)` }}
       >
         {children}
       </div>

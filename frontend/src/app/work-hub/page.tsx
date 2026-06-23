@@ -124,8 +124,8 @@ export default function WorkHubPage() {
   };
 
   return (
-    <div className="h-screen bg-gray-50 flex flex-col">
-      <div className="sticky top-0 z-10 bg-gray-50 border-b border-gray-200">
+    <div className="flex h-full flex-col bg-white">
+      <div className="sticky top-0 z-10 border-b border-gray-200 bg-white">
         <div className="max-w-6xl mx-auto px-8 py-6">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">

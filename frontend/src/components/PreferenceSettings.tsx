@@ -360,40 +360,34 @@ export function PreferenceSettings() {
   const notificationsEnabledValue = notificationsEnabled ?? false;
 
   return (
-    <div className="space-y-6">
-      {/* Notifications Section */}
-      <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Notifications</h3>
-            <p className="text-sm text-gray-600">Enable or disable notifications of start and end of meeting</p>
-          </div>
-          <Switch checked={notificationsEnabledValue} onCheckedChange={setNotificationsEnabled} />
-        </div>
-      </div>
-
-      {/* Calendar Auto-Start Section */}
-      <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex gap-3">
-            <div className="mt-1 flex h-9 w-9 items-center justify-center rounded-md bg-blue-50 text-blue-700">
-              <Calendar className="h-4 w-4" />
+    <div className="space-y-8">
+      <section>
+        <h2 className="mb-3 text-[15px] font-semibold text-gray-950">General</h2>
+        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+          <div className="flex min-h-20 items-center justify-between gap-6 px-5 py-4">
+            <div className="min-w-0">
+              <h3 className="text-[15px] font-medium text-gray-950">Notifications</h3>
+              <p className="mt-1 text-sm text-gray-500">Show start and end notifications for meetings.</p>
             </div>
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Calendar Auto-Start</h3>
-              <p className="text-sm text-gray-600">
-                Start transcription automatically when a calendar meeting begins.
-              </p>
+            <Switch checked={notificationsEnabledValue} onCheckedChange={setNotificationsEnabled} />
+          </div>
 
-              <div className="mt-4 flex flex-wrap items-center gap-3">
-                <label className="flex items-center gap-2 text-sm text-gray-700">
-                  <Clock className="h-4 w-4 text-gray-500" />
+          <div className="border-t border-gray-100 px-5 py-4">
+            <div className="flex items-start justify-between gap-6">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-gray-500" />
+                  <h3 className="text-[15px] font-medium text-gray-950">Calendar auto-start</h3>
+                </div>
+                <p className="mt-1 text-sm text-gray-500">Start transcription automatically when a calendar meeting begins.</p>
+                <label className="mt-3 flex w-fit items-center gap-2 text-sm text-gray-700">
+                  <Clock className="h-4 w-4 text-gray-400" />
                   <span>Lead time</span>
                   <select
                     value={calendarPrefs?.lead_time_minutes ?? 0}
                     onChange={(event) => handleCalendarLeadTimeChange(Number(event.target.value))}
                     disabled={!calendarPrefs?.enabled || isCalendarSaving}
-                    className="rounded-md border border-gray-300 bg-white px-2 py-1 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+                    className="h-8 rounded-lg border-0 bg-gray-100 px-3 text-sm disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <option value={0}>At start time</option>
                     <option value={1}>1 minute early</option>
@@ -403,180 +397,145 @@ export function PreferenceSettings() {
                   </select>
                 </label>
               </div>
+              <Switch
+                checked={calendarPrefs?.enabled ?? false}
+                onCheckedChange={handleCalendarAutoStartToggle}
+                disabled={!calendarPrefs || isCalendarSaving}
+              />
             </div>
-          </div>
-          <Switch
-            checked={calendarPrefs?.enabled ?? false}
-            onCheckedChange={handleCalendarAutoStartToggle}
-            disabled={!calendarPrefs || isCalendarSaving}
-          />
-        </div>
 
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-md bg-gray-50 p-3">
-          <div className="flex items-center gap-2 text-sm text-gray-700">
-            <ShieldCheck className="h-4 w-4 text-gray-500" />
-            <span>Calendar access: {calendarPermissionLabel(calendarPermissionStatus)}</span>
-          </div>
-          {!canReadCalendar(calendarPermissionStatus) && calendarPermissionStatus !== 'unavailable' && (
-            <button
-              onClick={handleRequestCalendarPermission}
-              disabled={isCalendarSaving}
-              className="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-800 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Allow Access
-            </button>
-          )}
-        </div>
-
-        {calendarError && (
-          <p className="mt-3 text-sm text-red-600">{calendarError}</p>
-        )}
-      </div>
-
-      {/* MCP Section */}
-      <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex gap-3">
-            <div className="mt-1 flex h-9 w-9 items-center justify-center rounded-md bg-purple-50 text-purple-700">
-              <Bot className="h-4 w-4" />
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-gray-50 px-3 py-2.5">
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <ShieldCheck className="h-4 w-4 text-gray-400" />
+                <span>Calendar access: {calendarPermissionLabel(calendarPermissionStatus)}</span>
+              </div>
+              {!canReadCalendar(calendarPermissionStatus) && calendarPermissionStatus !== 'unavailable' && (
+                <button
+                  onClick={handleRequestCalendarPermission}
+                  disabled={isCalendarSaving}
+                  className="h-8 rounded-lg border border-gray-200 bg-white px-3 text-sm font-medium text-gray-800 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Allow Access
+                </button>
+              )}
             </div>
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Agent MCP Access</h3>
-              <p className="text-sm text-gray-600">
-                Local agent access to meetings, raw transcripts, local speaker labels, summaries, notes, action items, and confirmed transcript trimming.
+
+            {calendarError && (
+              <p className="mt-3 text-sm text-red-600">{calendarError}</p>
+            )}
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2 className="mb-3 text-[15px] font-semibold text-gray-950">Agent access</h2>
+        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+          <div className="flex items-start justify-between gap-6 px-5 py-4">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <Bot className="h-4 w-4 text-gray-500" />
+                <h3 className="text-[15px] font-medium text-gray-950">Agent MCP access</h3>
+              </div>
+              <p className="mt-1 max-w-3xl text-sm text-gray-500">
+                Local agent access to meetings, raw transcripts, speaker labels, summaries, notes, action items, and confirmed transcript trimming.
               </p>
             </div>
-          </div>
-          <button
-            onClick={handleCopyMcpConfig}
-            disabled={!mcpSetupInfo}
-            className="flex items-center gap-2 rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-800 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {isMcpConfigCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-            {isMcpConfigCopied ? 'Copied' : 'Copy Config'}
-          </button>
-        </div>
-
-        <div className="mt-4 grid gap-3 md:grid-cols-2">
-          <div className="rounded-md bg-gray-50 p-3">
-            <div className="flex items-center gap-2 text-sm font-medium text-gray-800">
-              <Server className="h-4 w-4 text-gray-500" />
-              MCP server
-            </div>
-            <div className="mt-2 break-all font-mono text-xs text-gray-600">
-              {mcpSetupInfo?.server_script_path || 'Loading...'}
-            </div>
-            <div className="mt-2 text-xs text-gray-500">
-              {mcpSetupInfo?.server_script_exists ? 'Available' : 'Not found'}
-            </div>
-          </div>
-
-          <div className="rounded-md bg-gray-50 p-3">
-            <div className="flex items-center gap-2 text-sm font-medium text-gray-800">
-              <FolderOpen className="h-4 w-4 text-gray-500" />
-              Meeting database
-            </div>
-            <div className="mt-2 break-all font-mono text-xs text-gray-600">
-              {mcpSetupInfo?.database_path || storageLocations?.database || 'Loading...'}
-            </div>
-            <div className="mt-2 text-xs text-gray-500">
-              {mcpSetupInfo?.database_exists ? 'Available' : 'Created after meetings are saved'}
-            </div>
-          </div>
-        </div>
-
-        <pre className="mt-4 max-h-56 overflow-auto rounded-md border border-gray-200 bg-gray-950 p-3 text-xs text-gray-100">
-          {mcpSetupInfo?.client_config_json || 'Loading MCP config...'}
-        </pre>
-
-        <div className="mt-4 flex flex-wrap gap-2">
-          <button
-            onClick={handleOpenMcpServerFolder}
-            disabled={!mcpSetupInfo}
-            className="flex items-center gap-2 rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-800 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <FolderOpen className="h-4 w-4" />
-            Open Server Folder
-          </button>
-          <button
-            onClick={() => handleOpenFolder('database')}
-            className="flex items-center gap-2 rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-800 transition-colors hover:bg-gray-100"
-          >
-            <FolderOpen className="h-4 w-4" />
-            Open Database Folder
-          </button>
-        </div>
-
-        {mcpError && (
-          <p className="mt-3 text-sm text-red-600">{mcpError}</p>
-        )}
-      </div>
-
-      {/* Data Storage Locations Section */}
-      <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Data Storage Locations</h3>
-        <p className="text-sm text-gray-600 mb-6">
-          View and access where Orxa stores your data
-        </p>
-
-        <div className="space-y-4">
-          {/* Database Location */}
-          {/* <div className="p-4 border rounded-lg bg-gray-50">
-            <div className="font-medium mb-2">Database</div>
-            <div className="text-sm text-gray-600 mb-3 break-all font-mono text-xs">
-              {storageLocations?.database || 'Loading...'}
-            </div>
             <button
-              onClick={() => handleOpenFolder('database')}
-              className="flex items-center gap-2 px-3 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-100 transition-colors"
+              onClick={handleCopyMcpConfig}
+              disabled={!mcpSetupInfo}
+              className="flex h-9 shrink-0 items-center gap-2 rounded-lg border border-gray-200 px-3 text-sm font-medium text-gray-800 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <FolderOpen className="w-4 h-4" />
-              Open Folder
+              {isMcpConfigCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+              {isMcpConfigCopied ? 'Copied' : 'Copy config'}
             </button>
-          </div> */}
+          </div>
 
-          {/* Models Location */}
-          {/* <div className="p-4 border rounded-lg bg-gray-50">
-            <div className="font-medium mb-2">Whisper Models</div>
-            <div className="text-sm text-gray-600 mb-3 break-all font-mono text-xs">
-              {storageLocations?.models || 'Loading...'}
+          <div className="grid gap-px border-t border-gray-100 bg-gray-100 md:grid-cols-2">
+            <div className="bg-gray-50 px-5 py-3">
+              <div className="flex items-center gap-2 text-sm font-medium text-gray-800">
+                <Server className="h-4 w-4 text-gray-500" />
+                MCP server
+              </div>
+              <div className="mt-1 break-all font-mono text-xs text-gray-600">
+                {mcpSetupInfo?.server_script_path || 'Loading...'}
+              </div>
+              <div className="mt-1 text-xs text-gray-500">
+                {mcpSetupInfo?.server_script_exists ? 'Available' : 'Not found'}
+              </div>
             </div>
-            <button
-              onClick={() => handleOpenFolder('models')}
-              className="flex items-center gap-2 px-3 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-100 transition-colors"
-            >
-              <FolderOpen className="w-4 h-4" />
-              Open Folder
-            </button>
-          </div> */}
 
-          {/* Recordings Location */}
-          <div className="p-4 border rounded-lg bg-gray-50">
-            <div className="font-medium mb-2">Meeting Recordings</div>
-            <div className="text-sm text-gray-600 mb-3 break-all font-mono text-xs">
-              {storageLocations?.recordings || 'Loading...'}
+            <div className="bg-gray-50 px-5 py-3">
+              <div className="flex items-center gap-2 text-sm font-medium text-gray-800">
+                <FolderOpen className="h-4 w-4 text-gray-500" />
+                Meeting database
+              </div>
+              <div className="mt-1 break-all font-mono text-xs text-gray-600">
+                {mcpSetupInfo?.database_path || storageLocations?.database || 'Loading...'}
+              </div>
+              <div className="mt-1 text-xs text-gray-500">
+                {mcpSetupInfo?.database_exists ? 'Available' : 'Created after meetings are saved'}
+              </div>
+            </div>
+          </div>
+
+          <div className="border-t border-gray-100 px-5 py-4">
+            <pre className="max-h-40 overflow-auto rounded-lg border border-gray-200 bg-gray-950 p-3 text-xs text-gray-100">
+              {mcpSetupInfo?.client_config_json || 'Loading MCP config...'}
+            </pre>
+
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                onClick={handleOpenMcpServerFolder}
+                disabled={!mcpSetupInfo}
+                className="flex h-8 items-center gap-2 rounded-lg border border-gray-200 px-3 text-sm font-medium text-gray-800 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <FolderOpen className="h-4 w-4" />
+                Open server folder
+              </button>
+              <button
+                onClick={() => handleOpenFolder('database')}
+                className="flex h-8 items-center gap-2 rounded-lg border border-gray-200 px-3 text-sm font-medium text-gray-800 transition-colors hover:bg-gray-100"
+              >
+                <FolderOpen className="h-4 w-4" />
+                Open database folder
+              </button>
+            </div>
+
+            {mcpError && (
+              <p className="mt-3 text-sm text-red-600">{mcpError}</p>
+            )}
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2 className="mb-3 text-[15px] font-semibold text-gray-950">Storage</h2>
+        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+          <div className="flex items-center justify-between gap-6 px-5 py-4">
+            <div className="min-w-0">
+              <h3 className="text-[15px] font-medium text-gray-950">Meeting recordings</h3>
+              <p className="mt-1 break-all font-mono text-xs text-gray-500">{storageLocations?.recordings || 'Loading...'}</p>
             </div>
             <button
               onClick={() => handleOpenFolder('recordings')}
-              className="flex items-center gap-2 px-3 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-100 transition-colors"
+              className="flex h-8 shrink-0 items-center gap-2 rounded-lg border border-gray-200 px-3 text-sm font-medium text-gray-800 transition-colors hover:bg-gray-100"
             >
-              <FolderOpen className="w-4 h-4" />
-              Open Folder
+              <FolderOpen className="h-4 w-4" />
+              Open
             </button>
           </div>
+          <div className="border-t border-gray-100 px-5 py-3 text-xs text-gray-500">
+            Database and models are stored together in your application data directory.
+          </div>
         </div>
+      </section>
 
-        <div className="mt-4 p-3 bg-blue-50 rounded-md">
-          <p className="text-xs text-blue-800">
-            <strong>Note:</strong> Database and models are stored together in your application data directory for unified management.
-          </p>
+      <section>
+        <h2 className="mb-3 text-[15px] font-semibold text-gray-950">Usage analytics</h2>
+        <div className="rounded-xl border border-gray-200 bg-white p-5">
+          <AnalyticsConsentSwitch />
         </div>
-      </div>
-
-      {/* Analytics Section */}
-      <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
-        <AnalyticsConsentSwitch />
-      </div>
+      </section>
     </div>
   )
 }

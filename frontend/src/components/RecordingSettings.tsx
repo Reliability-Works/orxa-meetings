@@ -153,100 +153,81 @@ export function RecordingSettings({ onSave }: RecordingSettingsProps) {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h3 className="text-lg font-semibold mb-4">Recording Settings</h3>
-        <p className="text-sm text-gray-600 mb-6">
-          Configure how your audio recordings are saved during meetings.
-        </p>
-      </div>
-
-      {/* Auto Save Toggle */}
-      <div className="flex items-center justify-between p-4 border rounded-lg">
-        <div className="flex-1">
-          <div className="font-medium">Save Audio Recordings</div>
-          <div className="text-sm text-gray-600">
-            Automatically save audio files when recording stops
-          </div>
-        </div>
-        <Switch
-          checked={preferences.auto_save}
-          onCheckedChange={handleAutoSaveToggle}
-          disabled={saving}
-        />
-      </div>
-
-      {/* Folder Location - Only shown when auto_save is enabled */}
-      {preferences.auto_save && (
-        <div className="space-y-4">
-          <div className="p-4 border rounded-lg bg-gray-50">
-            <div className="font-medium mb-2">Save Location</div>
-            <div className="text-sm text-gray-600 mb-3 break-all">
-              {preferences.save_folder || 'Default folder'}
+    <div className="space-y-8">
+      <section>
+        <h2 className="mb-3 text-[15px] font-semibold text-gray-950">Recording</h2>
+        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+          <div className="flex min-h-20 items-center justify-between gap-6 px-5 py-4">
+            <div className="min-w-0">
+              <h3 className="text-[15px] font-medium text-gray-950">Save audio recordings</h3>
+              <p className="mt-1 text-sm text-gray-500">Automatically save audio files when recording stops.</p>
             </div>
-            <button
-              onClick={handleOpenFolder}
-              className="flex items-center gap-2 px-3 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
-            >
-              <FolderOpen className="w-4 h-4" />
-              Open Folder
-            </button>
-          </div>
-
-          <div className="p-4 border rounded-lg bg-blue-50">
-            <div className="text-sm text-blue-800">
-              <strong>File Format:</strong> {preferences.file_format.toUpperCase()} files
-            </div>
-            <div className="text-xs text-blue-600 mt-1">
-              Recordings are saved with timestamp: recording_YYYYMMDD_HHMMSS.{preferences.file_format}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Info when auto_save is disabled */}
-      {!preferences.auto_save && (
-        <div className="p-4 border rounded-lg bg-yellow-50">
-          <div className="text-sm text-yellow-800">
-            Audio recording is disabled. Enable "Save Audio Recordings" to automatically save your meeting audio.
-          </div>
-        </div>
-      )}
-
-      {/* Recording Notification Toggle */}
-      <div className="flex items-center justify-between p-4 border rounded-lg">
-        <div className="flex-1">
-          <div className="font-medium">Recording Start Notification</div>
-          <div className="text-sm text-gray-600">
-            Show reminder to inform participants when recording starts
-          </div>
-        </div>
-        <Switch
-          checked={showRecordingNotification}
-          onCheckedChange={handleNotificationToggle}
-        />
-      </div>
-
-      {/* Device Preferences */}
-      <div className="space-y-4">
-        <div className="border-t pt-6">
-          <h4 className="text-base font-medium text-gray-900 mb-4">Default Audio Devices</h4>
-          <p className="text-sm text-gray-600 mb-4">
-            Set your preferred microphone and system audio devices for recording. These will be automatically selected when starting new recordings.
-          </p>
-
-          <div className="border rounded-lg p-4 bg-gray-50">
-            <DeviceSelection
-              selectedDevices={{
-                micDevice: preferences.preferred_mic_device,
-                systemDevice: preferences.preferred_system_device
-              }}
-              onDeviceChange={handleDeviceChange}
+            <Switch
+              checked={preferences.auto_save}
+              onCheckedChange={handleAutoSaveToggle}
               disabled={saving}
             />
           </div>
+
+          {preferences.auto_save && (
+            <>
+              <div className="border-t border-gray-100 px-5 py-4">
+                <div className="flex items-center justify-between gap-6">
+                  <div className="min-w-0">
+                    <h3 className="text-[15px] font-medium text-gray-950">Save location</h3>
+                    <p className="mt-1 break-all font-mono text-xs text-gray-500">{preferences.save_folder || 'Default folder'}</p>
+                  </div>
+                  <button
+                    onClick={handleOpenFolder}
+                    className="flex h-8 shrink-0 items-center gap-2 rounded-lg border border-gray-200 px-3 text-sm font-medium text-gray-800 transition-colors hover:bg-gray-100"
+                  >
+                    <FolderOpen className="h-4 w-4" />
+                    Open
+                  </button>
+                </div>
+              </div>
+
+              <div className="border-t border-gray-100 px-5 py-3 text-xs text-gray-500">
+                File format: {preferences.file_format.toUpperCase()} files named recording_YYYYMMDD_HHMMSS.{preferences.file_format}
+              </div>
+            </>
+          )}
+
+          {!preferences.auto_save && (
+            <div className="border-t border-gray-100 px-5 py-3 text-sm text-amber-700">
+              Audio recording is disabled. Enable save audio recordings to automatically save meeting audio.
+            </div>
+          )}
+
+          <div className="flex min-h-20 items-center justify-between gap-6 border-t border-gray-100 px-5 py-4">
+            <div className="min-w-0">
+              <h3 className="text-[15px] font-medium text-gray-950">Recording start notification</h3>
+              <p className="mt-1 text-sm text-gray-500">Show a reminder to inform participants when recording starts.</p>
+            </div>
+            <Switch
+              checked={showRecordingNotification}
+              onCheckedChange={handleNotificationToggle}
+            />
+          </div>
         </div>
-      </div>
+      </section>
+
+      <section>
+        <h2 className="mb-3 text-[15px] font-semibold text-gray-950">Default audio devices</h2>
+        <p className="mb-3 text-sm text-gray-500">
+          Preferred microphone and system audio devices are selected automatically for new recordings.
+        </p>
+        <div className="rounded-xl border border-gray-200 bg-white p-5">
+          <DeviceSelection
+            selectedDevices={{
+              micDevice: preferences.preferred_mic_device,
+              systemDevice: preferences.preferred_system_device
+            }}
+            onDeviceChange={handleDeviceChange}
+            disabled={saving}
+          />
+        </div>
+      </section>
     </div>
   );
 }
