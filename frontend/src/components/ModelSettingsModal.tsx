@@ -115,6 +115,9 @@ interface ModelSettingsModalProps {
   onSave: (config: ModelConfig) => void;
   skipInitialFetch?: boolean; // Optional: skip fetching config from backend if parent manages it
   layout?: 'inline' | 'dialog';
+  useGlobalConfig?: boolean;
+  heading?: string;
+  modelLabel?: string;
 }
 
 function getSummaryProviderGuidance(provider: ModelConfig['provider']) {
@@ -155,13 +158,17 @@ export function ModelSettingsModal({
   onSave,
   skipInitialFetch = false,
   layout = 'inline',
+  useGlobalConfig = true,
+  heading = 'Model Settings',
+  modelLabel = 'Summarization Model',
 }: ModelSettingsModalProps) {
   // Use ConfigContext if available, fallback to props for backward compatibility
   const configContext = useConfig();
-  const modelConfig = configContext?.modelConfig || propsModelConfig;
-  const setModelConfig = configContext?.setModelConfig || propsSetModelConfig;
-  const providerApiKeys = configContext?.providerApiKeys;
-  const updateProviderApiKey = configContext?.updateProviderApiKey;
+  const shouldUseGlobalConfig = useGlobalConfig && !!configContext;
+  const modelConfig = shouldUseGlobalConfig ? configContext.modelConfig : propsModelConfig;
+  const setModelConfig = shouldUseGlobalConfig ? configContext.setModelConfig : propsSetModelConfig;
+  const providerApiKeys = shouldUseGlobalConfig ? configContext.providerApiKeys : undefined;
+  const updateProviderApiKey = shouldUseGlobalConfig ? configContext.updateProviderApiKey : undefined;
 
   const [models, setModels] = useState<OllamaModel[]>([]);
   const [error, setError] = useState<string>('');
@@ -847,12 +854,12 @@ export function ModelSettingsModal({
   return (
     <div>
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-lg font-semibold">Model Settings</h3>
+        <h3 className="text-lg font-semibold">{heading}</h3>
       </div>
 
       <div className="space-y-4">
         <div>
-          <Label>Summarization Model</Label>
+          <Label>{modelLabel}</Label>
           <div className="flex space-x-2 mt-1">
             <Select
               value={modelConfig.provider}

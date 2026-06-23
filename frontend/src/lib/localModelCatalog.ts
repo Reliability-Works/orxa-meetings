@@ -46,8 +46,8 @@ export const EXPERIMENTAL_TRANSCRIPTION_MODELS: LocalModelCatalogItem[] = [
       'Small enough to be plausible for always-on local meeting capture.',
     ],
     cons: [
-      'Not selectable until Meetily has a runtime adapter.',
-      'Needs benchmarking on real Meetily recordings before replacing Lightning.',
+      'Not selectable until Orxa has a runtime adapter.',
+      'Needs benchmarking on real Orxa recordings before replacing Lightning.',
     ],
     notes: 'Closest fit for replacing Lightning with a newer streaming local model.',
   },
@@ -66,9 +66,9 @@ export const EXPERIMENTAL_TRANSCRIPTION_MODELS: LocalModelCatalogItem[] = [
     ],
     cons: [
       'Much heavier than Lightning-class models.',
-      'Needs MLX or sidecar runtime work before it can run in Meetily.',
+      'Needs MLX or sidecar runtime work before it can run in Orxa.',
     ],
-    notes: 'Promising realtime quality, but needs an MLX or sidecar runtime before Meetily can run it.',
+    notes: 'Promising realtime quality, but needs an MLX or sidecar runtime before Orxa can run it.',
   },
   {
     id: 'qwen3-asr-1.7b',
@@ -94,7 +94,7 @@ export const EXPERIMENTAL_TRANSCRIPTION_MODELS: LocalModelCatalogItem[] = [
     name: 'Cohere Transcribe 03-2026',
     family: 'Cohere open ASR',
     size: '~2B parameters',
-    bestFor: 'Accuracy benchmarking against real Meetily meetings',
+    bestFor: 'Accuracy benchmarking against real Orxa meetings',
     sourceUrl: 'https://huggingface.co/CohereLabs/cohere-transcribe-03-2026',
     runtimeStatus: 'research',
     bestLabel: 'Best benchmark-only candidate',
@@ -122,10 +122,10 @@ export const EXPERIMENTAL_TRANSCRIPTION_MODELS: LocalModelCatalogItem[] = [
       'May pair well with post-meeting attribution experiments.',
     ],
     cons: [
-      'Not wired into Meetily.',
+      'Not wired into Orxa.',
       'Speaker attribution still needs product and privacy design.',
     ],
-    notes: 'Interesting for speaker-attributed ASR, but not yet wired into Meetily.',
+    notes: 'Interesting for speaker-attributed ASR, but not yet wired into Orxa.',
   },
   {
     id: 'moonshine',
@@ -164,7 +164,7 @@ export const PLAYBACK_MODELS: LocalModelCatalogItem[] = [
       'Practical first step beyond macOS system speech.',
     ],
     cons: [
-      'Needs a Meetily playback runtime adapter.',
+      'Needs a Orxa playback runtime adapter.',
       'Less expressive than the larger voice models.',
     ],
     notes: 'Best first target for a small, fast local playback engine.',

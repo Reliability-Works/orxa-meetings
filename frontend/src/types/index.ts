@@ -188,7 +188,7 @@ export interface WorkPreMeetingBrief {
   updated_at: string;
 }
 
-export interface AskMeetilyEvidence {
+export interface AskOrxaEvidence {
   transcript_id: string;
   timestamp: string;
   audio_start_time?: number | null;
@@ -197,13 +197,45 @@ export interface AskMeetilyEvidence {
   score: number;
 }
 
-export interface AskMeetilyResponse {
+export interface AskOrxaResponse {
   meeting_id: string;
   meeting_title: string;
   question: string;
   answer: string;
-  evidence: AskMeetilyEvidence[];
+  evidence: AskOrxaEvidence[];
   generated: boolean;
   model?: string | null;
   warning?: string | null;
+}
+
+export interface ChatSession {
+  id: string;
+  title: string;
+  meeting_id?: string | null;
+  meeting_title?: string | null;
+  created_at: string;
+  updated_at: string;
+  last_message?: string | null;
+}
+
+export interface ChatMessage {
+  id: string;
+  session_id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  evidence: AskOrxaEvidence[];
+  model?: string | null;
+  warning?: string | null;
+  created_at: string;
+}
+
+export interface ChatThread {
+  session: ChatSession;
+  messages: ChatMessage[];
+}
+
+export interface ChatSendResponse {
+  session: ChatSession;
+  user_message: ChatMessage;
+  assistant_message: ChatMessage;
 }

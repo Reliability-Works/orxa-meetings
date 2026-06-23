@@ -268,7 +268,7 @@ export function LocalModelCatalogCards({ models }: LocalModelCatalogCardsProps) 
                   size="sm"
                   disabled={isDownloading}
                   onClick={() => isDownloaded ? handleOpenFolder(model.id) : handleDownload(model)}
-                  title="Download model artifacts locally. Running this model still requires the matching Meetily runtime adapter."
+                  title="Download model artifacts locally. Running this model still requires the matching Orxa runtime adapter."
                 >
                   {isDownloading ? (
                     <Loader2 className="h-4 w-4 animate-spin" />

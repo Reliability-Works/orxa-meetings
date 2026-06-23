@@ -22,7 +22,7 @@ export function PlaybackSettings() {
       <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
         <h3 className="text-lg font-semibold text-gray-900">Playback Model Downloads</h3>
         <p className="mt-1 text-sm text-gray-600">
-          Download local TTS model artifacts for the playback engines worth wiring into Meetily. Downloaded models are cached locally; playback runtime adapters are still labelled where needed.
+          Download local TTS model artifacts for the playback engines worth wiring into Orxa. Downloaded models are cached locally; playback runtime adapters are still labelled where needed.
         </p>
         <div className="mt-5">
           <LocalModelCatalogCards models={PLAYBACK_MODELS} />

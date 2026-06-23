@@ -141,7 +141,7 @@ export function WorkHubPanel({
       const updated = await invoke<WorkItem>('workhub_update_item_status', {
         itemId: item.id,
         status,
-        agentNotes: status === 'done' ? 'Marked done in Meetily Work Hub' : null,
+        agentNotes: status === 'done' ? 'Marked done in Orxa Work Hub' : null,
       });
       setItems((current) => current.map((candidate) => (
         candidate.id === item.id ? updated : candidate

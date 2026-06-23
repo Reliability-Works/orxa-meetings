@@ -293,7 +293,7 @@ export function PreferenceSettings() {
       setCalendarPermissionStatus(permissionStatus);
 
       if (!canReadCalendar(permissionStatus)) {
-        setCalendarError('Calendar access is required before Meetily can auto-start meeting transcription.');
+        setCalendarError('Calendar access is required before Orxa can auto-start meeting transcription.');
       }
     } catch (error) {
       console.error('Failed to request calendar permission:', error);
@@ -324,7 +324,7 @@ export function PreferenceSettings() {
       }
 
       if (!canReadCalendar(nextPermissionStatus)) {
-        setCalendarError('Calendar access is required before Meetily can auto-start meeting transcription.');
+        setCalendarError('Calendar access is required before Orxa can auto-start meeting transcription.');
         return;
       }
     }
@@ -516,7 +516,7 @@ export function PreferenceSettings() {
       <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Data Storage Locations</h3>
         <p className="text-sm text-gray-600 mb-6">
-          View and access where Meetily stores your data
+          View and access where Orxa stores your data
         </p>
 
         <div className="space-y-4">
