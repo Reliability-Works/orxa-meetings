@@ -13,7 +13,7 @@ export function PlaybackSettings() {
           <div>
             <h3 className="text-lg font-semibold text-gray-900">Summary Playback</h3>
             <p className="mt-1 text-sm text-gray-600">
-              Local voice models for reading meeting summaries aloud. Kokoro is the best first adapter target; richer voices can follow once playback is stable.
+              Meeting summaries can be read aloud today with the local macOS speech engine from the summary toolbar. Kokoro is the best first downloaded-model adapter target; richer voices can follow once playback is stable.
             </p>
           </div>
         </div>

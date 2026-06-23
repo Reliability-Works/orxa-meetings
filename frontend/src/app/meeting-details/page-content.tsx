@@ -18,6 +18,7 @@ import { useTemplates } from '@/hooks/meeting-details/useTemplates';
 import { useCopyOperations } from '@/hooks/meeting-details/useCopyOperations';
 import { useMeetingOperations } from '@/hooks/meeting-details/useMeetingOperations';
 import { useConfig } from '@/contexts/ConfigContext';
+import { useSummaryPlayback } from '@/hooks/meeting-details/useSummaryPlayback';
 
 export default function PageContent({
   meeting,
@@ -132,6 +133,13 @@ export default function PageContent({
     blockNoteSummaryRef: meetingData.blockNoteSummaryRef,
   });
 
+  const summaryPlayback = useSummaryPlayback({
+    meetingId: meeting.id,
+    meetingTitle: meetingData.meetingTitle,
+    aiSummary: meetingData.aiSummary,
+    blockNoteSummaryRef: meetingData.blockNoteSummaryRef,
+  });
+
   const meetingOperations = useMeetingOperations({
     meeting,
   });
@@ -241,6 +249,8 @@ export default function PageContent({
               isSaving={meetingData.isSaving}
               onSaveAll={meetingData.saveAllChanges}
               onCopySummary={copyOperations.handleCopySummary}
+              onPlaySummary={summaryPlayback.playSummary}
+              onStopSummaryPlayback={summaryPlayback.stopSummaryPlayback}
               onOpenFolder={meetingOperations.handleOpenMeetingFolder}
               aiSummary={meetingData.aiSummary}
               summaryStatus={summaryGeneration.summaryStatus}
@@ -263,6 +273,8 @@ export default function PageContent({
               onTemplateSelect={templates.handleTemplateSelection}
               isModelConfigLoading={false}
               onOpenModelSettings={handleRegisterModalOpen}
+              isPlayingSummary={summaryPlayback.isPlayingSummary}
+              isSummaryPlaybackSupported={summaryPlayback.isSummaryPlaybackSupported}
             />
           ) : (
             <WorkHubPanel meetingId={meeting.id} meetingTitle={meetingData.meetingTitle} />

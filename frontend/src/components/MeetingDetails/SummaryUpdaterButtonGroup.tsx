@@ -2,7 +2,7 @@
 
 import { Button } from '@/components/ui/button';
 import { ButtonGroup } from '@/components/ui/button-group';
-import { Copy, Save, Loader2, Search, FolderOpen } from 'lucide-react';
+import { Copy, Save, Loader2, Search, FolderOpen, Square, Volume2 } from 'lucide-react';
 import Analytics from '@/lib/analytics';
 
 interface SummaryUpdaterButtonGroupProps {
@@ -10,9 +10,13 @@ interface SummaryUpdaterButtonGroupProps {
   isDirty: boolean;
   onSave: () => Promise<void>;
   onCopy: () => Promise<void>;
+  onPlay?: () => Promise<void>;
+  onStopPlayback?: () => void;
   onFind?: () => void;
   onOpenFolder: () => Promise<void>;
   hasSummary: boolean;
+  isPlayingSummary?: boolean;
+  isSummaryPlaybackSupported?: boolean;
 }
 
 export function SummaryUpdaterButtonGroup({
@@ -20,9 +24,13 @@ export function SummaryUpdaterButtonGroup({
   isDirty,
   onSave,
   onCopy,
+  onPlay,
+  onStopPlayback,
   onFind,
   onOpenFolder,
-  hasSummary
+  hasSummary,
+  isPlayingSummary = false,
+  isSummaryPlaybackSupported = false
 }: SummaryUpdaterButtonGroupProps) {
   return (
     <ButtonGroup>
@@ -65,6 +73,26 @@ export function SummaryUpdaterButtonGroup({
       >
         <Copy />
         <span className="hidden lg:inline">Copy</span>
+      </Button>
+
+      {/* Playback button */}
+      <Button
+        variant="outline"
+        size="sm"
+        title={isPlayingSummary ? "Stop Summary Playback" : "Read Summary Aloud"}
+        onClick={() => {
+          Analytics.trackButtonClick(isPlayingSummary ? 'stop_summary_playback' : 'read_summary_aloud', 'meeting_details');
+          if (isPlayingSummary) {
+            onStopPlayback?.();
+          } else {
+            onPlay?.();
+          }
+        }}
+        disabled={!hasSummary || !isSummaryPlaybackSupported}
+        className="cursor-pointer"
+      >
+        {isPlayingSummary ? <Square /> : <Volume2 />}
+        <span className="hidden lg:inline">{isPlayingSummary ? 'Stop' : 'Read'}</span>
       </Button>
 
       {/* Find button */}

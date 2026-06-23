@@ -38,6 +38,8 @@ interface SummaryPanelProps {
   isSaving: boolean;
   onSaveAll: () => Promise<void>;
   onCopySummary: () => Promise<void>;
+  onPlaySummary?: () => Promise<void>;
+  onStopSummaryPlayback?: () => void;
   onOpenFolder: () => Promise<void>;
   aiSummary: Summary | null;
   summaryStatus: 'idle' | 'processing' | 'summarizing' | 'regenerating' | 'completed' | 'error';
@@ -60,6 +62,8 @@ interface SummaryPanelProps {
   onTemplateSelect: (templateId: string, templateName: string) => void;
   isModelConfigLoading?: boolean;
   onOpenModelSettings?: (openFn: () => void) => void;
+  isPlayingSummary?: boolean;
+  isSummaryPlaybackSupported?: boolean;
 }
 
 export function SummaryPanel({
@@ -74,6 +78,8 @@ export function SummaryPanel({
   isSaving,
   onSaveAll,
   onCopySummary,
+  onPlaySummary,
+  onStopSummaryPlayback,
   onOpenFolder,
   aiSummary,
   summaryStatus,
@@ -95,7 +101,9 @@ export function SummaryPanel({
   selectedTemplate,
   onTemplateSelect,
   isModelConfigLoading = false,
-  onOpenModelSettings
+  onOpenModelSettings,
+  isPlayingSummary = false,
+  isSummaryPlaybackSupported = false
 }: SummaryPanelProps) {
   const [summaryLang, setSummaryLang] = useState<string | null>(null);
   const [summaryLangStorage, setSummaryLangStorage] = useState<SummaryLanguageStorage>('metadata');
@@ -295,12 +303,16 @@ export function SummaryPanel({
                 isDirty={isTitleDirty || (summaryRef.current?.isDirty || false)}
                 onSave={onSaveAll}
                 onCopy={onCopySummary}
+                onPlay={onPlaySummary}
+                onStopPlayback={onStopSummaryPlayback}
                 onFind={() => {
                   // TODO: Implement find in summary functionality
                   console.log('Find in summary clicked');
                 }}
                 onOpenFolder={onOpenFolder}
                 hasSummary={!!aiSummary}
+                isPlayingSummary={isPlayingSummary}
+                isSummaryPlaybackSupported={isSummaryPlaybackSupported}
               />
             </div>
           </div>
