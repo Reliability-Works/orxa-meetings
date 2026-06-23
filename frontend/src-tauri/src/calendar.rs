@@ -328,7 +328,13 @@ mod platform {
 
     pub fn request_calendar_access() -> Result<CalendarPermissionStatus, String> {
         let current = status_from_raw(raw_calendar_permission_status());
-        if current != CalendarPermissionStatus::NotDetermined {
+        if matches!(
+            current,
+            CalendarPermissionStatus::FullAccess
+                | CalendarPermissionStatus::Denied
+                | CalendarPermissionStatus::Restricted
+                | CalendarPermissionStatus::Unavailable
+        ) {
             return Ok(current);
         }
 
@@ -361,7 +367,17 @@ mod platform {
                 release_object(store);
 
                 match result {
-                    Ok(true) => Ok(CalendarPermissionStatus::FullAccess),
+                    Ok(true) => {
+                        for _ in 0..10 {
+                            let status = status_from_raw(raw_calendar_permission_status());
+                            if status == CalendarPermissionStatus::FullAccess {
+                                return Ok(status);
+                            }
+                            std::thread::sleep(Duration::from_millis(100));
+                        }
+
+                        Ok(status_from_raw(raw_calendar_permission_status()))
+                    }
                     Ok(false) => Ok(status_from_raw(raw_calendar_permission_status())),
                     Err(error) => Err(error),
                 }

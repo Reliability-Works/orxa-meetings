@@ -215,6 +215,25 @@ function itemTitle(item: AgendaItem) {
   return item.type === 'event' ? item.event.title : item.meeting.title;
 }
 
+function canReadCalendar(status: CalendarPermissionStatus) {
+  return status === 'full_access';
+}
+
+function calendarAccessMessage(status: CalendarPermissionStatus) {
+  switch (status) {
+    case 'denied':
+      return 'Calendar access is denied. Open macOS Settings and allow Orxa to read Calendar events.';
+    case 'restricted':
+      return 'Calendar access is restricted by macOS settings.';
+    case 'write_only':
+      return 'Calendar access is write-only. Orxa needs full access to read meeting events.';
+    case 'unavailable':
+      return 'Calendar access is not available in this build.';
+    default:
+      return 'Allow Calendar access to show your real meeting events here.';
+  }
+}
+
 export default function CalendarPage() {
   const router = useRouter();
   const { setCurrentMeeting } = useSidebar();
@@ -254,7 +273,7 @@ export default function CalendarPage() {
       const status = await invoke<CalendarPermissionStatus>('get_calendar_permission_status');
       setPermissionStatus(status);
 
-      if (status !== 'full_access') {
+      if (!canReadCalendar(status)) {
         setCalendarEvents([]);
         return;
       }
@@ -297,16 +316,29 @@ export default function CalendarPage() {
 
   const requestCalendarAccess = async () => {
     try {
-      const status = await invoke<CalendarPermissionStatus>('request_calendar_permission');
+      setIsLoadingEvents(true);
+      let status = await invoke<CalendarPermissionStatus>('request_calendar_permission');
+
+      for (let attempt = 0; attempt < 6 && !canReadCalendar(status); attempt += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 250));
+        status = await invoke<CalendarPermissionStatus>('get_calendar_permission_status');
+      }
+
       setPermissionStatus(status);
-      if (status === 'full_access') {
+
+      if (canReadCalendar(status)) {
         await loadCalendarEvents();
+      } else if (status === 'denied' || status === 'restricted' || status === 'write_only') {
+        await invoke('open_system_settings', { preferencePane: 'Privacy_Calendars' });
+        toast.message('Calendar access needs to be enabled in macOS Settings');
       } else {
         toast.warning('Calendar access is not enabled');
       }
     } catch (error) {
       console.error('Failed to request calendar access:', error);
       toast.error('Could not request calendar access');
+    } finally {
+      setIsLoadingEvents(false);
     }
   };
 
@@ -340,14 +372,16 @@ export default function CalendarPage() {
           </div>
         </div>
 
-        {permissionStatus !== 'full_access' && permissionStatus !== 'unknown' && permissionStatus !== 'unavailable' && (
+        {!canReadCalendar(permissionStatus) && permissionStatus !== 'unknown' && permissionStatus !== 'unavailable' && (
           <div className="mb-4 flex items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600">
             <div className="flex items-center gap-2">
               <ShieldCheck className="h-4 w-4 text-gray-500" />
-              <span>Allow Calendar access to show your real meeting events here.</span>
+              <span>{calendarAccessMessage(permissionStatus)}</span>
             </div>
             <Button variant="outline" size="sm" onClick={requestCalendarAccess}>
-              Allow Access
+              {permissionStatus === 'denied' || permissionStatus === 'restricted' || permissionStatus === 'write_only'
+                ? 'Open Settings'
+                : 'Allow Access'}
             </Button>
           </div>
         )}
