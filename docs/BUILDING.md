@@ -72,10 +72,15 @@ Run the full local gate:
 make validate
 ```
 
+The validation target prepares the local `llama-helper` Tauri sidecar
+automatically before Rust linting or tests run, so a clean clone can validate
+without prebuilt binaries checked into Git.
+
 Individual gates are also available:
 
 ```bash
 make format-check
+make prepare-sidecars
 make lint
 make typecheck
 make test

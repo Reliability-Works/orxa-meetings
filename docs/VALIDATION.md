@@ -11,6 +11,8 @@ It is intentionally split into named gates so failures are easy to diagnose.
 ## Gates
 
 - `make format-check` checks Rust formatting and supported text formatting.
+- `make prepare-sidecars` builds the local `llama-helper` sidecar into the
+  Tauri `binaries/` path expected by clean Rust builds.
 - `make lint` runs ESLint for the frontend, Markdown linting for docs, and Rust/Python static checks.
 - `make typecheck` runs TypeScript type checking.
 - `make test` runs frontend unit tests, Rust workspace tests, and MCP Python unit tests.
