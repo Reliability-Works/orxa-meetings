@@ -1,27 +1,27 @@
 "use client";
 
-import { useCallback, useEffect, useState } from 'react';
-import { invoke } from '@tauri-apps/api/core';
-import { toast } from 'sonner';
-import { MessageSquareText } from 'lucide-react';
-import { ModelConfig, ModelSettingsModal } from '@/components/ModelSettingsModal';
+import { useCallback, useEffect, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import { toast } from "sonner";
+import { MessageSquareText } from "lucide-react";
+import { ModelConfig, ModelSettingsModal } from "@/components/ModelSettingsModal";
 
 export function ChatAgentSettings() {
   const [chatModelConfig, setChatModelConfig] = useState<ModelConfig>({
-    provider: 'builtin-ai',
-    model: '',
-    whisperModel: '',
+    provider: "builtin-ai",
+    model: "",
+    whisperModel: "",
     apiKey: null,
     ollamaEndpoint: null,
   });
 
   const loadChatConfig = useCallback(async () => {
     try {
-      const config = await invoke<any>('chat_get_agent_config');
+      const config = await invoke<any>("chat_get_agent_config");
       setChatModelConfig({
-        provider: config.provider || 'builtin-ai',
-        model: config.model || '',
-        whisperModel: config.whisperModel || '',
+        provider: config.provider || "builtin-ai",
+        model: config.model || "",
+        whisperModel: config.whisperModel || "",
         apiKey: config.apiKey || null,
         ollamaEndpoint: config.ollamaEndpoint || null,
         customOpenAIEndpoint: config.customOpenAIEndpoint || null,
@@ -32,8 +32,8 @@ export function ChatAgentSettings() {
         topP: config.topP || null,
       });
     } catch (error) {
-      console.error('Failed to load chat agent settings:', error);
-      toast.error('Failed to load chat agent settings');
+      console.error("Failed to load chat agent settings:", error);
+      toast.error("Failed to load chat agent settings");
     }
   }, []);
 
@@ -43,10 +43,10 @@ export function ChatAgentSettings() {
 
   const saveChatConfig = async (config: ModelConfig) => {
     try {
-      const saved = await invoke<any>('chat_save_agent_config', {
+      const saved = await invoke<any>("chat_save_agent_config", {
         provider: config.provider,
         model: config.model,
-        whisperModel: config.whisperModel || '',
+        whisperModel: config.whisperModel || "",
         apiKey: config.apiKey || null,
         ollamaEndpoint: config.ollamaEndpoint || null,
       });
@@ -55,13 +55,13 @@ export function ChatAgentSettings() {
         ...config,
         provider: saved.provider || config.provider,
         model: saved.model || config.model,
-        whisperModel: saved.whisperModel || config.whisperModel || '',
+        whisperModel: saved.whisperModel || config.whisperModel || "",
         ollamaEndpoint: saved.ollamaEndpoint || config.ollamaEndpoint || null,
       });
-      toast.success('Chat agent saved');
+      toast.success("Chat agent saved");
     } catch (error) {
-      console.error('Failed to save chat agent settings:', error);
-      toast.error('Failed to save chat agent settings');
+      console.error("Failed to save chat agent settings:", error);
+      toast.error("Failed to save chat agent settings");
     }
   };
 

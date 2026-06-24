@@ -1,7 +1,7 @@
-import React from 'react';
-import { Download } from 'lucide-react';
-import { toast } from 'sonner';
-import { UpdateInfo } from '@/services/updateService';
+import React from "react";
+import { Download } from "lucide-react";
+import { toast } from "sonner";
+import { UpdateInfo } from "@/services/updateService";
 
 let globalShowDialogCallback: (() => void) | null = null;
 
@@ -41,7 +41,7 @@ export function showUpdateNotification(updateInfo: UpdateInfo, onUpdateClick?: (
     </div>,
     {
       duration: 10000,
-      position: 'bottom-center',
-    }
+      position: "bottom-center",
+    },
   );
 }

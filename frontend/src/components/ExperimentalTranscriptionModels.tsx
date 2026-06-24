@@ -1,6 +1,6 @@
-import { RadioTower } from 'lucide-react';
-import { LocalModelCatalogCards } from './LocalModelCatalogCards';
-import { EXPERIMENTAL_TRANSCRIPTION_MODELS } from '@/lib/localModelCatalog';
+import { RadioTower } from "lucide-react";
+import { LocalModelCatalogCards } from "./LocalModelCatalogCards";
+import { EXPERIMENTAL_TRANSCRIPTION_MODELS } from "@/lib/localModelCatalog";
 
 export function ExperimentalTranscriptionModels() {
   return (
@@ -10,9 +10,13 @@ export function ExperimentalTranscriptionModels() {
           <RadioTower className="h-4 w-4" />
         </div>
         <div>
-          <h3 className="text-base font-semibold text-gray-900">Next-Gen Transcription Candidates</h3>
+          <h3 className="text-base font-semibold text-gray-900">
+            Next-Gen Transcription Candidates
+          </h3>
           <p className="mt-1 text-sm text-gray-600">
-            Download newer local ASR candidates for benchmarking against Lightning and Local Whisper. Downloaded assets are cached locally; runnable live transcription remains Parakeet or Local Whisper until a model-specific runtime lands.
+            Download newer local ASR candidates for benchmarking against Lightning and Local
+            Whisper. Downloaded assets are cached locally; runnable live transcription remains
+            Parakeet or Local Whisper until a model-specific runtime lands.
           </p>
         </div>
       </div>

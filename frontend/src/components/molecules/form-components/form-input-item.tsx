@@ -1,42 +1,36 @@
-import {
-  FormControl,
-  FormField,
-  FormItem,
-  FormMessage,
-  FormLabel,
-} from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { Eye, EyeOff } from 'lucide-react';
-import { Control } from 'react-hook-form'; // Import Control type
-import { Textarea } from '@/components/ui/textarea';
+import { FormControl, FormField, FormItem, FormMessage, FormLabel } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Eye, EyeOff } from "lucide-react";
+import { Control } from "react-hook-form"; // Import Control type
+import { Textarea } from "@/components/ui/textarea";
 
 type IInpuItemProps = {
   name: string;
   placeholder?: string;
   control: Control<any>; // Add control prop of type Control
   type:
-    | 'button'
-    | 'checkbox'
-    | 'color'
-    | 'date'
-    | 'datetime-local'
-    | 'email'
-    | 'file'
-    | 'hidden'
-    | 'image'
-    | 'month'
-    | 'number'
-    | 'password'
-    | 'radio'
-    | 'range'
-    | 'reset'
-    | 'search'
-    | 'submit'
-    | 'tel'
-    | 'text'
-    | 'time'
-    | 'url'
-    | 'week'
+    | "button"
+    | "checkbox"
+    | "color"
+    | "date"
+    | "datetime-local"
+    | "email"
+    | "file"
+    | "hidden"
+    | "image"
+    | "month"
+    | "number"
+    | "password"
+    | "radio"
+    | "range"
+    | "reset"
+    | "search"
+    | "submit"
+    | "tel"
+    | "text"
+    | "time"
+    | "url"
+    | "week"
     | (string & {});
   label?: string;
   formStyle?: string;
@@ -82,10 +76,10 @@ export const FormInputItem = ({
             <div className={formStyle}>
               <FormLabel className={formLabelStyle}>{label}</FormLabel>
               <FormControl className={formControlStyle}>
-                {type === 'password' ? (
+                {type === "password" ? (
                   <div className="relative">
                     <Input
-                      type={showPassword ? 'text' : 'password'}
+                      type={showPassword ? "text" : "password"}
                       placeholder={placeholder}
                       {...field}
                       accept={accept}
@@ -93,25 +87,14 @@ export const FormInputItem = ({
                     />
                     <div className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 cursor-pointer">
                       {showPassword ? (
-                        <EyeOff
-                          className="h-6 w-6"
-                          onClick={togglePasswordVisibility}
-                        />
+                        <EyeOff className="h-6 w-6" onClick={togglePasswordVisibility} />
                       ) : (
-                        <Eye
-                          className="h-6 w-6"
-                          onClick={togglePasswordVisibility}
-                        />
+                        <Eye className="h-6 w-6" onClick={togglePasswordVisibility} />
                       )}
                     </div>
                   </div>
-                ) : type === 'textarea' ? (
-                  <Textarea
-                    placeholder={placeholder}
-                    {...field}
-                    className={inputStyle}
-                    rows={4}
-                  />
+                ) : type === "textarea" ? (
+                  <Textarea placeholder={placeholder} {...field} className={inputStyle} rows={4} />
                 ) : (
                   <Input
                     placeholder={placeholder}

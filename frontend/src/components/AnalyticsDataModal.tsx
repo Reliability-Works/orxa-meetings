@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import React from 'react';
-import { X, Info, Shield } from 'lucide-react';
+import React from "react";
+import { X, Info, Shield } from "lucide-react";
 
 interface AnalyticsDataModalProps {
   isOpen: boolean;
@@ -9,7 +9,11 @@ interface AnalyticsDataModalProps {
   onConfirmDisable: () => void;
 }
 
-export default function AnalyticsDataModal({ isOpen, onClose, onConfirmDisable }: AnalyticsDataModalProps) {
+export default function AnalyticsDataModal({
+  isOpen,
+  onClose,
+  onConfirmDisable,
+}: AnalyticsDataModalProps) {
   if (!isOpen) return null;
 
   return (
@@ -21,10 +25,7 @@ export default function AnalyticsDataModal({ isOpen, onClose, onConfirmDisable }
             <Shield className="w-6 h-6 text-blue-600" />
             <h2 className="text-xl font-semibold text-gray-900">What Analytics Collects</h2>
           </div>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-          >
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -37,7 +38,11 @@ export default function AnalyticsDataModal({ isOpen, onClose, onConfirmDisable }
               <Info className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
               <div className="text-sm text-green-800">
                 <p className="font-semibold mb-1">Your Privacy is Protected</p>
-                <p>Analytics is off by default. If you enable it, we collect <strong>anonymous usage data only</strong>. No meeting content, names, file paths, or personal information is ever collected.</p>
+                <p>
+                  Analytics is off by default. If you enable it, we collect{" "}
+                  <strong>anonymous usage data only</strong>. No meeting content, names, file paths,
+                  or personal information is ever collected.
+                </p>
               </div>
             </div>
           </div>
@@ -54,7 +59,9 @@ export default function AnalyticsDataModal({ isOpen, onClose, onConfirmDisable }
                 <li>• Summary model (e.g., "Llama 3.2", "Claude Sonnet")</li>
                 <li>• Model provider (e.g., "Local", "Ollama", "OpenRouter")</li>
               </ul>
-              <p className="text-xs text-gray-500 mt-2 italic">Helps us understand which models users prefer</p>
+              <p className="text-xs text-gray-500 mt-2 italic">
+                Helps us understand which models users prefer
+              </p>
             </div>
 
             {/* Meeting Metrics */}
@@ -66,7 +73,9 @@ export default function AnalyticsDataModal({ isOpen, onClose, onConfirmDisable }
                 <li>• Number of transcript segments</li>
                 <li>• Number of audio chunks processed</li>
               </ul>
-              <p className="text-xs text-gray-500 mt-2 italic">Helps us optimize performance and understand usage patterns</p>
+              <p className="text-xs text-gray-500 mt-2 italic">
+                Helps us optimize performance and understand usage patterns
+              </p>
             </div>
 
             {/* Device Types */}
@@ -76,7 +85,9 @@ export default function AnalyticsDataModal({ isOpen, onClose, onConfirmDisable }
                 <li>• Microphone type: "Bluetooth" or "Wired" or "Unknown"</li>
                 <li>• System audio type: "Bluetooth" or "Wired" or "Unknown"</li>
               </ul>
-              <p className="text-xs text-gray-500 mt-2 italic">Helps us improve compatibility, NOT the actual device names</p>
+              <p className="text-xs text-gray-500 mt-2 italic">
+                Helps us improve compatibility, NOT the actual device names
+              </p>
             </div>
 
             {/* Usage Patterns */}
@@ -99,7 +110,9 @@ export default function AnalyticsDataModal({ isOpen, onClose, onConfirmDisable }
                 <li>• App version (automatically included in all events)</li>
                 <li>• Architecture (e.g., "x86_64", "aarch64")</li>
               </ul>
-              <p className="text-xs text-gray-500 mt-2 italic">Helps us prioritize platform support</p>
+              <p className="text-xs text-gray-500 mt-2 italic">
+                Helps us prioritize platform support
+              </p>
             </div>
           </div>
 

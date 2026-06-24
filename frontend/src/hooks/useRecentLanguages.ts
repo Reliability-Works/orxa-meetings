@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useState } from 'react';
-import { normaliseLanguageCode } from '@/lib/summary-languages';
+import { useCallback, useEffect, useState } from "react";
+import { normaliseLanguageCode } from "@/lib/summary-languages";
 import {
   SUMMARY_LANGUAGE_DEFAULT_KEY,
   SUMMARY_LANGUAGE_RECENTS_KEY,
   readPinnedSummaryLanguageDefault,
   writePinnedSummaryLanguageDefault,
-} from '@/lib/summary-language-preferences';
+} from "@/lib/summary-language-preferences";
 
 const MRU_KEY = SUMMARY_LANGUAGE_RECENTS_KEY;
 const PINNED_KEY = SUMMARY_LANGUAGE_DEFAULT_KEY;
@@ -20,7 +20,7 @@ function writePinnedToStorage(value: string | null): void {
 }
 
 function readFromStorage(): string[] {
-  if (typeof window === 'undefined') return [];
+  if (typeof window === "undefined") return [];
   try {
     const raw = window.localStorage.getItem(MRU_KEY);
     if (!raw) return [];
@@ -28,7 +28,7 @@ function readFromStorage(): string[] {
     if (!Array.isArray(parsed)) return [];
     const normalised: string[] = [];
     for (const item of parsed) {
-      if (typeof item !== 'string') continue;
+      if (typeof item !== "string") continue;
       const code = normaliseLanguageCode(item);
       if (code && !normalised.includes(code)) normalised.push(code);
       if (normalised.length >= MAX_RECENTS) break;
@@ -40,7 +40,7 @@ function readFromStorage(): string[] {
 }
 
 function writeToStorage(values: string[]): void {
-  if (typeof window === 'undefined') return;
+  if (typeof window === "undefined") return;
   try {
     window.localStorage.setItem(MRU_KEY, JSON.stringify(values));
   } catch {
@@ -63,8 +63,8 @@ export function useRecentLanguages() {
       if (e.key === MRU_KEY) setRecents(readFromStorage());
       if (e.key === PINNED_KEY) setPinnedState(readPinnedFromStorage());
     };
-    window.addEventListener('storage', onStorage);
-    return () => window.removeEventListener('storage', onStorage);
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
   }, []);
 
   const addRecent = useCallback((code: string) => {

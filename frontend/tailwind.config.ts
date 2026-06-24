@@ -18,16 +18,14 @@ export default {
         destructive: "hsl(0, 84%, 60%)", // red-500
       },
       fontSize: {
-        'display': ['32px', { lineHeight: '1.2', fontWeight: '700' }],
-        'h1': ['24px', { lineHeight: '1.3', fontWeight: '600' }],
-        'h2': ['18px', { lineHeight: '1.4', fontWeight: '500' }],
-        'body': ['16px', { lineHeight: '1.6', fontWeight: '400' }],
-        'small': ['14px', { lineHeight: '1.5', fontWeight: '400' }],
-        'caption': ['12px', { lineHeight: '1.4', fontWeight: '400' }],
+        display: ["32px", { lineHeight: "1.2", fontWeight: "700" }],
+        h1: ["24px", { lineHeight: "1.3", fontWeight: "600" }],
+        h2: ["18px", { lineHeight: "1.4", fontWeight: "500" }],
+        body: ["16px", { lineHeight: "1.6", fontWeight: "400" }],
+        small: ["14px", { lineHeight: "1.5", fontWeight: "400" }],
+        caption: ["12px", { lineHeight: "1.4", fontWeight: "400" }],
       },
     },
   },
-  plugins: [
-    require('@tailwindcss/typography'),
-  ],
+  plugins: [require("@tailwindcss/typography")],
 } satisfies Config;

@@ -42,14 +42,11 @@ describe("blocksToMarkdownSafely", () => {
       ok: false,
     });
     expect(consoleError).toHaveBeenCalledTimes(1);
-    expect(consoleError).toHaveBeenCalledWith(
-      "Failed to convert BlockNote blocks to markdown",
-      {
-        source: "test-fallback",
-        blocksCount: 1,
-        error,
-      },
-    );
+    expect(consoleError).toHaveBeenCalledWith("Failed to convert BlockNote blocks to markdown", {
+      source: "test-fallback",
+      blocksCount: 1,
+      error,
+    });
   });
 
   test("omits markdown when conversion throws without fallback", async () => {

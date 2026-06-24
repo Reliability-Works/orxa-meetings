@@ -1,10 +1,4 @@
-import {
-  FormField,
-  FormItem,
-  FormLabel,
-  FormControl,
-  FormMessage,
-} from '@/components/ui/form';
+import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
 import {
   Select,
   SelectTrigger,
@@ -13,8 +7,8 @@ import {
   SelectValue,
   SelectGroup,
   SelectLabel,
-} from '@/components/ui/select';
-import { Control } from 'react-hook-form'; // Import Control type
+} from "@/components/ui/select";
+import { Control } from "react-hook-form"; // Import Control type
 type ISelectItemProps = {
   name: string;
   placeholder: string;

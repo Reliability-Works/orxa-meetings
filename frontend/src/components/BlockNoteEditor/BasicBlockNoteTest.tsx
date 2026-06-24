@@ -36,10 +36,7 @@ export default function BasicBlockNoteTest() {
         <div className="view-label">Markdown Input</div>
         <div className="view">
           <code>
-            <textarea
-              defaultValue={initialMarkdown}
-              onChange={markdownInputChanged}
-            />
+            <textarea defaultValue={initialMarkdown} onChange={markdownInputChanged} />
           </code>
         </div>
       </div>

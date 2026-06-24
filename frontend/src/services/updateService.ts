@@ -5,9 +5,9 @@
  * Provides update checking, downloading, and installation functionality.
  */
 
-import { check, Update } from '@tauri-apps/plugin-updater';
-import { relaunch } from '@tauri-apps/plugin-process';
-import { getVersion } from '@tauri-apps/api/app';
+import { check, Update } from "@tauri-apps/plugin-updater";
+import { relaunch } from "@tauri-apps/plugin-process";
+import { getVersion } from "@tauri-apps/api/app";
 
 export interface UpdateInfo {
   available: boolean;
@@ -42,14 +42,14 @@ export class UpdateService {
   async checkForUpdates(force = false): Promise<UpdateInfo> {
     // Prevent concurrent update checks
     if (this.updateCheckInProgress) {
-      throw new Error('Update check already in progress');
+      throw new Error("Update check already in progress");
     }
 
     // Skip if checked recently (unless forced)
     if (!force && this.lastCheckTime) {
       const timeSinceLastCheck = Date.now() - this.lastCheckTime;
       if (timeSinceLastCheck < this.CHECK_INTERVAL_MS) {
-        console.log('Skipping update check - checked recently');
+        console.log("Skipping update check - checked recently");
         return {
           available: false,
           currentVersion: await getVersion(),
@@ -80,7 +80,7 @@ export class UpdateService {
         currentVersion,
       };
     } catch (error) {
-      console.error('Failed to check for updates:', error);
+      console.error("Failed to check for updates:", error);
       throw error;
     } finally {
       this.updateCheckInProgress = false;
@@ -95,7 +95,7 @@ export class UpdateService {
    */
   async downloadAndInstall(
     update: Update,
-    onProgress?: (progress: UpdateProgress) => void
+    onProgress?: (progress: UpdateProgress) => void,
   ): Promise<void> {
     try {
       let downloaded = 0;
@@ -103,12 +103,12 @@ export class UpdateService {
 
       await update.downloadAndInstall((event) => {
         switch (event.event) {
-          case 'Started':
+          case "Started":
             downloaded = 0;
             contentLength = event.data.contentLength || 0;
             onProgress?.({ downloaded, total: contentLength, percentage: 0 });
             break;
-          case 'Progress':
+          case "Progress":
             downloaded += event.data.chunkLength || 0;
             onProgress?.({
               downloaded,
@@ -116,7 +116,7 @@ export class UpdateService {
               percentage: contentLength > 0 ? Math.round((downloaded / contentLength) * 100) : 0,
             });
             break;
-          case 'Finished':
+          case "Finished":
             onProgress?.({
               downloaded: contentLength,
               total: contentLength,
@@ -128,7 +128,7 @@ export class UpdateService {
 
       await relaunch();
     } catch (error) {
-      console.error('Failed to download/install update:', error);
+      console.error("Failed to download/install update:", error);
       throw error;
     }
   }

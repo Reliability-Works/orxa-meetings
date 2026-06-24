@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { invoke } from '@tauri-apps/api/core';
+import { useState, useEffect } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 export interface PermissionStatus {
   hasMicrophone: boolean;
@@ -17,26 +17,27 @@ export function usePermissionCheck() {
   });
 
   const checkPermissions = async () => {
-    setStatus(prev => ({ ...prev, isChecking: true, error: null }));
+    setStatus((prev) => ({ ...prev, isChecking: true, error: null }));
 
     try {
       // Get audio devices to check for microphone and system audio availability
-      const devices = await invoke<Array<{ name: string; device_type: 'Input' | 'Output' }>>('get_audio_devices');
+      const devices =
+        await invoke<Array<{ name: string; device_type: "Input" | "Output" }>>("get_audio_devices");
 
       // Check for microphone devices (Input)
-      const inputDevices = devices.filter(d => d.device_type === 'Input');
+      const inputDevices = devices.filter((d) => d.device_type === "Input");
       const hasMicrophone = inputDevices.length > 0;
 
       // Check for system audio devices (Output)
       // On macOS, we need ScreenCaptureKit devices for system audio
-      const outputDevices = devices.filter(d => d.device_type === 'Output');
+      const outputDevices = devices.filter((d) => d.device_type === "Output");
       const hasSystemAudio = outputDevices.length > 0;
 
-      console.log('Permission check:', {
+      console.log("Permission check:", {
         hasMicrophone,
         hasSystemAudio,
         inputDevices: inputDevices.length,
-        outputDevices: outputDevices.length
+        outputDevices: outputDevices.length,
       });
 
       setStatus({
@@ -48,12 +49,12 @@ export function usePermissionCheck() {
 
       return { hasMicrophone, hasSystemAudio };
     } catch (error) {
-      console.error('Failed to check audio permissions:', error);
+      console.error("Failed to check audio permissions:", error);
       setStatus({
         hasMicrophone: false,
         hasSystemAudio: false,
         isChecking: false,
-        error: error instanceof Error ? error.message : 'Failed to check permissions',
+        error: error instanceof Error ? error.message : "Failed to check permissions",
       });
       return { hasMicrophone: false, hasSystemAudio: false };
     }
@@ -62,14 +63,14 @@ export function usePermissionCheck() {
   const requestPermissions = async () => {
     try {
       // Trigger audio permission by trying to access devices
-      await invoke('get_audio_devices');
+      await invoke("get_audio_devices");
 
       // Recheck after triggering
       setTimeout(() => {
         checkPermissions();
       }, 1000);
     } catch (error) {
-      console.error('Failed to request permissions:', error);
+      console.error("Failed to request permissions:", error);
     }
   };
 

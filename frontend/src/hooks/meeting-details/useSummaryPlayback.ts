@@ -1,9 +1,9 @@
-import { RefObject, useCallback, useEffect, useMemo, useState } from 'react';
-import { toast } from 'sonner';
-import { Summary } from '@/types';
-import { BlockNoteSummaryViewRef } from '@/components/AISummary/BlockNoteSummaryView';
-import { markdownToSpeechText, summaryDataToMarkdown } from '@/lib/summaryText';
-import Analytics from '@/lib/analytics';
+import { RefObject, useCallback, useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
+import { Summary } from "@/types";
+import { BlockNoteSummaryViewRef } from "@/components/AISummary/BlockNoteSummaryView";
+import { markdownToSpeechText, summaryDataToMarkdown } from "@/lib/summaryText";
+import Analytics from "@/lib/analytics";
 
 interface UseSummaryPlaybackProps {
   meetingId: string;
@@ -13,14 +13,16 @@ interface UseSummaryPlaybackProps {
 }
 
 function chooseVoice(): SpeechSynthesisVoice | null {
-  if (typeof window === 'undefined' || !('speechSynthesis' in window)) return null;
+  if (typeof window === "undefined" || !("speechSynthesis" in window)) return null;
 
   const voices = window.speechSynthesis.getVoices();
-  const preferredNames = ['Samantha', 'Daniel', 'Serena', 'Karen', 'Moira', 'Tessa', 'Alex'];
+  const preferredNames = ["Samantha", "Daniel", "Serena", "Karen", "Moira", "Tessa", "Alex"];
   return (
-    voices.find((voice) => voice.localService && preferredNames.some((name) => voice.name.includes(name))) ||
-    voices.find((voice) => voice.localService && voice.lang.toLowerCase().startsWith('en')) ||
-    voices.find((voice) => voice.lang.toLowerCase().startsWith('en')) ||
+    voices.find(
+      (voice) => voice.localService && preferredNames.some((name) => voice.name.includes(name)),
+    ) ||
+    voices.find((voice) => voice.localService && voice.lang.toLowerCase().startsWith("en")) ||
+    voices.find((voice) => voice.lang.toLowerCase().startsWith("en")) ||
     null
   );
 }
@@ -34,8 +36,11 @@ export function useSummaryPlayback({
   const [isPlayingSummary, setIsPlayingSummary] = useState(false);
 
   const isSummaryPlaybackSupported = useMemo(
-    () => typeof window !== 'undefined' && 'speechSynthesis' in window && 'SpeechSynthesisUtterance' in window,
-    []
+    () =>
+      typeof window !== "undefined" &&
+      "speechSynthesis" in window &&
+      "SpeechSynthesisUtterance" in window,
+    [],
   );
 
   const stopSummaryPlayback = useCallback(() => {
@@ -48,11 +53,11 @@ export function useSummaryPlayback({
 
   const playSummary = useCallback(async () => {
     if (!isSummaryPlaybackSupported) {
-      toast.error('Summary playback is not available on this device');
+      toast.error("Summary playback is not available on this device");
       return;
     }
 
-    let summaryMarkdown = '';
+    let summaryMarkdown = "";
     if (blockNoteSummaryRef.current?.getMarkdown) {
       summaryMarkdown = await blockNoteSummaryRef.current.getMarkdown();
     }
@@ -62,7 +67,7 @@ export function useSummaryPlayback({
 
     const speechText = markdownToSpeechText(`# ${meetingTitle}\n\n${summaryMarkdown}`);
     if (!speechText) {
-      toast.error('No summary content available to read');
+      toast.error("No summary content available to read");
       return;
     }
 
@@ -74,12 +79,12 @@ export function useSummaryPlayback({
     utterance.onend = () => setIsPlayingSummary(false);
     utterance.onerror = () => {
       setIsPlayingSummary(false);
-      toast.error('Summary playback stopped');
+      toast.error("Summary playback stopped");
     };
 
     setIsPlayingSummary(true);
     window.speechSynthesis.speak(utterance);
-    await Analytics.trackFeatureUsed('summary_playback');
+    await Analytics.trackFeatureUsed("summary_playback");
   }, [aiSummary, blockNoteSummaryRef, isSummaryPlaybackSupported, meetingTitle]);
 
   return {

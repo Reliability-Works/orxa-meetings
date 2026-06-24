@@ -1,44 +1,45 @@
-'use client'
+"use client";
 
-import './globals.css'
-import { Source_Sans_3 } from 'next/font/google'
-import Sidebar from '@/components/Sidebar'
-import { SidebarProvider } from '@/components/Sidebar/SidebarProvider'
-import MainContent from '@/components/MainContent'
-import AnalyticsProvider from '@/components/AnalyticsProvider'
-import { Toaster, toast } from 'sonner'
-import "sonner/dist/styles.css"
-import { useState, useEffect, useCallback } from 'react'
-import { listen, UnlistenFn } from '@tauri-apps/api/event'
-import { invoke } from '@tauri-apps/api/core'
-import { getCurrentWindow } from '@tauri-apps/api/window'
-import { TooltipProvider } from '@/components/ui/tooltip'
-import { RecordingStateProvider } from '@/contexts/RecordingStateContext'
-import { OllamaDownloadProvider } from '@/contexts/OllamaDownloadContext'
-import { TranscriptProvider } from '@/contexts/TranscriptContext'
-import { ConfigProvider, useConfig } from '@/contexts/ConfigContext'
-import { OnboardingProvider } from '@/contexts/OnboardingContext'
-import { OnboardingFlow } from '@/components/onboarding'
-import { loadBetaFeatures } from '@/types/betaFeatures'
-import { DownloadProgressToastProvider } from '@/components/shared/DownloadProgressToast'
-import { UpdateCheckProvider } from '@/components/UpdateCheckProvider'
-import { RecordingPostProcessingProvider } from '@/contexts/RecordingPostProcessingProvider'
-import { ImportAudioDialog, ImportDropOverlay } from '@/components/ImportAudio'
-import { ImportDialogProvider } from '@/contexts/ImportDialogContext'
-import { isAudioExtension, getAudioFormatsDisplayList } from '@/constants/audioFormats'
-
+import "./globals.css";
+import { Source_Sans_3 } from "next/font/google";
+import Sidebar from "@/components/Sidebar";
+import { SidebarProvider } from "@/components/Sidebar/SidebarProvider";
+import MainContent from "@/components/MainContent";
+import AnalyticsProvider from "@/components/AnalyticsProvider";
+import { Toaster, toast } from "sonner";
+import "sonner/dist/styles.css";
+import { useState, useEffect, useCallback } from "react";
+import { listen, UnlistenFn } from "@tauri-apps/api/event";
+import { invoke } from "@tauri-apps/api/core";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { RecordingStateProvider } from "@/contexts/RecordingStateContext";
+import { OllamaDownloadProvider } from "@/contexts/OllamaDownloadContext";
+import { TranscriptProvider } from "@/contexts/TranscriptContext";
+import { ConfigProvider, useConfig } from "@/contexts/ConfigContext";
+import { OnboardingProvider } from "@/contexts/OnboardingContext";
+import { OnboardingFlow } from "@/components/onboarding";
+import { loadBetaFeatures } from "@/types/betaFeatures";
+import { DownloadProgressToastProvider } from "@/components/shared/DownloadProgressToast";
+import { UpdateCheckProvider } from "@/components/UpdateCheckProvider";
+import { RecordingPostProcessingProvider } from "@/contexts/RecordingPostProcessingProvider";
+import { ImportAudioDialog, ImportDropOverlay } from "@/components/ImportAudio";
+import { ImportDialogProvider } from "@/contexts/ImportDialogContext";
+import { isAudioExtension, getAudioFormatsDisplayList } from "@/constants/audioFormats";
 
 const sourceSans3 = Source_Sans_3({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
-  variable: '--font-source-sans-3',
-})
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-source-sans-3",
+});
 
 function WindowDragStrip() {
   const startWindowDrag = () => {
-    void getCurrentWindow().startDragging().catch((error) => {
-      console.warn('[Layout] Failed to start native window drag:', error);
-    });
+    void getCurrentWindow()
+      .startDragging()
+      .catch((error) => {
+        console.warn("[Layout] Failed to start native window drag:", error);
+      });
   };
 
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
@@ -55,7 +56,7 @@ function WindowDragStrip() {
     <div
       data-tauri-drag-region
       className="fixed right-0 top-0 z-50 h-10 bg-transparent"
-      style={{ left: 190, WebkitAppRegion: 'drag', userSelect: 'none' } as React.CSSProperties}
+      style={{ left: 190, WebkitAppRegion: "drag", userSelect: "none" } as React.CSSProperties}
       onPointerDown={handlePointerDown}
       onMouseDown={handleMouseDown}
     />
@@ -92,67 +93,60 @@ function ConditionalImportDialog({
 
 // export { metadata } from './metadata'
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
-  const [showOnboarding, setShowOnboarding] = useState(false)
-  const [onboardingCompleted, setOnboardingCompleted] = useState(false)
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   // Import audio state
-  const [showDropOverlay, setShowDropOverlay] = useState(false)
-  const [showImportDialog, setShowImportDialog] = useState(false)
-  const [importFilePath, setImportFilePath] = useState<string | null>(null)
+  const [showDropOverlay, setShowDropOverlay] = useState(false);
+  const [showImportDialog, setShowImportDialog] = useState(false);
+  const [importFilePath, setImportFilePath] = useState<string | null>(null);
 
   useEffect(() => {
     // Check onboarding status first
-    invoke<{ completed: boolean } | null>('get_onboarding_status')
+    invoke<{ completed: boolean } | null>("get_onboarding_status")
       .then((status) => {
-        const isComplete = status?.completed ?? false
-        setOnboardingCompleted(isComplete)
+        const isComplete = status?.completed ?? false;
 
         if (!isComplete) {
-          console.log('[Layout] Onboarding not completed, showing onboarding flow')
-          setShowOnboarding(true)
+          console.log("[Layout] Onboarding not completed, showing onboarding flow");
+          setShowOnboarding(true);
         } else {
-          console.log('[Layout] Onboarding completed, showing main app')
+          console.log("[Layout] Onboarding completed, showing main app");
         }
       })
       .catch((error) => {
-        console.error('[Layout] Failed to check onboarding status:', error)
+        console.error("[Layout] Failed to check onboarding status:", error);
         // Default to showing onboarding if we can't check
-        setShowOnboarding(true)
-        setOnboardingCompleted(false)
-      })
-  }, [])
+        setShowOnboarding(true);
+      });
+  }, []);
 
   // Disable context menu in production
   useEffect(() => {
-    if (process.env.NODE_ENV === 'production') {
+    if (process.env.NODE_ENV === "production") {
       const handleContextMenu = (e: MouseEvent) => e.preventDefault();
-      document.addEventListener('contextmenu', handleContextMenu);
-      return () => document.removeEventListener('contextmenu', handleContextMenu);
+      document.addEventListener("contextmenu", handleContextMenu);
+      return () => document.removeEventListener("contextmenu", handleContextMenu);
     }
   }, []);
   useEffect(() => {
     // Listen for tray recording toggle request
-    const unlisten = listen('request-recording-toggle', () => {
-      console.log('[Layout] Received request-recording-toggle from tray');
+    const unlisten = listen("request-recording-toggle", () => {
+      console.log("[Layout] Received request-recording-toggle from tray");
 
       if (showOnboarding) {
         toast.error("Please complete setup first", {
-          description: "You need to finish onboarding before you can start recording."
+          description: "You need to finish onboarding before you can start recording.",
         });
       } else {
         // If in main app, forward to useRecordingStart via window event
-        console.log('[Layout] Forwarding to start-recording-from-sidebar');
-        window.dispatchEvent(new CustomEvent('start-recording-from-sidebar'));
+        console.log("[Layout] Forwarding to start-recording-from-sidebar");
+        window.dispatchEvent(new CustomEvent("start-recording-from-sidebar"));
       }
     });
 
     return () => {
-      unlisten.then(fn => fn());
+      unlisten.then((fn) => fn());
     };
   }, [showOnboarding]);
 
@@ -162,25 +156,25 @@ export default function RootLayout({
     const betaFeatures = loadBetaFeatures();
 
     if (!betaFeatures.importAndRetranscribe) {
-      toast.error('Beta feature disabled', {
-        description: 'Enable "Import Audio & Retranscribe" in Settings > Beta to use this feature.'
+      toast.error("Beta feature disabled", {
+        description: 'Enable "Import Audio & Retranscribe" in Settings > Beta to use this feature.',
       });
       return;
     }
 
     // Find the first audio file
-    const audioFile = paths.find(p => {
-      const ext = p.split('.').pop()?.toLowerCase();
+    const audioFile = paths.find((p) => {
+      const ext = p.split(".").pop()?.toLowerCase();
       return !!ext && isAudioExtension(ext);
     });
 
     if (audioFile) {
-      console.log('[Layout] Audio file dropped:', audioFile);
+      console.log("[Layout] Audio file dropped:", audioFile);
       setImportFilePath(audioFile);
       setShowImportDialog(true);
     } else if (paths.length > 0) {
-      toast.error('Please drop an audio file', {
-        description: `Supported formats: ${getAudioFormatsDisplayList()}`
+      toast.error("Please drop an audio file", {
+        description: `Supported formats: ${getAudioFormatsDisplayList()}`,
       });
     }
   }, []);
@@ -194,7 +188,7 @@ export default function RootLayout({
 
     const setupListeners = async () => {
       // Drag enter/over - show overlay only if beta feature is enabled
-      const unlistenDragEnter = await listen('tauri://drag-enter', () => {
+      const unlistenDragEnter = await listen("tauri://drag-enter", () => {
         if (loadBetaFeatures().importAndRetranscribe) {
           setShowDropOverlay(true);
         }
@@ -206,24 +200,24 @@ export default function RootLayout({
       unlisteners.push(unlistenDragEnter);
 
       // Drag leave - hide overlay
-      const unlistenDragLeave = await listen('tauri://drag-leave', () => {
+      const unlistenDragLeave = await listen("tauri://drag-leave", () => {
         setShowDropOverlay(false);
       });
       if (cleanedUpRef.current) {
         unlistenDragLeave();
-        unlisteners.forEach(u => u());
+        unlisteners.forEach((u) => u());
         return;
       }
       unlisteners.push(unlistenDragLeave);
 
       // Drop - process files
-      const unlistenDrop = await listen<{ paths: string[] }>('tauri://drag-drop', (event) => {
+      const unlistenDrop = await listen<{ paths: string[] }>("tauri://drag-drop", (event) => {
         setShowDropOverlay(false);
         handleFileDrop(event.payload.paths);
       });
       if (cleanedUpRef.current) {
         unlistenDrop();
-        unlisteners.forEach(u => u());
+        unlisteners.forEach((u) => u());
         return;
       }
       unlisteners.push(unlistenDrop);
@@ -252,12 +246,11 @@ export default function RootLayout({
   }, []);
 
   const handleOnboardingComplete = () => {
-    console.log('[Layout] Onboarding completed, reloading app')
-    setShowOnboarding(false)
-    setOnboardingCompleted(true)
+    console.log("[Layout] Onboarding completed, reloading app");
+    setShowOnboarding(false);
     // Optionally reload the window to ensure all state is fresh
-    window.location.reload()
-  }
+    window.location.reload();
+  };
 
   return (
     <html lang="en">
@@ -299,7 +292,6 @@ export default function RootLayout({
                       </SidebarProvider>
                     </UpdateCheckProvider>
                   </OnboardingProvider>
-
                 </OllamaDownloadProvider>
               </ConfigProvider>
             </TranscriptProvider>
@@ -309,5 +301,5 @@ export default function RootLayout({
         <Toaster position="bottom-center" richColors closeButton />
       </body>
     </html>
-  )
+  );
 }

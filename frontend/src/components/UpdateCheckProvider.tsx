@@ -1,11 +1,11 @@
-'use client'
+"use client";
 
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import { useUpdateCheck } from '@/hooks/useUpdateCheck';
-import { updateService, UpdateInfo, UpdateProgress } from '@/services/updateService';
-import { UpdateDialog } from './UpdateDialog';
-import { setUpdateDialogCallback, showUpdateNotification } from './UpdateNotification';
-import { toast } from 'sonner';
+import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
+import { useUpdateCheck } from "@/hooks/useUpdateCheck";
+import { updateService, UpdateInfo, UpdateProgress } from "@/services/updateService";
+import { UpdateDialog } from "./UpdateDialog";
+import { setUpdateDialogCallback, showUpdateNotification } from "./UpdateNotification";
+import { toast } from "sonner";
 
 interface UpdateCheckContextType {
   updateInfo: UpdateInfo | null;
@@ -47,9 +47,10 @@ export function UpdateCheckProvider({ children }: { children: React.ReactNode })
     setIsDownloading(true);
 
     try {
-      const updateToInstall = updateInfo?.update ?? (await updateService.checkForUpdates(true)).update;
+      const updateToInstall =
+        updateInfo?.update ?? (await updateService.checkForUpdates(true)).update;
       if (!updateToInstall) {
-        throw new Error('Update is no longer available');
+        throw new Error("Update is no longer available");
       }
 
       await updateService.downloadAndInstall(updateToInstall, setUpdateProgress);
@@ -57,7 +58,7 @@ export function UpdateCheckProvider({ children }: { children: React.ReactNode })
       const message = error instanceof Error ? error.message : String(error);
       setUpdateError(message);
       setIsDownloading(false);
-      toast.error('Update failed', { description: message });
+      toast.error("Update failed", { description: message });
     }
   }, [isDownloading, updateInfo]);
 
@@ -76,8 +77,8 @@ export function UpdateCheckProvider({ children }: { children: React.ReactNode })
       setShowDialog(true);
     };
 
-    window.addEventListener('check-updates-from-tray', handleTrayCheck);
-    return () => window.removeEventListener('check-updates-from-tray', handleTrayCheck);
+    window.addEventListener("check-updates-from-tray", handleTrayCheck);
+    return () => window.removeEventListener("check-updates-from-tray", handleTrayCheck);
   }, [checkForUpdates]);
 
   return (
@@ -110,7 +111,7 @@ export function UpdateCheckProvider({ children }: { children: React.ReactNode })
 export function useUpdateCheckContext() {
   const context = useContext(UpdateCheckContext);
   if (context === undefined) {
-    throw new Error('useUpdateCheckContext must be used within UpdateCheckProvider');
+    throw new Error("useUpdateCheckContext must be used within UpdateCheckProvider");
   }
   return context;
 }

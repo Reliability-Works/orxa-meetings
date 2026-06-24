@@ -1,8 +1,8 @@
-import React from 'react';
-import { Lock, Sparkles, Cpu } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { OnboardingContainer } from '../OnboardingContainer';
-import { useOnboarding } from '@/contexts/OnboardingContext';
+import React from "react";
+import { Lock, Sparkles, Cpu } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { OnboardingContainer } from "../OnboardingContainer";
+import { useOnboarding } from "@/contexts/OnboardingContext";
 
 export function WelcomeStep() {
   const { goNext } = useOnboarding();
@@ -10,15 +10,15 @@ export function WelcomeStep() {
   const features = [
     {
       icon: Lock,
-      title: 'Your data never leaves your device',
+      title: "Your data never leaves your device",
     },
     {
       icon: Sparkles,
-      title: 'Intelligent summaries & insights',
+      title: "Intelligent summaries & insights",
     },
     {
       icon: Cpu,
-      title: 'Works offline, no cloud required',
+      title: "Works offline, no cloud required",
     },
   ];
 
@@ -52,10 +52,7 @@ export function WelcomeStep() {
 
         {/* CTA Section */}
         <div className="w-full max-w-xs space-y-3">
-          <Button
-            onClick={goNext}
-            className="w-full h-11 bg-gray-900 hover:bg-gray-800 text-white"
-          >
+          <Button onClick={goNext} className="w-full h-11 bg-gray-900 hover:bg-gray-800 text-white">
             Get Started
           </Button>
           <p className="text-xs text-center text-gray-500">Takes less than 3 minutes</p>

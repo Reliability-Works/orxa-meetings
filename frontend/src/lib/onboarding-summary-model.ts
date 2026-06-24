@@ -10,10 +10,10 @@ interface OnboardingSummaryModelStatus {
 }
 
 const SUMMARY_MODEL_SIZES_MB: Record<string, number> = {
-  'qwen3.5:2b': 1221,
-  'qwen3.5:4b': 2614,
-  'gemma3:1b': 1019,
-  'gemma3:4b': 2374,
+  "qwen3.5:2b": 1221,
+  "qwen3.5:4b": 2614,
+  "gemma3:1b": 1019,
+  "gemma3:4b": 2374,
 };
 
 export function resolveOnboardingSummaryModelStatus({
@@ -39,7 +39,7 @@ export function getDownloadTotalMb(totalMb: number | null | undefined, model: st
 
 export function formatSummaryModelSizeLabelFromMb(sizeMb: number): string {
   if (sizeMb === 0) {
-    return '';
+    return "";
   }
 
   if (sizeMb >= 1024) {

@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from "react";
 import {
   Database as DatabaseIcon,
   FlaskConical,
@@ -11,59 +11,89 @@ import {
   Settings2,
   SparkleIcon,
   Volume2,
-} from 'lucide-react';
-import { invoke } from '@tauri-apps/api/core';
-import { TranscriptSettings } from '@/components/TranscriptSettings';
-import { RecordingSettings } from '@/components/RecordingSettings';
-import { PreferenceSettings } from '@/components/PreferenceSettings';
-import { SummaryModelSettings } from '@/components/SummaryModelSettings';
-import { BetaSettings } from '@/components/BetaSettings';
-import { PlaybackSettings } from '@/components/PlaybackSettings';
-import { ChatAgentSettings } from '@/components/ChatAgentSettings';
-import { AgentSourcesSettings } from '@/components/AgentSourcesSettings';
-import { useConfig } from '@/contexts/ConfigContext';
+} from "lucide-react";
+import { invoke } from "@tauri-apps/api/core";
+import { TranscriptSettings } from "@/components/TranscriptSettings";
+import { RecordingSettings } from "@/components/RecordingSettings";
+import { PreferenceSettings } from "@/components/PreferenceSettings";
+import { SummaryModelSettings } from "@/components/SummaryModelSettings";
+import { BetaSettings } from "@/components/BetaSettings";
+import { PlaybackSettings } from "@/components/PlaybackSettings";
+import { ChatAgentSettings } from "@/components/ChatAgentSettings";
+import { AgentSourcesSettings } from "@/components/AgentSourcesSettings";
+import { useConfig } from "@/contexts/ConfigContext";
 
 const SETTINGS_ITEMS = [
-  { value: 'general', label: 'General', icon: Settings2, keywords: 'preferences privacy analytics language' },
-  { value: 'recording', label: 'Recordings', icon: Mic, keywords: 'microphone audio capture recording' },
-  { value: 'Transcriptionmodels', label: 'Transcription', icon: DatabaseIcon, keywords: 'parakeet whisper models transcript speech' },
-  { value: 'summaryModels', label: 'Summary', icon: SparkleIcon, keywords: 'summary model ai actions todos decisions' },
-  { value: 'chat', label: 'Chat', icon: MessageSquareText, keywords: 'agent ask model meeting chat' },
-  { value: 'playback', label: 'Playback', icon: Volume2, keywords: 'voice tts audio read aloud' },
-  { value: 'agentSources', label: 'Agent Sources', icon: FolderSearch, keywords: 'codex claude cursor sessions memories chronicles history context' },
-  { value: 'beta', label: 'Beta', icon: FlaskConical, keywords: 'experimental features preview' },
+  {
+    value: "general",
+    label: "General",
+    icon: Settings2,
+    keywords: "preferences privacy analytics language",
+  },
+  {
+    value: "recording",
+    label: "Recordings",
+    icon: Mic,
+    keywords: "microphone audio capture recording",
+  },
+  {
+    value: "Transcriptionmodels",
+    label: "Transcription",
+    icon: DatabaseIcon,
+    keywords: "parakeet whisper models transcript speech",
+  },
+  {
+    value: "summaryModels",
+    label: "Summary",
+    icon: SparkleIcon,
+    keywords: "summary model ai actions todos decisions",
+  },
+  {
+    value: "chat",
+    label: "Chat",
+    icon: MessageSquareText,
+    keywords: "agent ask model meeting chat",
+  },
+  { value: "playback", label: "Playback", icon: Volume2, keywords: "voice tts audio read aloud" },
+  {
+    value: "agentSources",
+    label: "Agent Sources",
+    icon: FolderSearch,
+    keywords: "codex claude cursor sessions memories chronicles history context",
+  },
+  { value: "beta", label: "Beta", icon: FlaskConical, keywords: "experimental features preview" },
 ] as const;
 
-type SettingsTab = typeof SETTINGS_ITEMS[number]['value'];
+type SettingsTab = (typeof SETTINGS_ITEMS)[number]["value"];
 
 const SETTINGS_GROUPS: { title: string; values: SettingsTab[] }[] = [
-  { title: 'Personal', values: ['general', 'recording'] },
-  { title: 'Models', values: ['Transcriptionmodels', 'summaryModels', 'chat', 'playback'] },
-  { title: 'Context', values: ['agentSources'] },
-  { title: 'Advanced', values: ['beta'] },
+  { title: "Personal", values: ["general", "recording"] },
+  { title: "Models", values: ["Transcriptionmodels", "summaryModels", "chat", "playback"] },
+  { title: "Context", values: ["agentSources"] },
+  { title: "Advanced", values: ["beta"] },
 ];
 
 export default function SettingsPage() {
   const { transcriptModelConfig, setTranscriptModelConfig } = useConfig();
 
-  const [activeTab, setActiveTab] = useState<SettingsTab>('general');
-  const [settingsSearch, setSettingsSearch] = useState('');
+  const [activeTab, setActiveTab] = useState<SettingsTab>("general");
+  const [settingsSearch, setSettingsSearch] = useState("");
 
   // Load saved transcript configuration on mount
   useEffect(() => {
     const loadTranscriptConfig = async () => {
       try {
-        const config = await invoke('api_get_transcript_config') as any;
+        const config = (await invoke("api_get_transcript_config")) as any;
         if (config) {
-          console.log('Loaded saved transcript config:', config);
+          console.log("Loaded saved transcript config:", config);
           setTranscriptModelConfig({
-            provider: config.provider || 'localWhisper',
-            model: config.model || 'large-v3',
-            apiKey: config.apiKey || null
+            provider: config.provider || "localWhisper",
+            model: config.model || "large-v3",
+            apiKey: config.apiKey || null,
           });
         }
       } catch (error) {
-        console.error('Failed to load transcript config:', error);
+        console.error("Failed to load transcript config:", error);
       }
     };
     loadTranscriptConfig();
@@ -74,7 +104,7 @@ export default function SettingsPage() {
     return SETTINGS_GROUPS.map((group) => {
       const items = group.values
         .map((value) => SETTINGS_ITEMS.find((item) => item.value === value))
-        .filter((item): item is typeof SETTINGS_ITEMS[number] => Boolean(item))
+        .filter((item): item is (typeof SETTINGS_ITEMS)[number] => Boolean(item))
         .filter((item) => {
           if (!query) return true;
           return `${item.label} ${item.keywords} ${group.title}`.toLowerCase().includes(query);
@@ -85,26 +115,26 @@ export default function SettingsPage() {
 
   const renderActiveSettings = () => {
     switch (activeTab) {
-      case 'general':
+      case "general":
         return <PreferenceSettings />;
-      case 'recording':
+      case "recording":
         return <RecordingSettings />;
-      case 'Transcriptionmodels':
+      case "Transcriptionmodels":
         return (
           <TranscriptSettings
             transcriptModelConfig={transcriptModelConfig}
             setTranscriptModelConfig={setTranscriptModelConfig}
           />
         );
-      case 'summaryModels':
+      case "summaryModels":
         return <SummaryModelSettings />;
-      case 'chat':
+      case "chat":
         return <ChatAgentSettings />;
-      case 'playback':
+      case "playback":
         return <PlaybackSettings />;
-      case 'agentSources':
+      case "agentSources":
         return <AgentSourcesSettings />;
-      case 'beta':
+      case "beta":
         return <BetaSettings />;
       default:
         return <PreferenceSettings />;
@@ -128,7 +158,9 @@ export default function SettingsPage() {
           {filteredGroups.length > 0 ? (
             filteredGroups.map((group) => (
               <div key={group.title} className="mb-4">
-                <h2 className="mb-1.5 px-2 text-[12px] font-medium uppercase tracking-[0.03em] text-gray-400">{group.title}</h2>
+                <h2 className="mb-1.5 px-2 text-[12px] font-medium uppercase tracking-[0.03em] text-gray-400">
+                  {group.title}
+                </h2>
                 <div className="space-y-0.5">
                   {group.items.map((item) => {
                     const Icon = item.icon;
@@ -139,7 +171,7 @@ export default function SettingsPage() {
                         type="button"
                         onClick={() => setActiveTab(item.value)}
                         className={`flex h-8 w-full items-center gap-2 rounded-lg px-2 text-left text-[14px] transition-colors ${
-                          active ? 'bg-gray-100 text-gray-950' : 'text-gray-800 hover:bg-gray-100'
+                          active ? "bg-gray-100 text-gray-950" : "text-gray-800 hover:bg-gray-100"
                         }`}
                       >
                         <Icon className="h-4 w-4 shrink-0" />
@@ -157,10 +189,8 @@ export default function SettingsPage() {
       </aside>
 
       <section className="min-w-0 flex-1 overflow-y-auto bg-white">
-        <div className="mx-auto max-w-5xl px-8 pb-12 pt-16">
-          {renderActiveSettings()}
-        </div>
+        <div className="mx-auto max-w-5xl px-8 pb-12 pt-16">{renderActiveSettings()}</div>
       </section>
     </div>
   );
-};
+}

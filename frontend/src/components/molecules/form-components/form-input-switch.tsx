@@ -1,12 +1,6 @@
-import {
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormDescription,
-} from '@/components/ui/form';
-import { Switch } from '@/components/ui/switch';
-import { Control } from 'react-hook-form'; // Import Control type
+import { FormControl, FormField, FormItem, FormLabel, FormDescription } from "@/components/ui/form";
+import { Switch } from "@/components/ui/switch";
+import { Control } from "react-hook-form"; // Import Control type
 
 type IInpuItemProps = {
   name: string;
@@ -42,15 +36,10 @@ export const SwitchInput = ({
         >
           <div className="space-y-0.5">
             <FormLabel className="text-base">{label}</FormLabel>
-            {isFormDescription && (
-              <FormDescription>{description}</FormDescription>
-            )}
+            {isFormDescription && <FormDescription>{description}</FormDescription>}
           </div>
           <FormControl>
-            <Switch
-              checked={field.value}
-              onCheckedChange={field.onChange}
-            />
+            <Switch checked={field.value} onCheckedChange={field.onChange} />
           </FormControl>
         </FormItem>
       )}

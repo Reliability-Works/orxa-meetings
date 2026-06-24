@@ -15,8 +15,8 @@ export interface Transcript {
   confidence?: number;
   // NEW: Recording-relative timestamps for playback sync
   audio_start_time?: number; // Seconds from recording start (e.g., 125.3)
-  audio_end_time?: number;   // Seconds from recording start (e.g., 128.6)
-  duration?: number;          // Segment duration in seconds (e.g., 3.3)
+  audio_end_time?: number; // Seconds from recording start (e.g., 128.6)
+  duration?: number; // Segment duration in seconds (e.g., 3.3)
 }
 
 export interface TranscriptUpdate {
@@ -30,8 +30,8 @@ export interface TranscriptUpdate {
   confidence: number;
   // NEW: Recording-relative timestamps for playback sync
   audio_start_time: number; // Seconds from recording start
-  audio_end_time: number;   // Seconds from recording start
-  duration: number;          // Segment duration in seconds
+  audio_end_time: number; // Seconds from recording start
+  duration: number; // Segment duration in seconds
 }
 
 export interface Block {
@@ -68,7 +68,7 @@ export interface SummaryResponse {
 }
 
 // BlockNote-specific types
-export type SummaryFormat = 'legacy' | 'markdown' | 'blocknote';
+export type SummaryFormat = "legacy" | "markdown" | "blocknote";
 
 export interface BlockNoteBlock {
   id: string;
@@ -145,7 +145,7 @@ export interface ChatSession {
 export interface ChatMessage {
   id: string;
   session_id: string;
-  role: 'user' | 'assistant';
+  role: "user" | "assistant";
   content: string;
   evidence: AskOrxaEvidence[];
   model?: string | null;

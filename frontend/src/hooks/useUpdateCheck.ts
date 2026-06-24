@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
-import { updateService, UpdateInfo } from '@/services/updateService';
-import { showUpdateNotification } from '@/components/UpdateNotification';
+import { useEffect, useState } from "react";
+import { updateService, UpdateInfo } from "@/services/updateService";
+import { showUpdateNotification } from "@/components/UpdateNotification";
 
 interface UseUpdateCheckOptions {
   checkOnMount?: boolean;
@@ -9,11 +9,7 @@ interface UseUpdateCheckOptions {
 }
 
 export function useUpdateCheck(options: UseUpdateCheckOptions = {}) {
-  const {
-    checkOnMount = true,
-    showNotification = true,
-    onUpdateAvailable,
-  } = options;
+  const { checkOnMount = true, showNotification = true, onUpdateAvailable } = options;
 
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [isChecking, setIsChecking] = useState(false);
@@ -39,7 +35,7 @@ export function useUpdateCheck(options: UseUpdateCheckOptions = {}) {
         }
       }
     } catch (error) {
-      console.error('Failed to check for updates:', error);
+      console.error("Failed to check for updates:", error);
       // Silently fail on startup checks to avoid disrupting user experience
     } finally {
       setIsChecking(false);

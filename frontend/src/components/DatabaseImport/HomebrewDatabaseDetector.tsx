@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { invoke } from '@tauri-apps/api/core';
-import { toast } from 'sonner';
-import { Database, AlertCircle, Loader2, CheckCircle2 } from 'lucide-react';
+import { useEffect, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import { toast } from "sonner";
+import { Database, AlertCircle, Loader2, CheckCircle2 } from "lucide-react";
 
 interface HomebrewDatabaseDetectorProps {
   onImportSuccess: () => void;
@@ -12,16 +12,19 @@ interface HomebrewDatabaseDetectorProps {
 
 // Homebrew paths differ between Intel and Apple Silicon Macs
 const HOMEBREW_PATHS = [
-  '/opt/homebrew/var/orxa/meeting_minutes.db',  // Apple Silicon (M1/M2/M3)
-  '/usr/local/var/orxa/meeting_minutes.db',      // Intel Macs
+  "/opt/homebrew/var/orxa/meeting_minutes.db", // Apple Silicon (M1/M2/M3)
+  "/usr/local/var/orxa/meeting_minutes.db", // Intel Macs
 ];
 
-export function HomebrewDatabaseDetector({ onImportSuccess, onDecline }: HomebrewDatabaseDetectorProps) {
+export function HomebrewDatabaseDetector({
+  onImportSuccess,
+  onDecline,
+}: HomebrewDatabaseDetectorProps) {
   const [isChecking, setIsChecking] = useState(true);
   const [isImporting, setIsImporting] = useState(false);
   const [homebrewDbExists, setHomebrewDbExists] = useState(false);
   const [dbSize, setDbSize] = useState<number>(0);
-  const [detectedPath, setDetectedPath] = useState<string>('');
+  const [detectedPath, setDetectedPath] = useState<string>("");
   const [isDismissed, setIsDismissed] = useState(false);
 
   useEffect(() => {
@@ -34,9 +37,12 @@ export function HomebrewDatabaseDetector({ onImportSuccess, onDecline }: Homebre
 
       // Check all possible Homebrew locations
       for (const path of HOMEBREW_PATHS) {
-        const result = await invoke<{ exists: boolean; size: number } | null>('check_homebrew_database', {
-          path,
-        });
+        const result = await invoke<{ exists: boolean; size: number } | null>(
+          "check_homebrew_database",
+          {
+            path,
+          },
+        );
 
         if (result && result.exists && result.size > 0) {
           setHomebrewDbExists(true);
@@ -46,7 +52,7 @@ export function HomebrewDatabaseDetector({ onImportSuccess, onDecline }: Homebre
         }
       }
     } catch (error) {
-      console.error('Error checking homebrew database:', error);
+      console.error("Error checking homebrew database:", error);
       // Silently fail - this is just auto-detection
     } finally {
       setIsChecking(false);
@@ -57,18 +63,18 @@ export function HomebrewDatabaseDetector({ onImportSuccess, onDecline }: Homebre
     try {
       setIsImporting(true);
 
-      await invoke('import_and_initialize_database', {
+      await invoke("import_and_initialize_database", {
         legacyDbPath: detectedPath,
       });
 
-      toast.success('Database imported successfully! Reloading...');
+      toast.success("Database imported successfully! Reloading...");
 
       // Wait 1 second for user to see success, then reload window to refresh all data
       setTimeout(() => {
         window.location.reload();
       }, 1000);
     } catch (error) {
-      console.error('Error importing database:', error);
+      console.error("Error importing database:", error);
       toast.error(`Import failed: ${error}`);
       setIsImporting(false);
     }
@@ -101,20 +107,17 @@ export function HomebrewDatabaseDetector({ onImportSuccess, onDecline }: Homebre
             </h3>
           </div>
           <p className="text-sm text-blue-800 mb-2">
-            We found an existing database from your previous Orxa installation (Python backend version).
+            We found an existing database from your previous Orxa installation (Python backend
+            version).
           </p>
           <div className="bg-white/50 rounded p-2 mb-3">
-            <p className="text-xs text-blue-700 font-mono break-all">
-              {detectedPath}
-            </p>
-            <p className="text-xs text-blue-600 mt-1">
-              Size: {formatFileSize(dbSize)}
-            </p>
+            <p className="text-xs text-blue-700 font-mono break-all">{detectedPath}</p>
+            <p className="text-xs text-blue-600 mt-1">Size: {formatFileSize(dbSize)}</p>
           </div>
           <p className="text-sm text-blue-800 mb-3">
             Would you like to import your previous meetings, transcripts, and summaries?
           </p>
-          
+
           {/* Yes/No Buttons */}
           <div className="flex gap-2">
             <button
@@ -134,7 +137,7 @@ export function HomebrewDatabaseDetector({ onImportSuccess, onDecline }: Homebre
                 </>
               )}
             </button>
-            
+
             <button
               onClick={handleNo}
               disabled={isImporting}
@@ -148,4 +151,3 @@ export function HomebrewDatabaseDetector({ onImportSuccess, onDecline }: Homebre
     </div>
   );
 }
-

@@ -1,19 +1,19 @@
-"use client"
+"use client";
 
-import { Switch } from "./ui/switch"
-import { FlaskConical, AlertCircle } from "lucide-react"
-import { useConfig } from "@/contexts/ConfigContext"
+import { Switch } from "./ui/switch";
+import { FlaskConical, AlertCircle } from "lucide-react";
+import { useConfig } from "@/contexts/ConfigContext";
 import {
   BetaFeatureKey,
   BETA_FEATURE_NAMES,
-  BETA_FEATURE_DESCRIPTIONS
-} from "@/types/betaFeatures"
+  BETA_FEATURE_DESCRIPTIONS,
+} from "@/types/betaFeatures";
 
 export function BetaSettings() {
   const { betaFeatures, toggleBetaFeature } = useConfig();
 
   // Define feature order for display (allows custom ordering)
-  const featureOrder: BetaFeatureKey[] = ['importAndRetranscribe'];
+  const featureOrder: BetaFeatureKey[] = ["importAndRetranscribe"];
 
   return (
     <div className="space-y-6">
@@ -23,7 +23,8 @@ export function BetaSettings() {
         <div className="text-sm text-amber-800">
           <p className="font-medium">Beta features</p>
           <p className="mt-1">
-            These features are still being tested. You may encounter issues, and we appreciate your feedback.
+            These features are still being tested. You may encounter issues, and we appreciate your
+            feedback.
           </p>
         </div>
       </div>
@@ -38,8 +39,12 @@ export function BetaSettings() {
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
                 <FlaskConical className="h-4 w-4 text-gray-500" />
-                <h3 className="text-[15px] font-medium text-gray-950">{BETA_FEATURE_NAMES[featureKey]}</h3>
-                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">Beta</span>
+                <h3 className="text-[15px] font-medium text-gray-950">
+                  {BETA_FEATURE_NAMES[featureKey]}
+                </h3>
+                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
+                  Beta
+                </span>
               </div>
               <p className="mt-1 text-sm text-gray-500">{BETA_FEATURE_DESCRIPTIONS[featureKey]}</p>
             </div>

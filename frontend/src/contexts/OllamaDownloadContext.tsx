@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { listen } from '@tauri-apps/api/event';
-import { toast } from 'sonner';
+import React, { createContext, useContext, useState, useEffect } from "react";
+import { listen } from "@tauri-apps/api/event";
+import { toast } from "sonner";
 
 /**
  * Ollama download state synchronized with backend
@@ -14,8 +14,8 @@ import { toast } from 'sonner';
  */
 
 interface OllamaDownloadState {
-  downloadProgress: Map<string, number>;  // modelName -> progress (0-100)
-  downloadingModels: Set<string>;         // Set of model names currently downloading
+  downloadProgress: Map<string, number>; // modelName -> progress (0-100)
+  downloadingModels: Set<string>; // Set of model names currently downloading
 }
 
 interface OllamaDownloadContextType extends OllamaDownloadState {
@@ -28,7 +28,7 @@ const OllamaDownloadContext = createContext<OllamaDownloadContextType | null>(nu
 export const useOllamaDownload = () => {
   const context = useContext(OllamaDownloadContext);
   if (!context) {
-    throw new Error('useOllamaDownload must be used within an OllamaDownloadProvider');
+    throw new Error("useOllamaDownload must be used within an OllamaDownloadProvider");
   }
   return context;
 };
@@ -42,102 +42,102 @@ export function OllamaDownloadProvider({ children }: { children: React.ReactNode
    * These persist for the lifetime of the app, unlike modal-scoped listeners
    */
   useEffect(() => {
-    console.log('[OllamaDownloadContext] Setting up event listeners');
+    console.log("[OllamaDownloadContext] Setting up event listeners");
     const unsubscribers: (() => void)[] = [];
 
     const setupListeners = async () => {
       try {
         // Download progress
         const unlistenProgress = await listen<{ modelName: string; progress: number }>(
-          'ollama-model-download-progress',
+          "ollama-model-download-progress",
           (event) => {
             const { modelName, progress } = event.payload;
             console.log(`🔵 [OllamaDownloadContext] Progress for ${modelName}: ${progress}%`);
 
-            setDownloadProgress(prev => {
+            setDownloadProgress((prev) => {
               const newProgress = new Map(prev);
               newProgress.set(modelName, progress);
               return newProgress;
             });
 
             // Add to downloading set if not already there
-            setDownloadingModels(prev => {
+            setDownloadingModels((prev) => {
               if (prev.has(modelName)) return prev;
               const newSet = new Set(prev);
               newSet.add(modelName);
               return newSet;
             });
-          }
+          },
         );
         unsubscribers.push(unlistenProgress);
 
         // Download complete
         const unlistenComplete = await listen<{ modelName: string }>(
-          'ollama-model-download-complete',
+          "ollama-model-download-complete",
           (event) => {
             const { modelName } = event.payload;
             console.log(`✅ [OllamaDownloadContext] Download complete for ${modelName}`);
 
             toast.success(`Model ${modelName} downloaded!`, {
-              description: 'Model is now ready to use',
-              duration: 4000
+              description: "Model is now ready to use",
+              duration: 4000,
             });
 
             // Clear progress and remove from downloading set
-            setDownloadProgress(prev => {
+            setDownloadProgress((prev) => {
               const newProgress = new Map(prev);
               newProgress.delete(modelName);
               return newProgress;
             });
 
-            setDownloadingModels(prev => {
+            setDownloadingModels((prev) => {
               const newSet = new Set(prev);
               newSet.delete(modelName);
               return newSet;
             });
-          }
+          },
         );
         unsubscribers.push(unlistenComplete);
 
         // Download error
         const unlistenError = await listen<{ modelName: string; error: string }>(
-          'ollama-model-download-error',
+          "ollama-model-download-error",
           (event) => {
             const { modelName, error } = event.payload;
             console.error(`❌ [OllamaDownloadContext] Download error for ${modelName}:`, error);
 
             toast.error(`Download failed: ${modelName}`, {
               description: error,
-              duration: 6000
+              duration: 6000,
             });
 
             // Clear progress and remove from downloading set
-            setDownloadProgress(prev => {
+            setDownloadProgress((prev) => {
               const newProgress = new Map(prev);
               newProgress.delete(modelName);
               return newProgress;
             });
 
-            setDownloadingModels(prev => {
+            setDownloadingModels((prev) => {
               const newSet = new Set(prev);
               newSet.delete(modelName);
               return newSet;
             });
-          }
+          },
         );
         unsubscribers.push(unlistenError);
 
-        console.log('[OllamaDownloadContext] Event listeners set up successfully');
+        console.log("[OllamaDownloadContext] Event listeners set up successfully");
       } catch (error) {
-        console.error('[OllamaDownloadContext] Failed to set up event listeners:', error);
+        console.error("[OllamaDownloadContext] Failed to set up event listeners:", error);
       }
     };
 
     setupListeners();
 
     return () => {
-      console.log('[OllamaDownloadContext] Cleaning up event listeners');
-      unsubscribers.forEach(unsub => unsub());
+      console.log("[OllamaDownloadContext] Cleaning up event listeners");
+      unsubscribers.forEach((unsub) => unsub());
     };
   }, []);
 
@@ -149,8 +149,6 @@ export function OllamaDownloadProvider({ children }: { children: React.ReactNode
   };
 
   return (
-    <OllamaDownloadContext.Provider value={contextValue}>
-      {children}
-    </OllamaDownloadContext.Provider>
+    <OllamaDownloadContext.Provider value={contextValue}>{children}</OllamaDownloadContext.Provider>
   );
 }

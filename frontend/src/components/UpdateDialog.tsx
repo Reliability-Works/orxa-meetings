@@ -1,5 +1,5 @@
-import React from 'react';
-import { Download, AlertCircle, Loader2 } from 'lucide-react';
+import React from "react";
+import { Download, AlertCircle, Loader2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -7,9 +7,9 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from './ui/dialog';
-import { Button } from './ui/button';
-import { UpdateInfo, UpdateProgress } from '@/services/updateService';
+} from "./ui/dialog";
+import { Button } from "./ui/button";
+import { UpdateInfo, UpdateProgress } from "@/services/updateService";
 
 interface UpdateDialogProps {
   open: boolean;
@@ -35,7 +35,7 @@ export function UpdateDialog({
   };
 
   const formatDate = (dateString?: string) => {
-    if (!dateString) return '';
+    if (!dateString) return "";
     try {
       return new Date(dateString).toLocaleDateString();
     } catch {
@@ -99,10 +99,10 @@ export function UpdateDialog({
           </DialogTitle>
           <DialogDescription>
             {isDownloading
-              ? 'Downloading the latest version...'
+              ? "Downloading the latest version..."
               : error
-              ? 'An error occurred while updating'
-              : `A new version (${updateInfo.version}) is available`}
+                ? "An error occurred while updating"
+                : `A new version (${updateInfo.version}) is available`}
           </DialogDescription>
         </DialogHeader>
 
@@ -128,9 +128,7 @@ export function UpdateDialog({
 
               {updateInfo.body && (
                 <div className="bg-gray-50 rounded-lg p-3 max-h-40 overflow-y-auto">
-                  <p className="text-sm text-gray-700 whitespace-pre-wrap">
-                    {updateInfo.body}
-                  </p>
+                  <p className="text-sm text-gray-700 whitespace-pre-wrap">{updateInfo.body}</p>
                 </div>
               )}
             </>
@@ -191,9 +189,9 @@ export function UpdateDialog({
 }
 
 function formatBytes(bytes: number): string {
-  if (bytes === 0) return '0 Bytes';
+  if (bytes === 0) return "0 Bytes";
   const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const sizes = ["Bytes", "KB", "MB", "GB"];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+  return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i];
 }

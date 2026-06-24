@@ -1,8 +1,8 @@
-import { clsx, type ClassValue } from "clsx"
-import { twMerge } from "tailwind-merge"
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
 
 export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
+  return twMerge(clsx(inputs));
 }
 
 /**
@@ -17,16 +17,16 @@ export function isOllamaNotInstalledError(errorMessage: string): boolean {
 
   // Check for common patterns that indicate Ollama is not installed or not running
   const patterns = [
-    'cannot connect',
-    'connection refused',
-    'cli not found',
-    'not in path',
-    'ollama cli not found',
-    'not found or not in path',
-    'please check if the server is running',
-    'please check if the ollama server is running',
-    'econnrefused',
+    "cannot connect",
+    "connection refused",
+    "cli not found",
+    "not in path",
+    "ollama cli not found",
+    "not found or not in path",
+    "please check if the server is running",
+    "please check if the ollama server is running",
+    "econnrefused",
   ];
 
-  return patterns.some(pattern => lowerError.includes(pattern));
+  return patterns.some((pattern) => lowerError.includes(pattern));
 }

@@ -48,14 +48,13 @@ export function LanguagePickerPopover({
   const recentCodes = useMemo(() => new Set(recents), [recents]);
 
   const filteredAll = useMemo(() => {
-    const options = mode === "meeting"
-      ? LANGUAGE_OPTIONS.filter((l) => !recentCodes.has(l.code))
-      : LANGUAGE_OPTIONS;
+    const options =
+      mode === "meeting"
+        ? LANGUAGE_OPTIONS.filter((l) => !recentCodes.has(l.code))
+        : LANGUAGE_OPTIONS;
     if (!filter) return options;
     return options.filter(
-      (l) =>
-        l.code.toLowerCase().includes(filter) ||
-        l.label.toLowerCase().includes(filter),
+      (l) => l.code.toLowerCase().includes(filter) || l.label.toLowerCase().includes(filter),
     );
   }, [filter, mode, recentCodes]);
 
@@ -75,8 +74,7 @@ export function LanguagePickerPopover({
 
   const showAuto = mode === "meeting" && (!filter || "auto".includes(filter));
   const showRecents = mode === "meeting" && recentsResolved.length > 0;
-  const hasNoResults =
-    filteredAll.length === 0 && recentsResolved.length === 0 && !showAuto;
+  const hasNoResults = filteredAll.length === 0 && recentsResolved.length === 0 && !showAuto;
 
   return (
     <div
@@ -114,10 +112,13 @@ export function LanguagePickerPopover({
                 }`}
               >
                 <span>
-                  {opt.label}{" "}
-                  <span className="text-xs text-gray-400">({opt.code})</span>
+                  {opt.label} <span className="text-xs text-gray-400">({opt.code})</span>
                 </span>
-                {value === opt.code && <span className="text-blue-600" aria-hidden="true">✓</span>}
+                {value === opt.code && (
+                  <span className="text-blue-600" aria-hidden="true">
+                    ✓
+                  </span>
+                )}
               </button>
             ))}
             <div className="my-1 h-px bg-gray-100" />
@@ -139,7 +140,11 @@ export function LanguagePickerPopover({
                 <span className="text-xs font-normal text-gray-400">{autoSubtitle}</span>
               )}
             </span>
-            {value === null && <span className="text-blue-600" aria-hidden="true">✓</span>}
+            {value === null && (
+              <span className="text-blue-600" aria-hidden="true">
+                ✓
+              </span>
+            )}
           </button>
         )}
 
@@ -160,16 +165,17 @@ export function LanguagePickerPopover({
             }`}
           >
             <span>
-              {opt.label}{" "}
-              <span className="text-xs text-gray-400">({opt.code})</span>
+              {opt.label} <span className="text-xs text-gray-400">({opt.code})</span>
             </span>
-            {value === opt.code && <span className="text-blue-600" aria-hidden="true">✓</span>}
+            {value === opt.code && (
+              <span className="text-blue-600" aria-hidden="true">
+                ✓
+              </span>
+            )}
           </button>
         ))}
 
-        {hasNoResults && (
-          <div className="px-3 py-2 text-sm text-gray-400">No matches</div>
-        )}
+        {hasNoResults && <div className="px-3 py-2 text-sm text-gray-400">No matches</div>}
       </div>
     </div>
   );

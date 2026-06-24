@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import React, { useEffect, ReactNode, useRef, useState, createContext } from 'react';
-import Analytics from '@/lib/analytics';
-import { load } from '@tauri-apps/plugin-store';
+import React, { useEffect, ReactNode, useRef, useState, createContext } from "react";
+import Analytics from "@/lib/analytics";
+import { load } from "@tauri-apps/plugin-store";
 
-const ANALYTICS_DEFAULT_OFF_MIGRATION_KEY = 'analyticsDefaultOffMigrationV1';
+const ANALYTICS_DEFAULT_OFF_MIGRATION_KEY = "analyticsDefaultOffMigrationV1";
 
 interface AnalyticsProviderProps {
   children: ReactNode;
@@ -17,7 +17,7 @@ interface AnalyticsContextType {
 
 export const AnalyticsContext = createContext<AnalyticsContextType>({
   isAnalyticsOptedIn: false,
-  setIsAnalyticsOptedIn: () => { },
+  setIsAnalyticsOptedIn: () => {},
 });
 
 export default function AnalyticsProvider({ children }: AnalyticsProviderProps) {
@@ -31,21 +31,21 @@ export default function AnalyticsProvider({ children }: AnalyticsProviderProps) 
     }
 
     const initAnalytics = async () => {
-      const store = await load('analytics.json', {
+      const store = await load("analytics.json", {
         autoSave: false,
         defaults: {
-          analyticsOptedIn: false
-        }
+          analyticsOptedIn: false,
+        },
       });
 
-      if (!(await store.has('analyticsOptedIn'))) {
-        await store.set('analyticsOptedIn', false);
+      if (!(await store.has("analyticsOptedIn"))) {
+        await store.set("analyticsOptedIn", false);
       }
 
-      let analyticsOptedIn = await store.get<boolean>('analyticsOptedIn');
+      let analyticsOptedIn = await store.get<boolean>("analyticsOptedIn");
       if (!(await store.has(ANALYTICS_DEFAULT_OFF_MIGRATION_KEY))) {
         analyticsOptedIn = false;
-        await store.set('analyticsOptedIn', false);
+        await store.set("analyticsOptedIn", false);
         await store.set(ANALYTICS_DEFAULT_OFF_MIGRATION_KEY, true);
         await store.save();
       } else if (analyticsOptedIn !== true) {
@@ -57,10 +57,9 @@ export default function AnalyticsProvider({ children }: AnalyticsProviderProps) 
       if (analyticsOptedIn) {
         await initAnalytics2();
       }
-    }
+    };
 
     const initAnalytics2 = async () => {
-
       // Mark as initialized to prevent duplicates
       initialized.current = true;
 
@@ -74,26 +73,26 @@ export default function AnalyticsProvider({ children }: AnalyticsProviderProps) 
       const deviceInfo = await Analytics.getDeviceInfo();
 
       // Store platform info in analytics.json for quick access
-      const store = await load('analytics.json', {
+      const store = await load("analytics.json", {
         autoSave: false,
         defaults: {
-          analyticsOptedIn: false
-        }
+          analyticsOptedIn: false,
+        },
       });
-      await store.set('platform', deviceInfo.platform);
-      await store.set('os_version', deviceInfo.os_version);
-      await store.set('architecture', deviceInfo.architecture);
+      await store.set("platform", deviceInfo.platform);
+      await store.set("os_version", deviceInfo.os_version);
+      await store.set("architecture", deviceInfo.architecture);
 
       // Set first launch date if not exists
-      if (!(await store.has('first_launch_date'))) {
-        await store.set('first_launch_date', new Date().toISOString());
+      if (!(await store.has("first_launch_date"))) {
+        await store.set("first_launch_date", new Date().toISOString());
       }
 
       await store.save();
 
       // Identify user with enhanced properties immediately after init
       await Analytics.identify(userId, {
-        app_version: '0.0.1',
+        app_version: "0.0.1",
         platform: deviceInfo.platform,
         os_version: deviceInfo.os_version,
         architecture: deviceInfo.architecture,
@@ -123,17 +122,16 @@ export default function AnalyticsProvider({ children }: AnalyticsProviderProps) 
         await Analytics.cleanup();
       };
 
-      window.addEventListener('beforeunload', handleBeforeUnload);
+      window.addEventListener("beforeunload", handleBeforeUnload);
 
       // Cleanup function
       return () => {
-        window.removeEventListener('beforeunload', handleBeforeUnload);
+        window.removeEventListener("beforeunload", handleBeforeUnload);
         if (sessionId) {
           Analytics.trackSessionEnded(sessionId);
         }
         Analytics.cleanup();
       };
-
     };
 
     initAnalytics().catch(console.error);
@@ -147,5 +145,9 @@ export default function AnalyticsProvider({ children }: AnalyticsProviderProps) 
     }
   }, [isAnalyticsOptedIn]);
 
-  return <AnalyticsContext.Provider value={{ isAnalyticsOptedIn, setIsAnalyticsOptedIn }}>{children}</AnalyticsContext.Provider>;
+  return (
+    <AnalyticsContext.Provider value={{ isAnalyticsOptedIn, setIsAnalyticsOptedIn }}>
+      {children}
+    </AnalyticsContext.Provider>
+  );
 }

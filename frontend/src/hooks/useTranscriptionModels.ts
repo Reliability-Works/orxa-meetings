@@ -1,14 +1,14 @@
-import { useState, useCallback, useRef } from 'react';
-import { invoke } from '@tauri-apps/api/core';
+import { useState, useCallback, useRef } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 export interface RawModelInfo {
   name: string;
   size_mb: number;
-  status: 'Available' | 'Missing' | { Downloading: { progress: number } } | { Error: string };
+  status: "Available" | "Missing" | { Downloading: { progress: number } } | { Error: string };
 }
 
 export interface ModelOption {
-  provider: 'whisper' | 'parakeet';
+  provider: "whisper" | "parakeet";
   name: string;
   displayName: string;
   size_mb: number;
@@ -30,7 +30,7 @@ interface TranscriptModelConfig {
  */
 export function useTranscriptionModels(transcriptModelConfig: TranscriptModelConfig | undefined) {
   const [availableModels, setAvailableModels] = useState<ModelOption[]>([]);
-  const [selectedModelKey, setSelectedModelKey] = useState<string>('');
+  const [selectedModelKey, setSelectedModelKey] = useState<string>("");
   const [loadingModels, setLoadingModels] = useState(false);
   // Track whether the user has manually changed the model selection
   const userSelectedRef = useRef(false);
@@ -47,48 +47,52 @@ export function useTranscriptionModels(transcriptModelConfig: TranscriptModelCon
 
     // Fetch Whisper models
     try {
-      const whisperModels = await invoke<RawModelInfo[]>('whisper_get_available_models');
+      const whisperModels = await invoke<RawModelInfo[]>("whisper_get_available_models");
       const availableWhisper = whisperModels
-        .filter((m) => m.status === 'Available')
+        .filter((m) => m.status === "Available")
         .map((m) => ({
-          provider: 'whisper' as const,
+          provider: "whisper" as const,
           name: m.name,
           displayName: `🏠 Whisper: ${m.name}`,
           size_mb: m.size_mb,
         }));
       allModels.push(...availableWhisper);
     } catch (err) {
-      console.error('Failed to fetch Whisper models:', err);
+      console.error("Failed to fetch Whisper models:", err);
     }
 
     // Fetch Parakeet models
     try {
-      const parakeetModels = await invoke<RawModelInfo[]>('parakeet_get_available_models');
+      const parakeetModels = await invoke<RawModelInfo[]>("parakeet_get_available_models");
       const availableParakeet = parakeetModels
-        .filter((m) => m.status === 'Available')
+        .filter((m) => m.status === "Available")
         .map((m) => ({
-          provider: 'parakeet' as const,
+          provider: "parakeet" as const,
           name: m.name,
           displayName: `⚡ Parakeet: ${m.name}`,
           size_mb: m.size_mb,
         }));
       allModels.push(...availableParakeet);
     } catch (err) {
-      console.error('Failed to fetch Parakeet models:', err);
+      console.error("Failed to fetch Parakeet models:", err);
     }
 
     setAvailableModels(allModels);
 
     // Set default model based on user's saved configuration
-    const configuredProvider = transcriptModelConfig?.provider || '';
-    const configuredModel = transcriptModelConfig?.model || '';
+    const configuredProvider = transcriptModelConfig?.provider || "";
+    const configuredModel = transcriptModelConfig?.model || "";
 
     // Try to match the configured model
     // Note: 'localWhisper' in config maps to 'whisper' provider in model list
     const configuredMatch = allModels.find(
       (m) =>
-        (configuredProvider === 'localWhisper' && m.provider === 'whisper' && m.name === configuredModel) ||
-        (configuredProvider === 'parakeet' && m.provider === 'parakeet' && m.name === configuredModel)
+        (configuredProvider === "localWhisper" &&
+          m.provider === "whisper" &&
+          m.name === configuredModel) ||
+        (configuredProvider === "parakeet" &&
+          m.provider === "parakeet" &&
+          m.name === configuredModel),
     );
 
     // Only set default model if user hasn't manually selected one

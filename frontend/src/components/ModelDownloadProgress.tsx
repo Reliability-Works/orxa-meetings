@@ -1,6 +1,5 @@
-import React from 'react';
-import { ModelStatus } from '../lib/whisper';
-import { Button } from './ui/button';
+import React from "react";
+import { ModelStatus } from "../lib/whisper";
 
 interface ModelDownloadProgressProps {
   status: ModelStatus;
@@ -9,7 +8,7 @@ interface ModelDownloadProgressProps {
 }
 
 export function ModelDownloadProgress({ status, modelName, onCancel }: ModelDownloadProgressProps) {
-  if (typeof status !== 'object' || !('Downloading' in status)) {
+  if (typeof status !== "object" || !("Downloading" in status)) {
     return null;
   }
 
@@ -22,30 +21,26 @@ export function ModelDownloadProgress({ status, modelName, onCancel }: ModelDown
         <div className="flex items-center space-x-2">
           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
           <span className="text-sm font-medium text-blue-900">
-            {isCompleted ? 'Finalizing...' : `Downloading ${modelName}`}
+            {isCompleted ? "Finalizing..." : `Downloading ${modelName}`}
           </span>
         </div>
       </div>
-      
+
       <div className="relative">
         <div className="w-full bg-blue-200 rounded-full h-2">
-          <div 
+          <div
             className="bg-blue-600 h-2 rounded-full transition-all duration-300 ease-out"
             style={{ width: `${Math.min(progress, 100)}%` }}
           />
         </div>
         <div className="flex justify-between text-xs text-blue-700 mt-1">
           <span>{Math.round(progress)}% complete</span>
-          {!isCompleted && (
-            <span className="animate-pulse">Downloading...</span>
-          )}
+          {!isCompleted && <span className="animate-pulse">Downloading...</span>}
         </div>
       </div>
-      
+
       {isCompleted && (
-        <div className="mt-2 text-xs text-green-700">
-          ✓ Download completed, loading model...
-        </div>
+        <div className="mt-2 text-xs text-green-700">✓ Download completed, loading model...</div>
       )}
     </div>
   );
@@ -65,11 +60,7 @@ export function ProgressRing({ progress, size = 40, strokeWidth = 3 }: ProgressR
 
   return (
     <div className="relative inline-flex items-center justify-center">
-      <svg
-        width={size}
-        height={size}
-        className="transform -rotate-90"
-      >
+      <svg width={size} height={size} className="transform -rotate-90">
         <circle
           cx={size / 2}
           cy={size / 2}
@@ -91,9 +82,7 @@ export function ProgressRing({ progress, size = 40, strokeWidth = 3 }: ProgressR
           className="transition-all duration-300 ease-in-out"
         />
       </svg>
-      <span className="absolute text-xs font-medium text-blue-600">
-        {Math.round(progress)}%
-      </span>
+      <span className="absolute text-xs font-medium text-blue-600">{Math.round(progress)}%</span>
     </div>
   );
 }
@@ -104,7 +93,11 @@ interface DownloadSummaryProps {
   totalSizeMb: number;
 }
 
-export function DownloadSummary({ totalModels, downloadedModels, totalSizeMb }: DownloadSummaryProps) {
+export function DownloadSummary({
+  totalModels,
+  downloadedModels,
+  totalSizeMb,
+}: DownloadSummaryProps) {
   const formatSize = (mb: number) => {
     if (mb >= 1000) return `${(mb / 1000).toFixed(1)}GB`;
     return `${mb}MB`;
@@ -116,9 +109,7 @@ export function DownloadSummary({ totalModels, downloadedModels, totalSizeMb }: 
         <span className="text-gray-700">
           📦 {downloadedModels} of {totalModels} models available
         </span>
-        <span className="text-gray-600">
-          💾 {formatSize(totalSizeMb)} total
-        </span>
+        <span className="text-gray-600">💾 {formatSize(totalSizeMb)} total</span>
       </div>
       {downloadedModels > 0 && (
         <div className="mt-1 text-xs text-green-600">

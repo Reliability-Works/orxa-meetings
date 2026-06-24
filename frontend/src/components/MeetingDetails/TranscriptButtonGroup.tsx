@@ -1,14 +1,13 @@
 "use client";
 
-import { useState, useCallback } from 'react';
-import { Button } from '@/components/ui/button';
-import { ButtonGroup } from '@/components/ui/button-group';
-import { Copy, FolderOpen, RefreshCw, Scissors } from 'lucide-react';
-import Analytics from '@/lib/analytics';
-import { RetranscribeDialog } from './RetranscribeDialog';
-import { TrimTranscriptDialog } from './TrimTranscriptDialog';
-import { useConfig } from '@/contexts/ConfigContext';
-
+import { useState, useCallback } from "react";
+import { Button } from "@/components/ui/button";
+import { ButtonGroup } from "@/components/ui/button-group";
+import { Copy, FolderOpen, RefreshCw, Scissors } from "lucide-react";
+import Analytics from "@/lib/analytics";
+import { RetranscribeDialog } from "./RetranscribeDialog";
+import { TrimTranscriptDialog } from "./TrimTranscriptDialog";
+import { useConfig } from "@/contexts/ConfigContext";
 
 interface TranscriptButtonGroupProps {
   transcriptCount: number;
@@ -18,7 +17,6 @@ interface TranscriptButtonGroupProps {
   meetingFolderPath?: string | null;
   onRefetchTranscripts?: () => Promise<void>;
 }
-
 
 export function TranscriptButtonGroup({
   transcriptCount,
@@ -46,11 +44,11 @@ export function TranscriptButtonGroup({
           variant="outline"
           size="sm"
           onClick={() => {
-            Analytics.trackButtonClick('copy_transcript', 'meeting_details');
+            Analytics.trackButtonClick("copy_transcript", "meeting_details");
             onCopyTranscript();
           }}
           disabled={transcriptCount === 0}
-          title={transcriptCount === 0 ? 'No transcript available' : 'Copy Transcript'}
+          title={transcriptCount === 0 ? "No transcript available" : "Copy Transcript"}
         >
           <Copy />
           <span className="hidden lg:inline">Copy</span>
@@ -62,11 +60,15 @@ export function TranscriptButtonGroup({
             variant="outline"
             className="xl:px-4"
             onClick={() => {
-              Analytics.trackButtonClick('trim_transcript_tail', 'meeting_details');
+              Analytics.trackButtonClick("trim_transcript_tail", "meeting_details");
               setShowTrimDialog(true);
             }}
             disabled={transcriptCount === 0}
-            title={transcriptCount === 0 ? 'No transcript available' : 'Trim transcript after a timestamp'}
+            title={
+              transcriptCount === 0
+                ? "No transcript available"
+                : "Trim transcript after a timestamp"
+            }
           >
             <Scissors className="xl:mr-2" size={18} />
             <span className="hidden lg:inline">Trim</span>
@@ -78,7 +80,7 @@ export function TranscriptButtonGroup({
           variant="outline"
           className="xl:px-4"
           onClick={() => {
-            Analytics.trackButtonClick('open_recording_folder', 'meeting_details');
+            Analytics.trackButtonClick("open_recording_folder", "meeting_details");
             onOpenMeetingFolder();
           }}
           title="Open Recording Folder"
@@ -93,7 +95,7 @@ export function TranscriptButtonGroup({
             variant="outline"
             className="bg-gradient-to-r from-blue-50 to-purple-50 hover:from-blue-100 hover:to-purple-100 border-blue-200 xl:px-4"
             onClick={() => {
-              Analytics.trackButtonClick('enhance_transcript', 'meeting_details');
+              Analytics.trackButtonClick("enhance_transcript", "meeting_details");
               setShowRetranscribeDialog(true);
             }}
             title="Retranscribe to enhance your recorded audio"
