@@ -1,12 +1,12 @@
-use std::sync::Arc;
 use anyhow::Result;
 use log::{error, info, warn};
+use std::sync::Arc;
 use tokio::sync::mpsc;
 
+use super::capture::{SystemAudioCapture, SystemAudioStream};
 use super::devices::AudioDevice;
 use super::pipeline::AudioCapture;
-use super::recording_state::{RecordingState, DeviceType};
-use super::capture::{SystemAudioCapture, SystemAudioStream};
+use super::recording_state::{DeviceType, RecordingState};
 
 /// System audio stream implementation that integrates with existing pipeline
 pub struct SystemAudioStreamManager {
@@ -35,7 +35,6 @@ impl SystemAudioStreamManager {
             system_stream.sample_rate(),
             2, // Assume stereo for system audio
             DeviceType::Output,
-            recording_sender,
         );
 
         // Spawn task to process system audio stream
@@ -82,7 +81,10 @@ impl SystemAudioStreamManager {
 
     /// Stop the system audio stream
     pub fn stop(mut self) -> Result<()> {
-        info!("Stopping system audio stream for device: {}", self.device.name);
+        info!(
+            "Stopping system audio stream for device: {}",
+            self.device.name
+        );
 
         if let Some(stream) = self.stream.take() {
             drop(stream); // This should trigger the stream cleanup
@@ -129,7 +131,8 @@ impl EnhancedAudioStreamManager {
                 self.state.clone(),
                 DeviceType::Input,
                 recording_sender.clone(),
-            ).await?;
+            )
+            .await?;
             self.microphone_stream = Some(mic_stream);
         }
 
@@ -139,12 +142,16 @@ impl EnhancedAudioStreamManager {
 
             // Check if we should use enhanced system audio capture
             if should_use_enhanced_system_audio(&sys_device) {
-                info!("Using enhanced Core Audio system capture for: {}", sys_device.name);
+                info!(
+                    "Using enhanced Core Audio system capture for: {}",
+                    sys_device.name
+                );
                 let sys_stream = SystemAudioStreamManager::create(
                     sys_device,
                     self.state.clone(),
                     recording_sender,
-                ).await?;
+                )
+                .await?;
                 self.system_stream = Some(sys_stream);
             } else {
                 info!("Falling back to ScreenCaptureKit for: {}", sys_device.name);
@@ -154,17 +161,26 @@ impl EnhancedAudioStreamManager {
                     self.state.clone(),
                     DeviceType::Output,
                     recording_sender,
-                ).await?;
+                )
+                .await?;
                 // Note: We'd need to store this differently or modify the structure
-                warn!("Fallback ScreenCaptureKit stream created but not stored in enhanced manager");
+                warn!(
+                    "Fallback ScreenCaptureKit stream created but not stored in enhanced manager"
+                );
             }
         }
 
-        let mic_count = if self.microphone_stream.is_some() { 1 } else { 0 };
+        let mic_count = if self.microphone_stream.is_some() {
+            1
+        } else {
+            0
+        };
         let sys_count = if self.system_stream.is_some() { 1 } else { 0 };
 
-        info!("Enhanced audio streams started: {} microphone, {} system audio",
-               mic_count, sys_count);
+        info!(
+            "Enhanced audio streams started: {} microphone, {} system audio",
+            mic_count, sys_count
+        );
 
         Ok(())
     }
@@ -221,7 +237,10 @@ mod tests {
 
     #[test]
     fn test_should_use_enhanced_system_audio() {
-        let device = Arc::new(AudioDevice::new("Test Device".to_string(), super::super::DeviceType::Output));
+        let device = Arc::new(AudioDevice::new(
+            "Test Device".to_string(),
+            super::super::DeviceType::Output,
+        ));
 
         #[cfg(target_os = "macos")]
         assert!(should_use_enhanced_system_audio(&device));

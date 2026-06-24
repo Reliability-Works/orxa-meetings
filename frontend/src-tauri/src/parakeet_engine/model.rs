@@ -10,6 +10,8 @@ use regex::Regex;
 use std::fs;
 use std::path::Path;
 
+mod lifecycle;
+
 pub type DecoderState = (Array3<f32>, Array3<f32>);
 
 const SUBSAMPLING_FACTOR: usize = 8;
@@ -52,12 +54,6 @@ pub struct ParakeetModel {
     vocab_size: usize,
 }
 
-impl Drop for ParakeetModel {
-    fn drop(&mut self) {
-        log::debug!("Dropping ParakeetModel with {} vocab tokens", self.vocab.len());
-    }
-}
-
 impl ParakeetModel {
     pub fn new<P: AsRef<Path>>(model_dir: P, quantized: bool) -> Result<Self, ParakeetError> {
         let encoder = Self::init_session(&model_dir, "encoder-model", None, quantized)?;
@@ -96,7 +92,10 @@ impl ParakeetModel {
             let quantized_name = format!("{}.int8.onnx", model_name);
             let quantized_path = model_dir.as_ref().join(&quantized_name);
             if quantized_path.exists() {
-                log::info!("Loading quantized Parakeet model from {}...", quantized_name);
+                log::info!(
+                    "Loading quantized Parakeet model from {}...",
+                    quantized_name
+                );
                 quantized_name
             } else {
                 let regular_name = format!("{}.onnx", model_name);

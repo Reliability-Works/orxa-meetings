@@ -1,8 +1,10 @@
 use crate::whisper_engine::{ModelInfo, WhisperEngine};
-use std::sync::{Arc, Mutex};
 use std::path::PathBuf;
-use tauri::{command, Emitter, Manager, AppHandle, Runtime};
-use crate::config::WHISPER_MODEL_CATALOG;
+use std::sync::{Arc, Mutex};
+use tauri::{command, AppHandle, Emitter, Manager, Runtime};
+
+mod models;
+use models::discover_models_standalone;
 
 // Global whisper engine
 pub static WHISPER_ENGINE: Mutex<Option<Arc<WhisperEngine>>> = Mutex::new(None);
@@ -13,7 +15,9 @@ static MODELS_DIR: Mutex<Option<PathBuf>> = Mutex::new(None);
 /// Initialize the models directory path using app_data_dir
 /// This should be called during app setup before whisper_init
 pub fn set_models_directory<R: Runtime>(app: &AppHandle<R>) {
-    let app_data_dir = app.path().app_data_dir()
+    let app_data_dir = app
+        .path()
+        .app_data_dir()
         .expect("Failed to get app data dir");
 
     let models_dir = app_data_dir.join("models");
@@ -70,63 +74,10 @@ pub async fn whisper_get_available_models() -> Result<Vec<ModelInfo>, String> {
     }
 }
 
-/// Discover Whisper models by scanning the models directory directly
-/// Used when the Whisper engine isn't initialized (e.g., when using Parakeet for live transcription)
-fn discover_models_standalone() -> Result<Vec<ModelInfo>, String> {
-    use crate::whisper_engine::ModelStatus;
-
-    let models_dir = get_models_directory()
-        .ok_or_else(|| "Models directory not initialized".to_string())?;
-
-    // Whisper models are stored directly in the models directory (not in a whisper subdirectory)
-    let whisper_dir = models_dir.clone();
-
-    log::info!("Scanning for Whisper models in: {}", whisper_dir.display());
-
-    // Use centralized model catalog from config.rs
-    let model_configs = WHISPER_MODEL_CATALOG;
-
-    let mut models = Vec::new();
-
-    for &(name, filename, size_mb, accuracy, speed, description) in model_configs {
-        let model_path = whisper_dir.join(filename);
-        let status = if model_path.exists() {
-            match std::fs::metadata(&model_path) {
-                Ok(metadata) => {
-                    let file_size_mb = metadata.len() / (1024 * 1024);
-                    if file_size_mb >= 1 {
-                        ModelStatus::Available
-                    } else {
-                        ModelStatus::Missing
-                    }
-                }
-                Err(_) => ModelStatus::Missing,
-            }
-        } else {
-            ModelStatus::Missing
-        };
-
-        models.push(ModelInfo {
-            name: name.to_string(),
-            path: model_path,
-            size_mb,
-            status,
-            accuracy: accuracy.to_string(),
-            speed: speed.to_string(),
-            description: description.to_string(),
-        });
-    }
-
-    let downloaded_count = models.iter().filter(|m| matches!(m.status, ModelStatus::Available)).count();
-    log::info!("Found {} downloaded Whisper models", downloaded_count);
-
-    Ok(models)
-}
-
 #[command]
 pub async fn whisper_load_model(
     app_handle: tauri::AppHandle,
-    model_name: String
+    model_name: String,
 ) -> Result<(), String> {
     let engine = {
         let guard = WHISPER_ENGINE.lock().unwrap();
@@ -295,42 +246,37 @@ pub async fn whisper_validate_model_ready_with_config<R: tauri::Runtime>(
         }
 
         // No model loaded - try to load user's configured model from transcript config
-        let model_to_load = match crate::api::api::api_get_transcript_config(
-            app.clone(),
-            app.state(),
-            None,
-        )
-        .await
-        {
-            Ok(Some(config)) => {
-                log::info!(
-                    "Got transcript config from API - provider: {}, model: {}",
-                    config.provider,
-                    config.model
-                );
-                if config.provider == "localWhisper" && !config.model.is_empty() {
-                    log::info!("Using user's configured model: {}", config.model);
-                    Some(config.model)
-                } else {
+        let model_to_load =
+            match crate::api::api_get_transcript_config(app.clone(), app.state(), None).await {
+                Ok(Some(config)) => {
                     log::info!(
+                        "Got transcript config from API - provider: {}, model: {}",
+                        config.provider,
+                        config.model
+                    );
+                    if config.provider == "localWhisper" && !config.model.is_empty() {
+                        log::info!("Using user's configured model: {}", config.model);
+                        Some(config.model)
+                    } else {
+                        log::info!(
                         "API config uses non-local provider ({}) or empty model, will auto-select",
                         config.provider
                     );
+                        None
+                    }
+                }
+                Ok(None) => {
+                    log::info!("No transcript config found in API, will auto-select model");
                     None
                 }
-            }
-            Ok(None) => {
-                log::info!("No transcript config found in API, will auto-select model");
-                None
-            }
-            Err(e) => {
-                log::warn!(
-                    "Failed to get transcript config from API: {}, will auto-select model",
-                    e
-                );
-                None
-            }
-        };
+                Err(e) => {
+                    log::warn!(
+                        "Failed to get transcript config from API: {}, will auto-select model",
+                        e
+                    );
+                    None
+                }
+            };
 
         // Check available models
         let models = engine
@@ -521,8 +467,8 @@ pub async fn whisper_delete_corrupted_model(model_name: String) -> Result<String
 /// Open the models folder in the system file explorer
 #[command]
 pub async fn open_models_folder() -> Result<(), String> {
-    let models_dir = get_models_directory()
-        .ok_or_else(|| "Models directory not initialized".to_string())?;
+    let models_dir =
+        get_models_directory().ok_or_else(|| "Models directory not initialized".to_string())?;
 
     // Ensure directory exists before trying to open it
     if !models_dir.exists() {
@@ -530,32 +476,7 @@ pub async fn open_models_folder() -> Result<(), String> {
             .map_err(|e| format!("Failed to create directory: {}", e))?;
     }
 
-    let folder_path = models_dir.to_string_lossy().to_string();
-
-    #[cfg(target_os = "windows")]
-    {
-        std::process::Command::new("explorer")
-            .arg(&folder_path)
-            .spawn()
-            .map_err(|e| format!("Failed to open folder: {}", e))?;
-    }
-
-    #[cfg(target_os = "macos")]
-    {
-        std::process::Command::new("open")
-            .arg(&folder_path)
-            .spawn()
-            .map_err(|e| format!("Failed to open folder: {}", e))?;
-    }
-
-    #[cfg(target_os = "linux")]
-    {
-        std::process::Command::new("xdg-open")
-            .arg(&folder_path)
-            .spawn()
-            .map_err(|e| format!("Failed to open folder: {}", e))?;
-    }
-
-    log::info!("Opened models folder: {}", folder_path);
+    crate::utils::open_folder(&models_dir)?;
+    log::info!("Opened models folder: {}", models_dir.display());
     Ok(())
 }

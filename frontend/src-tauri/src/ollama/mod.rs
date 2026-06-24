@@ -1,6 +1,6 @@
-pub mod ollama;
+pub mod client;
 pub mod commands;
 pub mod metadata;
 
-pub use ollama::*;
+pub use client::*;
 // Don't re-export commands to avoid conflicts - lib.rs will import directly

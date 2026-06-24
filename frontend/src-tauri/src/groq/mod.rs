@@ -1,1 +1,3 @@
-pub mod groq;
+pub mod client;
+
+pub use client::*;

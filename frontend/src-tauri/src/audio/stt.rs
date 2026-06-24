@@ -2,7 +2,6 @@ use crate::audio_processing::write_audio_to_file;
 use crate::deepgram::transcribe_with_deepgram;
 use crate::pyannote::models::{get_or_download_model, PyannoteModel};
 use crate::pyannote::segment::SpeechSegment;
-use crate::{resample, DeviceControl};
 pub use crate::segments::prepare_segments;
 use crate::{
     pyannote::{embedding::EmbeddingExtractor, identify::EmbeddingManager},
@@ -10,8 +9,10 @@ use crate::{
     whisper::{process_with_whisper, WhisperModel},
     AudioDevice, AudioTranscriptionEngine,
 };
+use crate::{resample, DeviceControl};
 use anyhow::{anyhow, Result};
 use candle_transformers::models::whisper as m;
+use dashmap::DashMap;
 use log::{debug, error, info};
 #[cfg(target_os = "macos")]
 use objc::rc::autoreleasepool;
@@ -24,7 +25,6 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 use tokio::sync::Mutex;
-use dashmap::DashMap;
 
 pub fn stt_sync(
     audio: &[f32],

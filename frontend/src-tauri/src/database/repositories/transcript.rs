@@ -1,6 +1,6 @@
 use crate::api::{TranscriptSearchResult, TranscriptSegment};
-use chrono::Utc;
-use sqlx::{Connection, Error as SqlxError, SqlitePool};
+use chrono::{DateTime, Utc};
+use sqlx::{Connection, Error as SqlxError, Sqlite, SqlitePool, Transaction};
 use tracing::{error, info};
 use uuid::Uuid;
 
@@ -23,52 +23,18 @@ impl TranscriptsRepository {
 
         let now = Utc::now();
 
-        // 1. Create the new meeting
-        let result = sqlx::query(
-            "INSERT INTO meetings (id, title, created_at, updated_at, folder_path) VALUES (?, ?, ?, ?, ?)",
+        let insert_result = save_transcript_rows(
+            &mut transaction,
+            &meeting_id,
+            meeting_title,
+            now,
+            &folder_path,
+            transcripts,
         )
-        .bind(&meeting_id)
-        .bind(meeting_title)
-        .bind(now)
-        .bind(now)
-        .bind(&folder_path)
-        .execute(&mut *transaction)
         .await;
-
-        if let Err(e) = result {
-            error!("Failed to create meeting '{}': {}", meeting_title, e);
+        if let Err(e) = insert_result {
             transaction.rollback().await?;
             return Err(e);
-        }
-
-        info!("Successfully created meeting with id: {}", meeting_id);
-
-        // 2. Save each transcript segment with audio timing and speaker fields
-        for segment in transcripts {
-            let transcript_id = format!("transcript-{}", Uuid::new_v4());
-            let result = sqlx::query(
-                "INSERT INTO transcripts (id, meeting_id, transcript, timestamp, speaker, audio_start_time, audio_end_time, duration)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
-            )
-            .bind(&transcript_id)
-            .bind(&meeting_id)
-            .bind(&segment.text)
-            .bind(&segment.timestamp)
-            .bind(&segment.speaker)
-            .bind(segment.audio_start_time)
-            .bind(segment.audio_end_time)
-            .bind(segment.duration)
-            .execute(&mut *transaction)
-            .await;
-
-            if let Err(e) = result {
-                error!(
-                    "Failed to save transcript segment for meeting {}: {}",
-                    meeting_id, e
-                );
-                transaction.rollback().await?;
-                return Err(e);
-            }
         }
 
         info!(
@@ -144,4 +110,89 @@ impl TranscriptsRepository {
             None => transcript.chars().take(200).collect(), // Fallback to the start of the transcript
         }
     }
+}
+
+async fn save_transcript_rows(
+    transaction: &mut Transaction<'_, Sqlite>,
+    meeting_id: &str,
+    meeting_title: &str,
+    now: DateTime<Utc>,
+    folder_path: &Option<String>,
+    transcripts: &[TranscriptSegment],
+) -> Result<(), SqlxError> {
+    insert_meeting(transaction, meeting_id, meeting_title, now, folder_path)
+        .await
+        .map_err(|e| {
+            error!("Failed to create meeting '{}': {}", meeting_title, e);
+            e
+        })?;
+
+    info!("Successfully created meeting with id: {}", meeting_id);
+
+    insert_transcript_segments(transaction, meeting_id, transcripts)
+        .await
+        .map_err(|e| {
+            error!(
+                "Failed to save transcript segment for meeting {}: {}",
+                meeting_id, e
+            );
+            e
+        })
+}
+
+async fn insert_meeting(
+    transaction: &mut Transaction<'_, Sqlite>,
+    meeting_id: &str,
+    meeting_title: &str,
+    now: DateTime<Utc>,
+    folder_path: &Option<String>,
+) -> Result<(), SqlxError> {
+    sqlx::query(
+        "INSERT INTO meetings (id, title, created_at, updated_at, folder_path) VALUES (?, ?, ?, ?, ?)",
+    )
+    .bind(meeting_id)
+    .bind(meeting_title)
+    .bind(now)
+    .bind(now)
+    .bind(folder_path)
+    .execute(&mut **transaction)
+    .await?;
+
+    Ok(())
+}
+
+async fn insert_transcript_segments(
+    transaction: &mut Transaction<'_, Sqlite>,
+    meeting_id: &str,
+    transcripts: &[TranscriptSegment],
+) -> Result<(), SqlxError> {
+    for segment in transcripts {
+        insert_transcript_segment(transaction, meeting_id, segment).await?;
+    }
+
+    Ok(())
+}
+
+async fn insert_transcript_segment(
+    transaction: &mut Transaction<'_, Sqlite>,
+    meeting_id: &str,
+    segment: &TranscriptSegment,
+) -> Result<(), SqlxError> {
+    let transcript_id = format!("transcript-{}", Uuid::new_v4());
+    sqlx::query(
+        "INSERT INTO transcripts (id, meeting_id, transcript, timestamp, speaker, audio_start_time, audio_end_time, duration)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+    )
+    .bind(&transcript_id)
+    .bind(meeting_id)
+    .bind(&segment.text)
+    .bind(&segment.timestamp)
+    .bind(&segment.speaker)
+    .bind(segment.audio_start_time)
+    .bind(segment.audio_end_time)
+    .bind(segment.duration)
+    .execute(&mut **transaction)
+    .await?;
+
+    Ok(())
 }

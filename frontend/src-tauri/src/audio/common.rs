@@ -46,9 +46,57 @@ pub(crate) async fn unload_engine_after_batch(use_parakeet: bool) {
     }
 }
 
+pub(crate) fn log_vad_segment_stats(
+    speech_segments: &[crate::audio::vad::SpeechSegment],
+    duration_seconds: f64,
+) {
+    if speech_segments.is_empty() {
+        return;
+    }
+
+    let durations_ms: Vec<f64> = speech_segments
+        .iter()
+        .map(|s| s.end_timestamp_ms - s.start_timestamp_ms)
+        .collect();
+    let total_speech_ms: f64 = durations_ms.iter().sum();
+    let avg_duration = total_speech_ms / durations_ms.len() as f64;
+    let min_duration = durations_ms.iter().cloned().fold(f64::INFINITY, f64::min);
+    let max_duration = durations_ms
+        .iter()
+        .cloned()
+        .fold(f64::NEG_INFINITY, f64::max);
+
+    info!(
+        "VAD segment stats: avg={:.0}ms, min={:.0}ms, max={:.0}ms, total_speech={:.1}s/{:.1}s ({:.0}%)",
+        avg_duration,
+        min_duration,
+        max_duration,
+        total_speech_ms / 1000.0,
+        duration_seconds,
+        (total_speech_ms / 1000.0 / duration_seconds) * 100.0
+    );
+
+    for (i, seg) in speech_segments.iter().take(10).enumerate() {
+        let dur = seg.end_timestamp_ms - seg.start_timestamp_ms;
+        debug!(
+            "  Segment {}: {:.0}ms-{:.0}ms ({:.0}ms, {} samples)",
+            i,
+            seg.start_timestamp_ms,
+            seg.end_timestamp_ms,
+            dur,
+            seg.samples.len()
+        );
+    }
+    if speech_segments.len() > 10 {
+        debug!("  ... and {} more segments", speech_segments.len() - 10);
+    }
+}
+
 /// Create transcript segments from transcription results.
 /// Each tuple is (text, start_ms, end_ms) from VAD timestamps.
-pub(crate) fn create_transcript_segments(transcripts: &[(String, f64, f64)]) -> Vec<TranscriptSegment> {
+pub(crate) fn create_transcript_segments(
+    transcripts: &[(String, f64, f64)],
+) -> Vec<TranscriptSegment> {
     transcripts
         .iter()
         .map(|(text, start_ms, end_ms)| {
@@ -128,8 +176,8 @@ pub(crate) fn split_segment_at_silence(
         return vec![segment.clone()];
     }
 
-    let ms_per_sample = (segment.end_timestamp_ms - segment.start_timestamp_ms)
-        / segment.samples.len() as f64;
+    let ms_per_sample =
+        (segment.end_timestamp_ms - segment.start_timestamp_ms) / segment.samples.len() as f64;
     let mut result = Vec::new();
     let mut pos = 0usize;
 

@@ -1,1 +1,3 @@
-pub mod openai;
+pub mod client;
+
+pub use client::*;

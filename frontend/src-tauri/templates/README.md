@@ -5,9 +5,11 @@ This directory contains template definitions for meeting summary generation.
 ## Available Templates
 
 ### 1. `daily_standup.json`
+
 Time-boxed daily updates template designed for engineering/product teams.
 
 **Sections:**
+
 - Date
 - Attendees
 - Yesterday (completed work)
@@ -16,9 +18,11 @@ Time-boxed daily updates template designed for engineering/product teams.
 - Notes
 
 ### 2. `standard_meeting.json`
+
 General-purpose meeting notes template focusing on key outcomes and actions.
 
 **Sections:**
+
 - Summary
 - Key Decisions
 - Action Items
@@ -56,11 +60,13 @@ Custom templates override built-in templates with the same filename.
 ## Template Fields
 
 ### Root Level
+
 - `name` (required): Display name for the template
 - `description` (required): Brief explanation of the template's use case
 - `sections` (required): Array of section definitions
 
 ### Section Object
+
 - `title` (required): Section heading text
 - `instruction` (required): LLM guidance for this section
 - `format` (required): One of `"paragraph"`, `"list"`, or `"string"`

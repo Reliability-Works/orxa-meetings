@@ -1,8 +1,10 @@
-use crate::parakeet_engine::{ModelInfo, ModelStatus, ParakeetEngine, DownloadProgress};
+use crate::parakeet_engine::{ModelInfo, ParakeetEngine};
 use std::path::PathBuf;
-use std::sync::Mutex;
 use std::sync::Arc;
-use tauri::{command, Emitter, AppHandle, Manager, Runtime};
+use std::sync::Mutex;
+use tauri::{command, AppHandle, Emitter, Manager, Runtime};
+
+mod download;
 
 // Global parakeet engine
 pub static PARAKEET_ENGINE: Mutex<Option<Arc<ParakeetEngine>>> = Mutex::new(None);
@@ -13,7 +15,9 @@ static MODELS_DIR: Mutex<Option<PathBuf>> = Mutex::new(None);
 /// Initialize the models directory path using app_data_dir
 /// This should be called during app setup before parakeet_init
 pub fn set_models_directory<R: Runtime>(app: &AppHandle<R>) {
-    let app_data_dir = app.path().app_data_dir()
+    let app_data_dir = app
+        .path()
+        .app_data_dir()
         .expect("Failed to get app data dir");
 
     let models_dir = app_data_dir.join("models");
@@ -71,7 +75,7 @@ pub async fn parakeet_get_available_models() -> Result<Vec<ModelInfo>, String> {
 #[command]
 pub async fn parakeet_load_model<R: Runtime>(
     app_handle: AppHandle<R>,
-    model_name: String
+    model_name: String,
 ) -> Result<(), String> {
     let engine = {
         let guard = PARAKEET_ENGINE.lock().unwrap();
@@ -102,7 +106,10 @@ pub async fn parakeet_load_model<R: Runtime>(
                     "modelName": model_name
                 }),
             ) {
-                log::error!("Failed to emit parakeet-model-loading-completed event: {}", e);
+                log::error!(
+                    "Failed to emit parakeet-model-loading-completed event: {}",
+                    e
+                );
             }
         } else if let Err(ref error) = result {
             if let Err(e) = app_handle.emit(
@@ -209,7 +216,8 @@ pub async fn parakeet_validate_model_ready() -> Result<String, String> {
         }
 
         // Try to load the first available model (prefer int8 for speed)
-        let first_model = available_models.iter()
+        let first_model = available_models
+            .iter()
             .find(|m| m.quantization == crate::parakeet_engine::QuantizationType::Int8)
             .or_else(|| available_models.first())
             .unwrap();
@@ -245,7 +253,7 @@ pub async fn parakeet_validate_model_ready_with_config<R: tauri::Runtime>(
         }
 
         // No model loaded - try to load user's configured model from transcript config
-        let model_to_load = match crate::api::api::api_get_transcript_config(
+        let model_to_load = match crate::api::api_get_transcript_config(
             app.clone(),
             app.state(),
             None,
@@ -304,7 +312,10 @@ pub async fn parakeet_validate_model_ready_with_config<R: tauri::Runtime>(
         let model_name = if let Some(configured_model) = model_to_load {
             // Check if configured model is available
             if available_models.iter().any(|m| m.name == configured_model) {
-                log::info!("Loading user's configured Parakeet model: {}", configured_model);
+                log::info!(
+                    "Loading user's configured Parakeet model: {}",
+                    configured_model
+                );
                 configured_model
             } else {
                 log::warn!(
@@ -380,87 +391,7 @@ pub async fn parakeet_download_model<R: Runtime>(
     app_handle: AppHandle<R>,
     model_name: String,
 ) -> Result<(), String> {
-    let engine = {
-        let guard = PARAKEET_ENGINE.lock().unwrap();
-        guard.as_ref().cloned()
-    };
-
-    if let Some(engine) = engine {
-        // Create progress callback that emits detailed events
-        let app_handle_clone = app_handle.clone();
-        let model_name_clone = model_name.clone();
-
-        let progress_callback = Box::new(move |progress: DownloadProgress| {
-            log::info!(
-                "Parakeet download progress for {}: {:.1} MB / {:.1} MB ({:.1} MB/s) - {}%",
-                model_name_clone, progress.downloaded_mb, progress.total_mb,
-                progress.speed_mbps, progress.percent
-            );
-
-            // Emit download progress event with detailed info
-            if let Err(e) = app_handle_clone.emit(
-                "parakeet-model-download-progress",
-                serde_json::json!({
-                    "modelName": model_name_clone,
-                    "progress": progress.percent,
-                    "downloaded_bytes": progress.downloaded_bytes,
-                    "total_bytes": progress.total_bytes,
-                    "downloaded_mb": progress.downloaded_mb,
-                    "total_mb": progress.total_mb,
-                    "speed_mbps": progress.speed_mbps,
-                    "status": if progress.percent == 100 { "completed" } else { "downloading" }
-                }),
-            ) {
-                log::error!("Failed to emit parakeet download progress event: {}", e);
-            }
-        });
-
-        // Ensure models are discovered before downloading
-        // This populates available_models so we don't get "Model not found" error
-        if let Err(e) = engine.discover_models().await {
-            log::warn!("Failed to discover models before download: {}", e);
-            // Continue anyway, maybe it will work if the model is already known
-        }
-
-        let result = engine
-            .download_model_detailed(&model_name, Some(progress_callback))
-            .await;
-
-        match result {
-            Ok(()) => {
-                // Emit completion event
-                if let Err(e) = app_handle.emit(
-                    "parakeet-model-download-complete",
-                    serde_json::json!({
-                        "modelName": model_name
-                    }),
-                ) {
-                    log::error!("Failed to emit parakeet download complete event: {}", e);
-                }
-
-                // Update tray menu to reflect model is now available
-                log::info!("Parakeet model download complete - updating tray menu");
-                crate::tray::update_tray_menu(&app_handle);
-
-                Ok(())
-            }
-            Err(e) => {
-                // Emit error event
-                if let Err(emit_e) = app_handle.emit(
-                    "parakeet-model-download-error",
-                    serde_json::json!({
-                        "modelName": model_name,
-                        "error": e.to_string()
-                    }),
-                ) {
-                    log::error!("Failed to emit parakeet download error event: {}", emit_e);
-                }
-                Err(format!("Failed to download Parakeet model: {}", e))
-            }
-        }
-    } else {
-        Err("Parakeet engine not initialized".to_string())
-    }
+    download::parakeet_download_model(app_handle, model_name).await
 }
 
 #[command]
@@ -468,32 +399,7 @@ pub async fn parakeet_cancel_download<R: Runtime>(
     app_handle: AppHandle<R>,
     model_name: String,
 ) -> Result<(), String> {
-    let engine = {
-        let guard = PARAKEET_ENGINE.lock().unwrap();
-        guard.as_ref().cloned()
-    };
-
-    if let Some(engine) = engine {
-        engine
-            .cancel_download(&model_name)
-            .await
-            .map_err(|e| format!("Failed to cancel Parakeet download: {}", e))?;
-
-        // Emit cancellation event to update UI (global toast and component state)
-        let _ = app_handle.emit(
-            "parakeet-model-download-progress",
-            serde_json::json!({
-                "modelName": model_name,
-                "progress": 0,
-                "status": "cancelled"
-            }),
-        );
-
-        log::info!("Parakeet download cancelled: {}", model_name);
-        Ok(())
-    } else {
-        Err("Parakeet engine not initialized".to_string())
-    }
+    download::parakeet_cancel_download(app_handle, model_name).await
 }
 
 #[command]
@@ -501,41 +407,7 @@ pub async fn parakeet_retry_download<R: Runtime>(
     app_handle: AppHandle<R>,
     model_name: String,
 ) -> Result<(), String> {
-    log::info!("Retrying download for: {}", model_name);
-
-    let engine = {
-        let guard = PARAKEET_ENGINE.lock().unwrap();
-        guard.as_ref().cloned()
-    };
-
-    if let Some(engine) = engine {
-        // DEFENSIVE: Ensure clean state before retry
-        // This handles any edge cases where error handler didn't complete
-        {
-            let mut active = engine.active_downloads.write().await;
-            if active.contains(&model_name) {
-                log::warn!("Retry: Model {} was still in active downloads, removing", model_name);
-                active.remove(&model_name);
-            }
-        }
-
-        // DEFENSIVE: Force model status to Missing to allow fresh download
-        {
-            let mut models = engine.available_models.write().await;
-            if let Some(model) = models.get_mut(&model_name) {
-                log::info!("Retry: Resetting model {} status from {:?} to Missing", model_name, model.status);
-                model.status = ModelStatus::Missing;
-            }
-        }
-
-        // Rediscover models to refresh state based on disk files
-        let _ = engine.discover_models().await;
-
-        // Call regular download (emits events)
-        parakeet_download_model(app_handle, model_name).await
-    } else {
-        Err("Parakeet engine not initialized".to_string())
-    }
+    download::parakeet_retry_download(app_handle, model_name).await
 }
 
 #[command]
@@ -568,32 +440,7 @@ pub async fn open_parakeet_models_folder() -> Result<(), String> {
             .map_err(|e| format!("Failed to create directory: {}", e))?;
     }
 
-    let folder_path = models_dir.to_string_lossy().to_string();
-
-    #[cfg(target_os = "windows")]
-    {
-        std::process::Command::new("explorer")
-            .arg(&folder_path)
-            .spawn()
-            .map_err(|e| format!("Failed to open folder: {}", e))?;
-    }
-
-    #[cfg(target_os = "macos")]
-    {
-        std::process::Command::new("open")
-            .arg(&folder_path)
-            .spawn()
-            .map_err(|e| format!("Failed to open folder: {}", e))?;
-    }
-
-    #[cfg(target_os = "linux")]
-    {
-        std::process::Command::new("xdg-open")
-            .arg(&folder_path)
-            .spawn()
-            .map_err(|e| format!("Failed to open folder: {}", e))?;
-    }
-
-    log::info!("Opened Parakeet models folder: {}", folder_path);
+    crate::utils::open_folder(&models_dir)?;
+    log::info!("Opened Parakeet models folder: {}", models_dir.display());
     Ok(())
 }

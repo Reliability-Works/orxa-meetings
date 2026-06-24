@@ -1,11 +1,13 @@
+use anyhow::Result;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 use tokio::sync::mpsc;
-use anyhow::Result;
 
-use super::devices::AudioDevice;
 use super::buffer_pool::AudioBufferPool;
+use super::devices::AudioDevice;
+
+type ErrorCallback = Box<dyn Fn(&AudioError) + Send + Sync>;
 
 /// Device type for audio chunks
 #[derive(Debug, Clone, PartialEq)]
@@ -97,7 +99,7 @@ pub struct RecordingState {
     // Core recording state
     is_recording: AtomicBool,
     is_paused: AtomicBool,
-    is_reconnecting: AtomicBool,  // NEW: Attempting to reconnect to device
+    is_reconnecting: AtomicBool, // NEW: Attempting to reconnect to device
 
     // Audio devices
     microphone_device: Mutex<Option<Arc<AudioDevice>>>,
@@ -115,7 +117,7 @@ pub struct RecordingState {
     error_count: AtomicU32,
     recoverable_error_count: AtomicU32,
     last_error: Mutex<Option<AudioError>>,
-    error_callback: Mutex<Option<Box<dyn Fn(&AudioError) + Send + Sync>>>,
+    error_callback: Mutex<Option<ErrorCallback>>,
 
     // Statistics
     stats: Mutex<RecordingStats>,
@@ -129,24 +131,7 @@ pub struct RecordingState {
 
 impl RecordingState {
     pub fn new() -> Arc<Self> {
-        Arc::new(Self {
-            is_recording: AtomicBool::new(false),
-            is_paused: AtomicBool::new(false),
-            is_reconnecting: AtomicBool::new(false),
-            microphone_device: Mutex::new(None),
-            system_device: Mutex::new(None),
-            disconnected_device: Mutex::new(None),
-            audio_sender: Mutex::new(None),
-            buffer_pool: AudioBufferPool::new(16, 48000), // Pool of 16 buffers with 48kHz samples capacity
-            error_count: AtomicU32::new(0),
-            recoverable_error_count: AtomicU32::new(0),
-            last_error: Mutex::new(None),
-            error_callback: Mutex::new(None),
-            stats: Mutex::new(RecordingStats::default()),
-            recording_start: Mutex::new(None),
-            pause_start: Mutex::new(None),
-            total_pause_duration: Mutex::new(std::time::Duration::ZERO),
-        })
+        Arc::new(Self::default())
     }
 
     // Recording control
@@ -201,7 +186,10 @@ impl RecordingState {
         if let Some(pause_start) = self.pause_start.lock().unwrap().take() {
             let pause_duration = pause_start.elapsed();
             *self.total_pause_duration.lock().unwrap() += pause_duration;
-            log::info!("Recording resumed after pause of {:.2}s", pause_duration.as_secs_f64());
+            log::info!(
+                "Recording resumed after pause of {:.2}s",
+                pause_duration.as_secs_f64()
+            );
         }
 
         self.is_paused.store(false, Ordering::SeqCst);
@@ -270,7 +258,9 @@ impl RecordingState {
         }
 
         if let Some(sender) = self.audio_sender.lock().unwrap().as_ref() {
-            sender.send(chunk).map_err(|_| anyhow::anyhow!("Failed to send audio chunk"))?;
+            sender
+                .send(chunk)
+                .map_err(|_| anyhow::anyhow!("Failed to send audio chunk"))?;
 
             // Update statistics
             let mut stats = self.stats.lock().unwrap();
@@ -279,7 +269,9 @@ impl RecordingState {
             Ok(())
         } else {
             // Return an error when no sender is available (pipeline not ready)
-            Err(anyhow::anyhow!("Audio pipeline not ready - no sender available"))
+            Err(anyhow::anyhow!(
+                "Audio pipeline not ready - no sender available"
+            ))
         }
     }
 
@@ -297,11 +289,18 @@ impl RecordingState {
         // Track recoverable vs non-recoverable errors separately
         if error.is_recoverable() {
             let recoverable_count = self.recoverable_error_count.fetch_add(1, Ordering::SeqCst) + 1;
-            log::warn!("Recoverable audio error ({}): {:?}", recoverable_count, error);
+            log::warn!(
+                "Recoverable audio error ({}): {:?}",
+                recoverable_count,
+                error
+            );
 
             // Allow more recoverable errors before stopping
             if recoverable_count >= 10 {
-                log::error!("Too many recoverable errors ({}), stopping recording", recoverable_count);
+                log::error!(
+                    "Too many recoverable errors ({}), stopping recording",
+                    recoverable_count
+                );
                 self.stop_recording();
             }
         } else {
@@ -319,7 +318,10 @@ impl RecordingState {
 
         // Fallback: stop recording after too many total errors
         if count >= 15 {
-            log::error!("Too many total audio errors ({}), stopping recording", count);
+            log::error!(
+                "Too many total audio errors ({}), stopping recording",
+                count
+            );
             self.stop_recording();
         }
     }

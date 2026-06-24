@@ -1,5 +1,5 @@
-pub mod openrouter;
+pub mod client;
 pub mod commands;
 
-pub use openrouter::*;
+pub use client::*;
 // Don't re-export commands to avoid conflicts - lib.rs will import directly

@@ -1,1 +1,3 @@
-pub mod anthropic;
+pub mod client;
+
+pub use client::*;

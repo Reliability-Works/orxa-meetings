@@ -1,8 +1,12 @@
 use crate::api::{MeetingDetails, MeetingTranscript, TranscriptTrimResult, TranscriptTrimSegment};
 use crate::database::models::{MeetingModel, Transcript};
 use chrono::Utc;
-use sqlx::{Connection, Error as SqlxError, SqliteConnection, SqlitePool};
+use sqlx::{Connection, Error as SqlxError, SqlitePool};
 use tracing::{error, info};
+
+mod delete;
+
+use delete::delete_meeting_with_transaction;
 
 pub struct MeetingsRepository;
 
@@ -61,11 +65,12 @@ impl MeetingsRepository {
         let mut transaction = conn.begin().await?;
 
         // Get meeting details
-        let meeting: Option<MeetingModel> =
-            sqlx::query_as("SELECT id, title, created_at, updated_at, folder_path FROM meetings WHERE id = ?")
-                .bind(meeting_id)
-                .fetch_optional(&mut *transaction)
-                .await?;
+        let meeting: Option<MeetingModel> = sqlx::query_as(
+            "SELECT id, title, created_at, updated_at, folder_path FROM meetings WHERE id = ?",
+        )
+        .bind(meeting_id)
+        .fetch_optional(&mut *transaction)
+        .await?;
 
         if meeting.is_none() {
             transaction.rollback().await?;
@@ -120,11 +125,12 @@ impl MeetingsRepository {
             ));
         }
 
-        let meeting: Option<MeetingModel> =
-            sqlx::query_as("SELECT id, title, created_at, updated_at, folder_path FROM meetings WHERE id = ?")
-                .bind(meeting_id)
-                .fetch_optional(pool)
-                .await?;
+        let meeting: Option<MeetingModel> = sqlx::query_as(
+            "SELECT id, title, created_at, updated_at, folder_path FROM meetings WHERE id = ?",
+        )
+        .bind(meeting_id)
+        .fetch_optional(pool)
+        .await?;
 
         Ok(meeting)
     }
@@ -143,19 +149,17 @@ impl MeetingsRepository {
         }
 
         // Get total count of transcripts for this meeting
-        let total: (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM transcripts WHERE meeting_id = ?"
-        )
-        .bind(meeting_id)
-        .fetch_one(pool)
-        .await?;
+        let total: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM transcripts WHERE meeting_id = ?")
+            .bind(meeting_id)
+            .fetch_one(pool)
+            .await?;
 
         // Get paginated transcripts ordered by audio_start_time
         let transcripts = sqlx::query_as::<_, Transcript>(
             "SELECT * FROM transcripts
              WHERE meeting_id = ?
              ORDER BY audio_start_time ASC
-             LIMIT ? OFFSET ?"
+             LIMIT ? OFFSET ?",
         )
         .bind(meeting_id)
         .bind(limit)
@@ -237,9 +241,14 @@ impl MeetingsRepository {
             .execute(&mut *transaction)
             .await?;
 
-        let mut result =
-            build_trim_result(&mut transaction, meeting_id, cutoff_seconds, true, summary_deleted)
-                .await?;
+        let mut result = build_trim_result(
+            &mut transaction,
+            meeting_id,
+            cutoff_seconds,
+            true,
+            summary_deleted,
+        )
+        .await?;
         result.deleted_count = deleted;
         result.remaining_count = result.total_count;
 
@@ -434,7 +443,9 @@ async fn fetch_trim_segment(
     meeting_id: &str,
     cutoff_seconds: f64,
 ) -> Result<Option<TranscriptTrimSegment>, SqlxError> {
-    let row: Option<(String, String, String, Option<f64>, Option<f64>)> = sqlx::query_as(query)
+    type TrimSegmentRow = (String, String, String, Option<f64>, Option<f64>);
+
+    let row: Option<TrimSegmentRow> = sqlx::query_as(query)
         .bind(meeting_id)
         .bind(cutoff_seconds)
         .fetch_optional(&mut **transaction)
@@ -449,47 +460,4 @@ async fn fetch_trim_segment(
             audio_end_time,
         },
     ))
-}
-
-async fn delete_meeting_with_transaction(
-    transaction: &mut SqliteConnection,
-    meeting_id: &str,
-) -> Result<bool, SqlxError> {
-    // Check if meeting exists
-    let meeting_exists: Option<(i64,)> = sqlx::query_as("SELECT 1 FROM meetings WHERE id = ?")
-        .bind(meeting_id)
-        .fetch_optional(&mut *transaction)
-        .await?;
-
-    if meeting_exists.is_none() {
-        error!("Meeting {} not found for deletion", meeting_id);
-        return Ok(false);
-    }
-
-    // Delete from related tables in proper order
-    // 1. Delete from transcript_chunks
-    sqlx::query("DELETE FROM transcript_chunks WHERE meeting_id = ?")
-        .bind(meeting_id)
-        .execute(&mut *transaction)
-        .await?;
-
-    // 2. Delete from summary_processes
-    sqlx::query("DELETE FROM summary_processes WHERE meeting_id = ?")
-        .bind(meeting_id)
-        .execute(&mut *transaction)
-        .await?;
-
-    // 3. Delete from transcripts
-    sqlx::query("DELETE FROM transcripts WHERE meeting_id = ?")
-        .bind(meeting_id)
-        .execute(&mut *transaction)
-        .await?;
-
-    // 4. Finally, delete the meeting
-    let result = sqlx::query("DELETE FROM meetings WHERE id = ?")
-        .bind(meeting_id)
-        .execute(&mut *transaction)
-        .await?;
-
-    Ok(result.rows_affected() > 0)
 }

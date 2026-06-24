@@ -79,7 +79,10 @@ pub async fn ask_orxa_meeting<R: Runtime>(
     })
 }
 
-pub(crate) async fn load_meeting(pool: &SqlitePool, meeting_id: &str) -> Result<(String, String), String> {
+pub(crate) async fn load_meeting(
+    pool: &SqlitePool,
+    meeting_id: &str,
+) -> Result<(String, String), String> {
     let row = sqlx::query("SELECT id, title FROM meetings WHERE id = ?")
         .bind(meeting_id)
         .fetch_optional(pool)
@@ -130,9 +133,11 @@ pub(crate) async fn load_relevant_evidence(
         .collect::<Vec<_>>();
 
     scored.sort_by(|a, b| {
-        b.score
-            .cmp(&a.score)
-            .then_with(|| a.audio_start_time.partial_cmp(&b.audio_start_time).unwrap_or(std::cmp::Ordering::Equal))
+        b.score.cmp(&a.score).then_with(|| {
+            a.audio_start_time
+                .partial_cmp(&b.audio_start_time)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        })
     });
 
     let mut relevant = scored
@@ -146,7 +151,11 @@ pub(crate) async fn load_relevant_evidence(
         relevant = scored.into_iter().take(12).collect();
     }
 
-    relevant.sort_by(|a, b| a.audio_start_time.partial_cmp(&b.audio_start_time).unwrap_or(std::cmp::Ordering::Equal));
+    relevant.sort_by(|a, b| {
+        a.audio_start_time
+            .partial_cmp(&b.audio_start_time)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
     Ok(relevant)
 }
 
@@ -163,7 +172,7 @@ async fn generate_answer<R: Runtime>(
         .map_err(|e| format!("Failed to load summary model settings: {}", e))?
         .ok_or_else(|| "No summary model is configured yet.".to_string())?;
 
-    let provider = LLMProvider::from_str(&setting.provider)?;
+    let provider = setting.provider.parse::<LLMProvider>()?;
     let api_key = SettingsRepository::get_api_key(pool, &setting.provider)
         .await
         .map_err(|e| format!("Failed to load API key: {}", e))?
@@ -216,10 +225,16 @@ async fn generate_answer<R: Runtime>(
     )
     .await?;
 
-    Ok((answer.trim().to_string(), Some(format!("{} / {}", setting.provider, model_name))))
+    Ok((
+        answer.trim().to_string(),
+        Some(format!("{} / {}", setting.provider, model_name)),
+    ))
 }
 
-pub(crate) async fn load_summary_markdown(pool: &SqlitePool, meeting_id: &str) -> Result<Option<String>, String> {
+pub(crate) async fn load_summary_markdown(
+    pool: &SqlitePool,
+    meeting_id: &str,
+) -> Result<Option<String>, String> {
     let row = sqlx::query("SELECT result FROM summary_processes WHERE meeting_id = ?")
         .bind(meeting_id)
         .fetch_optional(pool)
@@ -314,10 +329,10 @@ fn score_text(text: &str, words: &[String]) -> i64 {
 
 fn keywords(text: &str) -> Vec<String> {
     let stopwords = [
-        "about", "after", "also", "and", "are", "can", "did", "does", "for", "from", "had",
-        "has", "have", "how", "into", "is", "it", "me", "of", "on", "or", "said", "say",
-        "that", "the", "their", "there", "they", "this", "to", "was", "we", "what", "when",
-        "where", "who", "why", "with", "you",
+        "about", "after", "also", "and", "are", "can", "did", "does", "for", "from", "had", "has",
+        "have", "how", "into", "is", "it", "me", "of", "on", "or", "said", "say", "that", "the",
+        "their", "there", "they", "this", "to", "was", "we", "what", "when", "where", "who", "why",
+        "with", "you",
     ];
 
     text.split(|ch: char| !ch.is_ascii_alphanumeric())

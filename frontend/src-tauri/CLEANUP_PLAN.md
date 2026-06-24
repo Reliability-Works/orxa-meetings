@@ -1,26 +1,31 @@
 # Src-Tauri Codebase Cleanup Plan
 
 ## Analysis Summary
+
 After analyzing the src-tauri codebase, I've identified several areas requiring cleanup and optimization. The codebase shows signs of rapid development with some architectural debt that can be addressed systematically.
 
 ## Key Issues Identified
 
 ### 1. **Legacy Code Presence**
+
 - **`lib_old_complex.rs`** (2,437 lines) - Large legacy file that appears to contain old implementation
 - **Dual Audio Systems** - Both `audio/` and `audio_v2/` modules exist, indicating migration in progress
 - Multiple `pub use *` wildcard imports creating unclear dependency boundaries
 
 ### 2. **Incomplete Implementation Areas**
+
 - **20+ TODO comments** across audio_v2 modules indicating incomplete features
 - Substantial placeholder code in audio_v2 system (Phase 2, 3, 4 implementations pending)
 - Debug logging scattered throughout codebase (9 occurrences of println!/dbg!)
 
 ### 3. **Module Organization Issues**
-- **Redundant module patterns** - Many modules follow identical structure (mod.rs with single pub use *)
+
+- **Redundant module patterns** - Many modules follow identical structure (mod.rs with single pub use \*)
 - **Unclear boundaries** between audio systems
 - **Command/handler duplication** in multiple modules
 
 ### 4. **Dependency Management**
+
 - **122 lines in Cargo.toml** with some potentially unused dependencies
 - Git dependencies that could be moved to stable releases
 - Complex feature flags for hardware acceleration (currently disabled)
@@ -28,6 +33,7 @@ After analyzing the src-tauri codebase, I've identified several areas requiring 
 ## Cleanup Plan (Phased Approach)
 
 ### Phase 1: Remove Dead Code & Legacy Systems
+
 **Priority: High | Risk: Low | Estimated: 2-3 hours**
 
 1. **Remove legacy file**
@@ -45,6 +51,7 @@ After analyzing the src-tauri codebase, I've identified several areas requiring 
    - Convert remaining TODOs to proper issue tracking
 
 ### Phase 2: Refactor Module Organization
+
 **Priority: Medium | Risk: Medium | Estimated: 4-5 hours**
 
 1. **Simplify module structure**
@@ -63,6 +70,7 @@ After analyzing the src-tauri codebase, I've identified several areas requiring 
    - Remove unused imports and dead code markers
 
 ### Phase 3: Optimize Dependencies & Configuration
+
 **Priority: Medium | Risk: Low | Estimated: 2-3 hours**
 
 1. **Dependency audit**
@@ -82,6 +90,7 @@ After analyzing the src-tauri codebase, I've identified several areas requiring 
    - Improve error handling consistency
 
 ### Phase 4: Code Quality Improvements
+
 **Priority: Low | Risk: Low | Estimated: 3-4 hours**
 
 1. **Error handling standardization**
@@ -100,11 +109,13 @@ After analyzing the src-tauri codebase, I've identified several areas requiring 
    - Consider adding integration tests for critical paths
 
 ## Risk Assessment
+
 - **Low Risk**: Dependency cleanup, documentation, removing TODOs
 - **Medium Risk**: Module restructuring, audio system consolidation
 - **High Risk**: None identified - changes are mostly additive or clearly isolated
 
 ## Success Metrics
+
 - Reduce total lines of code by 15-20%
 - Eliminate all TODO/FIXME comments
 - Achieve faster compilation times
@@ -112,6 +123,7 @@ After analyzing the src-tauri codebase, I've identified several areas requiring 
 - Ensure all existing functionality remains intact
 
 ## Recommended Execution Order
+
 1. Start with Phase 1 (dead code removal) - safest changes
 2. Proceed to Phase 3 (dependencies) - independent of code structure
 3. Execute Phase 2 (refactoring) - requires most careful attention
