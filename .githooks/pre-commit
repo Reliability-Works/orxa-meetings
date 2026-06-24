@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+make format-check lint typecheck duplication maintainability
