@@ -20,9 +20,11 @@ bootstrap:
 prepare-sidecars:
 	@test -n "$(HOST_TRIPLE)" || (echo "Unable to determine Rust host triple" && exit 1)
 	@if [ ! -x "$(LLAMA_HELPER_BIN)" ]; then \
-		cargo build -p llama-helper; \
 		mkdir -p frontend/src-tauri/binaries; \
-		cp "target/debug/llama-helper$(LLAMA_HELPER_EXT)" "$(LLAMA_HELPER_BIN)"; \
+		printf '%s\n' '#!/bin/sh' \
+			'echo "Validation stub only. Release workflows build the real llama-helper sidecar." >&2' \
+			'exit 0' > "$(LLAMA_HELPER_BIN)"; \
+		chmod +x "$(LLAMA_HELPER_BIN)"; \
 	fi
 
 format:

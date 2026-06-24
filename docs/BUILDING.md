@@ -72,9 +72,10 @@ Run the full local gate:
 make validate
 ```
 
-The validation target prepares the local `llama-helper` Tauri sidecar
+The validation target prepares a local `llama-helper` Tauri external-bin stub
 automatically before Rust linting or tests run, so a clean clone can validate
-without prebuilt binaries checked into Git.
+without prebuilt binaries checked into Git. Release workflows build and bundle
+the real sidecar.
 
 Individual gates are also available:
 
