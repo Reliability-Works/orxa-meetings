@@ -16,6 +16,9 @@
 
 # testing
 /coverage
+/frontend/coverage
+/.jscpd-report
+/.venv
 /dist
 
 # next.js

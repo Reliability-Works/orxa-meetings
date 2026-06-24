@@ -86,7 +86,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: "20"
 
       - name: Get pnpm store directory
         shell: bash
@@ -564,7 +564,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: frontend/src-tauri/binaries/ffmpeg-*
-          key: ${{ runner.os }}-ffmpeg-${{ hashFiles('frontend/src-tauri/build.rs', 'frontend/src-tauri/build/ffmpeg.rs') }}    
+          key: ${{ runner.os }}-ffmpeg-${{ hashFiles('frontend/src-tauri/build.rs', 'frontend/src-tauri/build/ffmpeg.rs') }}
 
       - name: Build with Tauri
         id: tauri-build

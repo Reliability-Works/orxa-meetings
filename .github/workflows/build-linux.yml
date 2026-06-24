@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       build-type:
-        description: 'Build type'
+        description: "Build type"
         required: true
         type: choice
         options:
@@ -12,7 +12,7 @@ on:
           - release
         default: release
       ubuntu-version:
-        description: 'Ubuntu version'
+        description: "Ubuntu version"
         required: true
         type: choice
         options:
@@ -20,7 +20,7 @@ on:
           - ubuntu-24.04
         default: ubuntu-22.04
       bundle-type:
-        description: 'Bundle type'
+        description: "Bundle type"
         required: true
         type: choice
         options:
@@ -30,12 +30,12 @@ on:
           - all
         default: all
       sign-build:
-        description: 'Sign the build'
+        description: "Sign the build"
         required: true
         type: boolean
         default: true
       upload-artifacts:
-        description: 'Upload build artifacts'
+        description: "Upload build artifacts"
         required: true
         type: boolean
         default: true
@@ -114,7 +114,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: "20"
 
       - name: Get pnpm store directory
         shell: bash
@@ -190,11 +190,11 @@ jobs:
         run: |
           echo "Building llama-helper sidecar (CPU mode)..."
           cargo build --release -p llama-helper
-          
+
           # Copy binary to binaries directory
           mkdir -p frontend/src-tauri/binaries
           cp target/release/llama-helper frontend/src-tauri/binaries/llama-helper-x86_64-unknown-linux-gnu
-          
+
           echo "Copied llama-helper to frontend/src-tauri/binaries/"
           ls -la frontend/src-tauri/binaries/
 

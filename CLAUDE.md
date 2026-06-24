@@ -11,6 +11,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 3. **Legacy Backend Archive**: the old Python/FastAPI, Docker, and standalone whisper-server backend under `backend/` is archived and unsupported
 
 ### Key Technology Stack
+
 - **Desktop App**: Tauri 2.x (Rust) + Next.js 14 + React 18
 - **Audio Processing**: Rust (cpal, whisper-rs, professional audio mixing)
 - **Transcription**: Whisper.cpp / whisper-rs and Parakeet paths in the Tauri app
@@ -55,13 +56,14 @@ The Python/FastAPI backend, Docker setup, and standalone whisper-server scripts 
 The archived FastAPI service had unauthenticated, development-oriented CORS behavior. Treat that behavior as obsolete legacy context, not as a supported production API.
 
 ### Service Endpoints
-- **Frontend Dev**: http://localhost:3118
+
+- **Frontend Dev**: <http://localhost:3118>
 
 ## High-Level Architecture
 
 ### Tauri Desktop Architecture
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────┐
 │                    Frontend (Tauri Desktop App)                  │
 │  ┌──────────────────┐  ┌─────────────────┐  ┌────────────────┐ │
@@ -78,7 +80,7 @@ The current app does not require a separate FastAPI tier. Meeting persistence, l
 
 The audio system has **two parallel paths** with different purposes:
 
-```
+```text
 Raw Audio (Mic + System)
          ↓
 ┌────────────────────────────────────────────────────────────┐
@@ -100,7 +102,7 @@ Raw Audio (Mic + System)
 
 **Context**: The audio system was refactored from a monolithic 1028-line `core.rs` file into focused modules. See [AUDIO_MODULARIZATION_PLAN.md](AUDIO_MODULARIZATION_PLAN.md) for details.
 
-```
+```text
 audio/
 ├── devices/                    # Device discovery and configuration
 │   ├── discovery.rs           # list_audio_devices, trigger_audio_permission
@@ -122,6 +124,7 @@ audio/
 ```
 
 **When working on audio features**:
+
 - Device detection issues → `devices/discovery.rs` or `devices/platform/{windows,macos,linux}.rs`
 - Microphone/speaker problems → `devices/microphone.rs` or `devices/speakers.rs`
 - Audio capture issues → `capture/microphone.rs` or `capture/system.rs`
@@ -131,12 +134,13 @@ audio/
 ### Rust ↔ Frontend Communication (Tauri Architecture)
 
 **Command Pattern** (Frontend → Rust):
+
 ```typescript
 // Frontend: src/app/page.tsx
-await invoke('start_recording', {
+await invoke("start_recording", {
   mic_device_name: "Built-in Microphone",
   system_device_name: "BlackHole 2ch",
-  meeting_name: "Team Standup"
+  meeting_name: "Team Standup",
 });
 ```
 
@@ -154,6 +158,7 @@ async fn start_recording<R: Runtime>(
 ```
 
 **Event Pattern** (Rust → Frontend):
+
 ```rust
 // Rust: Emit transcript updates
 app.emit("transcript-update", TranscriptUpdate {
@@ -165,19 +170,21 @@ app.emit("transcript-update", TranscriptUpdate {
 
 ```typescript
 // Frontend: Listen for events
-await listen<TranscriptUpdate>('transcript-update', (event) => {
-  setTranscripts(prev => [...prev, event.payload]);
+await listen<TranscriptUpdate>("transcript-update", (event) => {
+  setTranscripts((prev) => [...prev, event.payload]);
 });
 ```
 
 ### Whisper Model Management
 
 **Model Storage Locations**:
+
 - **Development**: `frontend/models/`
 - **Production (macOS)**: `~/Library/Application Support/Orxa/models/`
 - **Production (Windows)**: `%APPDATA%\Orxa\models\`
 
 **Model Loading** (frontend/src-tauri/src/whisper_engine/whisper_engine.rs):
+
 ```rust
 pub async fn load_model(&self, model_name: &str) -> Result<()> {
     // Automatically detects GPU capabilities (Metal/CUDA/Vulkan)
@@ -186,6 +193,7 @@ pub async fn load_model(&self, model_name: &str) -> Result<()> {
 ```
 
 **GPU Acceleration**:
+
 - **macOS**: Metal + CoreML (automatically enabled)
 - **Windows/Linux**: CUDA (NVIDIA), Vulkan (AMD/Intel), or CPU
 - Configure via Cargo features: `--features cuda`, `--features vulkan`
@@ -195,6 +203,7 @@ pub async fn load_model(&self, model_name: &str) -> Result<()> {
 ### 1. Audio Buffer Management
 
 **Ring Buffer Mixing** (pipeline.rs):
+
 - Mic and system audio arrive asynchronously at different rates
 - Ring buffer accumulates samples until both streams have aligned windows (50ms)
 - Professional mixing applies RMS-based ducking to prevent system audio from drowning out microphone
@@ -203,6 +212,7 @@ pub async fn load_model(&self, model_name: &str) -> Result<()> {
 ### 2. Thread Safety and Async Boundaries
 
 **Recording State** (recording_state.rs):
+
 ```rust
 pub struct RecordingState {
     is_recording: Arc<AtomicBool>,
@@ -216,6 +226,7 @@ pub struct RecordingState {
 ### 3. Error Handling and Logging
 
 **Performance-Aware Logging** (lib.rs):
+
 ```rust
 #[cfg(debug_assertions)]
 macro_rules! perf_debug {
@@ -233,6 +244,7 @@ macro_rules! perf_debug {
 ### 4. Frontend State Management
 
 **Sidebar Context** (components/Sidebar/SidebarProvider.tsx):
+
 - Global state for meetings list, current meeting, recording status
 - Communicates with the Rust/Tauri core through Tauri commands and events
 - Keeps React state synchronized with native recording, meeting, transcript, and summary state
@@ -252,20 +264,25 @@ macro_rules! perf_debug {
 ### Adding a New Tauri Command
 
 1. Define command in `src/lib.rs`:
+
    ```rust
    #[tauri::command]
    async fn my_command(arg: String) -> Result<String, String> { /* ... */ }
    ```
+
 2. Register in `tauri::Builder`:
+
    ```rust
    .invoke_handler(tauri::generate_handler![
        start_recording,
        my_command,  // Add here
    ])
    ```
+
 3. Call from frontend:
+
    ```typescript
-   const result = await invoke<string>('my_command', { arg: 'value' });
+   const result = await invoke<string>("my_command", { arg: "value" });
    ```
 
 ### Modifying Audio Pipeline Behavior
@@ -273,11 +290,13 @@ macro_rules! perf_debug {
 **Location**: `frontend/src-tauri/src/audio/pipeline.rs`
 
 Key components:
+
 - `AudioMixerRingBuffer`: Manages mic + system audio synchronization
 - `ProfessionalAudioMixer`: RMS-based ducking and mixing
 - `AudioPipelineManager`: Orchestrates VAD, mixing, and distribution
 
 **Testing Audio Changes**:
+
 ```bash
 # Enable verbose audio logging
 RUST_LOG=app_lib::audio=debug ./clean_run.sh
@@ -297,6 +316,7 @@ Do not add new endpoints to `backend/app/main.py`; that FastAPI code is legacy a
 ### Frontend Debugging
 
 **Enable Rust Logging**:
+
 ```bash
 # macOS
 RUST_LOG=debug ./clean_run.sh
@@ -306,6 +326,7 @@ $env:RUST_LOG="debug"; ./clean_run_windows.bat
 ```
 
 **Developer Tools**:
+
 - Open DevTools: `Cmd+Shift+I` (macOS) or `Ctrl+Shift+I` (Windows)
 - Console Toggle: Built into app UI (console icon)
 - View Rust logs: Check terminal output
@@ -313,6 +334,7 @@ $env:RUST_LOG="debug"; ./clean_run_windows.bat
 ### Audio Pipeline Debugging
 
 **Key Metrics** (emitted by pipeline):
+
 - Buffer sizes (mic/system)
 - Mixing window count
 - VAD detection rate
@@ -323,18 +345,21 @@ $env:RUST_LOG="debug"; ./clean_run_windows.bat
 ## Platform-Specific Notes
 
 ### macOS
+
 - **Audio Capture**: Uses ScreenCaptureKit for system audio (macOS 13+)
 - **GPU**: Metal + CoreML automatically enabled
 - **Permissions**: Requires microphone + screen recording permissions
 - **System Audio**: Requires virtual audio device (BlackHole) for system capture
 
 ### Windows
+
 - **Audio Capture**: Uses WASAPI (Windows Audio Session API)
 - **GPU**: CUDA (NVIDIA) or Vulkan (AMD/Intel) via Cargo features
 - **Build Tools**: Requires Visual Studio Build Tools with C++ workload
 - **System Audio**: Uses WASAPI loopback for system capture
 
 ### Linux
+
 - **Audio Capture**: ALSA/PulseAudio
 - **GPU**: CUDA (NVIDIA) or Vulkan via Cargo features
 - **Dependencies**: Requires cmake, llvm, libomp
@@ -342,12 +367,14 @@ $env:RUST_LOG="debug"; ./clean_run_windows.bat
 ## Performance Optimization Guidelines
 
 ### Audio Processing
+
 - Use `perf_debug!()` / `perf_trace!()` for hot-path logging (zero cost in release)
 - Batch audio metrics using `AudioMetricsBatcher` (pipeline.rs)
 - Pre-allocate buffers with `AudioBufferPool` (buffer_pool.rs)
 - VAD filtering reduces Whisper load by ~70% (only processes speech)
 
 ### Whisper Transcription
+
 - **Model Selection**: Balance accuracy vs speed
   - Development: `base` or `small` (fast iteration)
   - Production: `medium` or `large-v3` (best quality)
@@ -355,6 +382,7 @@ $env:RUST_LOG="debug"; ./clean_run_windows.bat
 - **Parallel Processing**: Available in `whisper_engine/parallel_processor.rs` for batch workloads
 
 ### Frontend Performance
+
 - React state updates batched via Sidebar context
 - Transcript rendering virtualized for large meetings
 - Audio level monitoring throttled to 60fps
@@ -392,18 +420,22 @@ $env:RUST_LOG="debug"; ./clean_run_windows.bat
 ## Key Files Reference
 
 **Core Coordination**:
+
 - [frontend/src-tauri/src/lib.rs](frontend/src-tauri/src/lib.rs) - Main Tauri entry point, command registration
 - [frontend/src-tauri/src/audio/mod.rs](frontend/src-tauri/src/audio/mod.rs) - Audio module exports
 - [frontend/src-tauri/src/database/mod.rs](frontend/src-tauri/src/database/mod.rs) - Local database module
 
 **Audio System**:
+
 - [frontend/src-tauri/src/audio/recording_manager.rs](frontend/src-tauri/src/audio/recording_manager.rs) - Recording orchestration
 - [frontend/src-tauri/src/audio/pipeline.rs](frontend/src-tauri/src/audio/pipeline.rs) - Audio mixing and VAD
 - [frontend/src-tauri/src/audio/recording_saver.rs](frontend/src-tauri/src/audio/recording_saver.rs) - Audio file writing
 
 **UI Components**:
+
 - [frontend/src/app/page.tsx](frontend/src/app/page.tsx) - Main recording interface
 - [frontend/src/components/Sidebar/SidebarProvider.tsx](frontend/src/components/Sidebar/SidebarProvider.tsx) - Global state management
 
 **Whisper Integration**:
+
 - [frontend/src-tauri/src/whisper_engine/whisper_engine.rs](frontend/src-tauri/src/whisper_engine/whisper_engine.rs) - Whisper model management and transcription

@@ -5,6 +5,7 @@ This document explains how to use the `build-devtest.yml` workflow for building 
 ## Overview
 
 The DevTest workflow is specifically designed for development and testing purposes. It:
+
 - Builds for all platforms (macOS, Windows, Linux)
 - Has **code signing disabled by default** to speed up builds
 - Allows **optional signing** via workflow dispatch input
@@ -26,10 +27,12 @@ The workflow runs via **manual dispatch only**:
 ## Workflow Options
 
 ### Sign the build
+
 - **Unchecked (default)**: Fast builds without code signing (~25-30 minutes)
 - **Checked**: Full code signing for all platforms (~35-45 minutes)
 
 ### Upload build artifacts
+
 - **Checked (default)**: Artifacts are uploaded and available for download
 - **Unchecked**: Build runs but no artifacts are saved
 
@@ -37,29 +40,32 @@ The workflow runs via **manual dispatch only**:
 
 The workflow builds for all platforms in parallel:
 
-| Platform | Target | Output |
-|----------|--------|--------|
-| macOS (Apple Silicon) | aarch64-apple-darwin | DMG + App |
-| Windows (x64) | x86_64-pc-windows-msvc | MSI + NSIS |
-| Linux (Ubuntu 22.04) | x86_64-unknown-linux-gnu | DEB |
-| Linux (Ubuntu 24.04) | x86_64-unknown-linux-gnu | AppImage + RPM |
+| Platform              | Target                   | Output         |
+| --------------------- | ------------------------ | -------------- |
+| macOS (Apple Silicon) | aarch64-apple-darwin     | DMG + App      |
+| Windows (x64)         | x86_64-pc-windows-msvc   | MSI + NSIS     |
+| Linux (Ubuntu 22.04)  | x86_64-unknown-linux-gnu | DEB            |
+| Linux (Ubuntu 24.04)  | x86_64-unknown-linux-gnu | AppImage + RPM |
 
 ## Code Signing Details
 
 When signing is enabled:
 
 ### macOS
+
 - Uses **Apple Developer Certificate** from secrets
 - Performs **notarization** with Apple ID
 - Signs both DMG and .app bundle
 - Verifies signatures with `codesign` and `spctl`
 
 ### Windows
+
 - Uses **DigiCert KeyLocker** (cloud HSM)
 - Signs both MSI and NSIS installers
 - Verifies signatures with PowerShell
 
 ### Linux
+
 - Uses **Tauri updater signing** (Ed25519)
 - Signs update manifests for auto-updater
 
@@ -104,11 +110,11 @@ Artifacts are automatically uploaded and retained for **14 days**:
 
 Each platform uses optimal hardware acceleration:
 
-| Platform | Acceleration | Performance |
-|----------|-------------|-------------|
-| macOS | Metal GPU | 10-15x faster than CPU |
-| Windows | Vulkan GPU | 5-10x faster than CPU |
-| Linux | OpenBLAS CPU | 2-3x faster than vanilla CPU |
+| Platform | Acceleration | Performance                  |
+| -------- | ------------ | ---------------------------- |
+| macOS    | Metal GPU    | 10-15x faster than CPU       |
+| Windows  | Vulkan GPU   | 5-10x faster than CPU        |
+| Linux    | OpenBLAS CPU | 2-3x faster than vanilla CPU |
 
 ## Troubleshooting
 
@@ -117,6 +123,7 @@ Each platform uses optimal hardware acceleration:
 **Problem:** Signing enabled but builds are still unsigned
 
 **Solutions:**
+
 1. Verify all required secrets are configured in repository settings
 2. Check the workflow logs for specific error messages
 3. Ensure secrets haven't expired
@@ -126,6 +133,7 @@ Each platform uses optimal hardware acceleration:
 **Problem:** Build fails during signing phase
 
 **Solutions:**
+
 1. Check that all required secrets are configured:
    - `APPLE_CERTIFICATE`, `APPLE_ID`, `APPLE_PASSWORD`, `APPLE_TEAM_ID`
    - `SM_HOST`, `SM_API_KEY`, `SM_CODE_SIGNING_CERT_SHA1_HASH`
@@ -138,16 +146,17 @@ Each platform uses optimal hardware acceleration:
 **Problem:** Can't download build artifacts
 
 **Solutions:**
+
 1. Check workflow status - artifacts only available after successful build
 2. Artifacts expire after 14 days
 3. Ensure "Upload build artifacts" was checked when running
 
 ## Performance Comparison
 
-| Build Type | Duration | When to Use |
-|------------|----------|-------------|
-| **Unsigned** (default) | ~25-30 min | Regular development, quick testing |
-| **Signed** | ~35-45 min | Pre-release testing, production-like testing |
+| Build Type             | Duration   | When to Use                                  |
+| ---------------------- | ---------- | -------------------------------------------- |
+| **Unsigned** (default) | ~25-30 min | Regular development, quick testing           |
+| **Signed**             | ~35-45 min | Pre-release testing, production-like testing |
 
 ## Best Practices
 
@@ -165,6 +174,7 @@ Each platform uses optimal hardware acceleration:
 Located at: `.github/workflows/build-devtest.yml`
 
 Key configuration:
+
 - **Default signing:** OFF
 - **Artifact retention:** 14 days
 - **Parallel builds:** All platforms simultaneously

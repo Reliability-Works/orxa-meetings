@@ -36,6 +36,29 @@ pnpm tauri:build
 - Keep generated model files and local app data out of commits.
 - Update docs when behavior, setup, release, or MCP tooling changes.
 
+## Maintainability
+
+Run the full gate before pushing:
+
+```bash
+make validate
+```
+
+The repository has hard limits for file size, function/component size,
+complexity, nesting, and parameter count. These limits apply to the whole
+repository so the current code remains easy to follow.
+
+Preferred shape for new work:
+
+- Keep files under `350` lines; the hard limit is `500`.
+- Keep functions and React components under `100` lines; the hard limit is
+  `200`.
+- Prefer small named helpers over deeply nested control flow.
+- Keep Tauri command payloads explicit, but move internal workflow logic into
+  smaller service functions.
+- Add or update docs for any new agent, model, calendar, release, or MCP
+  surface.
+
 ## Release Work
 
 Release artifacts are produced through `.github/workflows/release.yml`. The updater manifest is published as `latest.json` on the latest GitHub release.

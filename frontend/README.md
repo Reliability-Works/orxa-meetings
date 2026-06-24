@@ -1,6 +1,6 @@
 # Orxa Frontend
 
-This directory contains the Orxa desktop app: a Next.js interface packaged by Tauri with a Rust backend.
+This directory contains the Orxa desktop app: a Next.js interface packaged by Tauri with a Rust app core.
 
 ## Main Responsibilities
 
@@ -8,7 +8,7 @@ This directory contains the Orxa desktop app: a Next.js interface packaged by Ta
 - recording controls and import flow
 - model download surfaces
 - update notification and progress UI
-- calls into Tauri commands for audio, storage, summaries, Calendar, MCP setup, and work hub data
+- calls into Tauri commands for audio, storage, summaries, Calendar, MCP setup, and Agent Sources
 
 ## Development
 
@@ -43,7 +43,7 @@ Install the newest built macOS app into `/Applications`:
 
 ## App Data
 
-The app identifier is `com.orxa.ai`. User data is stored in the platform app-data directory and includes local recordings, transcripts, summaries, chat data, and preferences.
+The app identifier is `com.orxa.ai`. User data is stored in the platform app-data directory and includes local recordings, transcripts, summaries, chat data, Agent Sources indexes, and preferences.
 
 ## Update Flow
 
@@ -65,9 +65,10 @@ Key command areas:
 - `summary` - summary generation and local model management
 - `calendar` - macOS Calendar permissions, auto-start, and event listing
 - `chat` - persistent local agent chat
-- `workhub` - actions, decisions, risks, questions, and context packs
+- `agent_sources` - local coding-agent history indexing and search
+- `local_models` - catalog model downloads and status
 - `mcp` - local MCP setup information
 
 ## Notes
 
-The archived Python backend is not required for supported Orxa desktop development. Local transcription and summaries run through the Tauri app path.
+The archived Python backend is not required for supported Orxa desktop development. Local transcription, summaries, chat, Agent Sources, and MCP setup run through the Tauri app path.

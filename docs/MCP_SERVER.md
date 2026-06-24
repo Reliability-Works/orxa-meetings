@@ -1,25 +1,55 @@
 # Orxa MCP Server
 
-Orxa includes an MCP server for local meeting data. It lets agents inspect meetings, raw transcript segments, local-speaker labels, summaries, meeting notes, and action-item sections without starting the archived FastAPI backend. It can also trim transcript segments recorded after a known meeting end point when explicitly confirmed.
+Orxa includes a local MCP server for agents that need access to meeting memory without opening the app UI.
 
-## What It Exposes
+The server is:
 
-- `list_meetings` - local meetings with transcript counts, summary status, and notes presence.
-- `get_meeting` - meeting metadata, summary state, and notes.
-- `get_transcript` - raw transcript text and timestamped transcript segments.
-- `get_summary` - stored summary status and summary JSON/Markdown.
-- `search_transcripts` - full-text substring search across raw transcript segments.
-- `get_action_items` - the action-items/todos section from the stored summary, when present.
-- `preview_trim_transcript` - preview transcript tail segments that would be removed after a cutoff.
-- `trim_transcript_after` - delete transcript segments after a cutoff and clear stale summary/cache data. Requires `confirm: true`.
+```text
+mcp/orxa_mcp.py
+```
 
-The server does not read settings, API keys, or model-provider configuration. All tools are read-only except `trim_transcript_after`, which only deletes timestamped transcript rows for the requested meeting after the requested cutoff.
+It uses only Python standard-library modules and reads the local Orxa SQLite database. It does not read model-provider API keys, app settings secrets, or recordings.
 
-Transcript segments may include `speaker: "me"` when Orxa detected that the local microphone was active for that segment. `get_transcript.raw_text` also prefixes those lines with `Me:` so agents can use local-user attribution without implementing full speaker diarization.
+## Tools
+
+Meeting tools:
+
+- `list_meetings` lists local meetings with transcript counts, summary status, and notes status.
+- `get_meeting` returns meeting metadata, summary state, and notes.
+- `get_transcript` returns raw transcript text and/or timestamped transcript segments.
+- `get_summary` returns the stored summary process state and summary JSON/Markdown.
+- `search_transcripts` searches raw transcript segments across local meetings.
+- `ask_meeting` returns transcript-backed evidence for a question about one meeting.
+- `get_action_items` extracts the action-items/todos section from a stored summary.
+
+Agent Sources tools:
+
+- `list_agent_sources` lists configured local Agent Sources and indexed-document counts.
+- `search_agent_sessions` searches indexed Codex, Claude, Cursor, memory-summary, or custom session folders.
+- `get_agent_activity` returns indexed agent-session activity for a specific day.
+
+Transcript cleanup tools:
+
+- `preview_trim_transcript` previews transcript segments that would be removed after a cutoff.
+- `trim_transcript_after` deletes transcript segments after a cutoff and clears stale summary/cache data. It requires `confirm: true`.
+
+The MCP server also exposes JSON resources for meetings, transcripts, summaries, and notes.
+
+## Local Speaker Labels
+
+Transcript segments may include:
+
+```json
+{ "speaker": "me" }
+```
+
+That label means Orxa detected the local microphone was active for that segment. `get_transcript.raw_text` prefixes those lines with `Me:` so agents can reason about what the Mac owner likely said without full speaker diarization.
 
 ## Trim A Transcript Tail
 
-Use this when recording continued after the actual meeting ended.
+Use the trim tools when recording continued after the actual meeting ended.
+
+Preview first:
 
 ```json
 {
@@ -28,7 +58,7 @@ Use this when recording continued after the actual meeting ended.
 }
 ```
 
-Preview first with `preview_trim_transcript`. To apply, call `trim_transcript_after` with the same cutoff and `confirm: true`.
+Apply only after confirming the preview:
 
 ```json
 {
@@ -38,11 +68,13 @@ Preview first with `preview_trim_transcript`. To apply, call `trim_transcript_af
 }
 ```
 
-The cutoff is recording-relative. Segments with `audio_start_time` greater than the cutoff are deleted; exact cutoff matches are kept. Segments without recording-relative timestamps are left untouched. Any stored summary for that meeting is cleared so it can be regenerated from the cleaned transcript.
+The cutoff is recording-relative. Segments with `audio_start_time` greater than the cutoff are deleted. Exact cutoff matches are kept. Segments without recording-relative timestamps are left untouched.
 
-## Run It
+Any stored summary for that meeting is cleared so the user can regenerate it from the cleaned transcript.
 
-Use the database path shown by the app's database-folder command or set `ORXA_DB_PATH`.
+## Run The Server
+
+Use the app's MCP setup panel or pass the database path manually:
 
 ```bash
 python3 mcp/orxa_mcp.py --database "/path/to/meeting_minutes.sqlite"
@@ -54,11 +86,15 @@ or:
 ORXA_DB_PATH="/path/to/meeting_minutes.sqlite" python3 mcp/orxa_mcp.py
 ```
 
-If no path is provided, the server tries common Tauri app-data locations for `meeting_minutes.sqlite`.
+If no path is provided, the server tries common app-data locations for `meeting_minutes.sqlite`, including:
 
-## MCP Client Config
+```text
+~/Library/Application Support/com.orxa.ai/meeting_minutes.sqlite
+```
 
-Example client configuration:
+## Client Config
+
+Example MCP client configuration:
 
 ```json
 {
@@ -66,7 +102,7 @@ Example client configuration:
     "orxa": {
       "command": "python3",
       "args": [
-        "/absolute/path/to/orxa/mcp/orxa_mcp.py",
+        "/absolute/path/to/orxa-meetings/mcp/orxa_mcp.py",
         "--database",
         "/absolute/path/to/meeting_minutes.sqlite"
       ]
@@ -75,28 +111,16 @@ Example client configuration:
 }
 ```
 
-For a local checkout at `/Users/me/repos/orxa`:
+For an installed macOS app, the bundled script normally lives under:
 
-```json
-{
-  "mcpServers": {
-    "orxa": {
-      "command": "python3",
-      "args": [
-        "/Users/me/repos/orxa/mcp/orxa_mcp.py"
-      ],
-      "env": {
-        "ORXA_DB_PATH": "/Users/me/Library/Application Support/com.orxa.ai/meeting_minutes.sqlite"
-      }
-    }
-  }
-}
+```text
+/Applications/Orxa.app/Contents/Resources/_up_/mcp/orxa_mcp.py
 ```
 
 ## Development
 
-The server uses only Python standard-library modules.
-
 ```bash
 python3 -m unittest mcp/test_orxa_mcp.py
 ```
+
+The root validation gate includes the MCP test suite.

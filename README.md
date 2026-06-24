@@ -1,110 +1,123 @@
 # Orxa Meetings
 
-Orxa Meetings is a local-first macOS meeting assistant for recording, transcribing, summarizing, and handing meeting context to coding agents and other staff workflows.
+Orxa Meetings is a local-first macOS meeting workspace for recording calls, transcribing them on-device, producing detailed summaries, and giving coding agents access to the resulting meeting memory.
 
-The app is based on the original open-source Meetily project by Zackriya Solutions. Orxa keeps the local privacy model and extends it with agent access, persistent chat, work extraction, calendar-aware meeting history, and a Reliability Works release/update flow.
+The codebase is derived from the original open-source Meetily project by Zackriya Solutions. Orxa keeps the local privacy model and moves the product toward agent-assisted meeting recall, Calendar-aware history, persistent chat, and Reliability Works release/update infrastructure.
 
-## What It Does
+## Current Product Surface
 
-- Records microphone and system audio locally.
-- Transcribes meetings during the call with downloadable local transcription models.
-- Detects when the Mac owner's microphone is active and labels those transcript lines as `Me`.
-- Generates expansive summaries, decisions, risks, open questions, and action items.
-- Opens a summary modal after a recording stops so the next step is obvious.
-- Exposes a local MCP server so Codex, Claude, and other agents can inspect transcripts, summaries, notes, and work items.
-- Supports a persistent chat agent for asking questions across meetings.
-- Shows macOS Calendar events and attaches overlapping Orxa recordings to the matching event.
-- Publishes signed updater artifacts through GitHub Releases.
+- Record microphone and system audio locally.
+- Transcribe during a meeting with downloadable local transcription models.
+- Label transcript segments as `Me` when the Mac owner's microphone is active.
+- Generate expansive summaries with decisions, risks, questions, and action items/todos.
+- Open the summary modal after a recording stops so summary creation is hard to miss.
+- Browse macOS Calendar events alongside Orxa recordings and attach overlapping recordings to the matching event.
+- Chat with a local meeting agent that can use selected meeting transcripts, summaries, and indexed local agent history.
+- Index local Agent Sources such as Codex, Claude, Cursor, and memory-summary folders for meeting prep and follow-up context.
+- Expose a local MCP server for agents that need raw transcripts, summaries, notes, todos, transcript search, trimming, and Agent Sources search.
+- Deliver signed app updates through GitHub Releases and the Tauri updater.
 
-## Calendar Linking
+Orxa is not a task manager. Action items remain part of meeting summaries and MCP output so they can be copied into the user's dedicated task system.
 
-Orxa reads the user's macOS Calendar with EventKit after permission is granted. The Calendar page shows real Calendar events and local Orxa recordings in one view.
-
-When a recording overlaps a Calendar event, Orxa displays that transcript under the event. If there is no matching event, the recording remains a standalone meeting, which preserves the current ad hoc transcription flow.
-
-Calendar data stays local. Orxa does not upload event details.
-
-## Agent Access
-
-The bundled MCP server lives in `mcp/orxa_mcp.py` and reads the local Orxa SQLite database. It provides tools for:
-
-- listing meetings
-- reading raw transcript segments
-- reading summaries and meeting notes
-- extracting and updating action items
-- trimming transcript tails after a confirmed cutoff
-- preparing role-specific context packs
-
-See [docs/MCP_SERVER.md](docs/MCP_SERVER.md) for setup.
-
-## Install And Update
-
-Orxa is distributed from [Reliability-Works/orxa-meetings releases](https://github.com/Reliability-Works/orxa-meetings/releases).
-
-The app checks:
+## Repository Layout
 
 ```text
-https://github.com/Reliability-Works/orxa-meetings/releases/latest/download/latest.json
+frontend/              Next.js UI and Tauri app shell
+frontend/src-tauri/    Rust app core, local database, audio, Calendar, models, chat, updates
+llama-helper/          Rust sidecar used by local summary/chat models
+mcp/                   Python standard-library MCP server and tests
+docs/                  Current product, development, and release docs
+backend/               Archived legacy backend kept for migration context only
 ```
 
-When an update is available, the left sidebar shows an update notice above the bottom icons. Starting the update displays download progress and relaunches the app after installation.
+The supported app path is the Tauri desktop app in `frontend/`. The archived Python/FastAPI backend is not used for current development, releases, or installs.
 
-Updater signing requires these GitHub Actions secrets:
-
-- `TAURI_SIGNING_PRIVATE_KEY`
-- `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
-
-macOS Developer ID distribution additionally uses the Apple signing and notarization secrets referenced in `.github/workflows/build.yml`.
-
-## Build Locally
+## Quick Start
 
 Requirements:
 
+- macOS for the primary supported app experience
 - Node.js 20
-- pnpm 8+
-- Rust stable
+- pnpm
+- Bun for frontend unit tests
+- Rust stable toolchain with `cargo fmt` and `cargo clippy`
 - Xcode command line tools on macOS
 
 ```bash
+cd /path/to/orxa-meetings
+make bootstrap
+make validate
+```
+
+`make validate` runs formatting, linting, type checks, tests, coverage,
+duplication, and maintainability checks.
+
+Run the desktop app locally:
+
+```bash
 cd frontend
-pnpm install
-pnpm build
+pnpm tauri:dev
+```
+
+Build a production app:
+
+```bash
+cd frontend
 pnpm tauri:build
 ```
 
-For a local app install on macOS:
+Install the most recent macOS bundle into `/Applications`:
 
 ```bash
 cd frontend
 ./install-macos.sh --skip-build --no-backup
 ```
 
-## Release
+## Agent And MCP Access
 
-Release builds are created by `.github/workflows/release.yml`.
+The bundled MCP server is `mcp/orxa_mcp.py`. It reads the local Orxa SQLite database and exposes:
 
-Manual release:
+- meetings and meeting metadata
+- raw timestamped transcript segments
+- summaries and meeting notes
+- action items/todos extracted from summaries
+- transcript search and meeting-specific evidence search
+- confirmed transcript-tail trimming
+- local Agent Sources configuration, search, and day activity
 
-1. Set `frontend/src-tauri/tauri.conf.json` and `frontend/package.json` to the desired version.
-2. Push to the default branch.
-3. Run the `Release` workflow, or push a `vX.Y.Z` tag.
-4. Publish the draft release after checking the generated assets and `latest.json`.
-
-The current app version has been reset to `0.0.1` for the new Orxa Meetings repository.
+See [docs/MCP_SERVER.md](docs/MCP_SERVER.md).
 
 ## Documentation
 
+- [Docs Index](docs/README.md)
 - [Architecture](docs/architecture.md)
-- [Building](docs/BUILDING.md)
+- [Development And Building](docs/BUILDING.md)
+- [Validation Gates](docs/VALIDATION.md)
+- [Agent Sources](docs/AGENT_SOURCES.md)
+- [Calendar Integration](docs/CALENDAR.md)
 - [MCP Server](docs/MCP_SERVER.md)
+- [Models](docs/MODELS.md)
+- [Releases And Updates](docs/RELEASES.md)
 - [GPU Acceleration](docs/GPU_ACCELERATION.md)
 - [Privacy Policy](PRIVACY_POLICY.md)
+
+## Releases And Updates
+
+Releases are published from [Reliability-Works/orxa-meetings](https://github.com/Reliability-Works/orxa-meetings). The app checks:
+
+```text
+https://github.com/Reliability-Works/orxa-meetings/releases/latest/download/latest.json
+```
+
+`TAURI_SIGNING_PRIVATE_KEY` signs updater artifacts. Apple Developer ID credentials sign and notarize macOS app bundles. They are separate signing systems and both are required for a production macOS release with auto-update support.
+
+See [docs/RELEASES.md](docs/RELEASES.md).
 
 ## Attribution
 
 Orxa Meetings is derived from Meetily / meeting-minutes by Zackriya Solutions. The original project is MIT licensed, and the original copyright notice is retained in [LICENSE.md](LICENSE.md).
 
-Substantial Orxa-specific additions include the Orxa app shell, local agent workflows, MCP tooling, calendar linking, work extraction, update UX, and Reliability Works release automation.
+Substantial Orxa-specific work includes the Orxa app shell, macOS Calendar linking, local Agent Sources, persistent chat, MCP tooling, summary/todo flows, model-download surfaces, updater UX, and Reliability Works release automation.
 
 ## License
 

@@ -9,7 +9,7 @@ on:
 # Prevent duplicate releases
 concurrency:
   group: release-${{ github.ref }}
-  cancel-in-progress: false  # Don't cancel releases, fail instead
+  cancel-in-progress: false # Don't cancel releases, fail instead
 
 jobs:
   # STEP 1: Create draft release first
@@ -24,7 +24,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Fetch all tags
+          fetch-depth: 0 # Fetch all tags
 
       - name: Get release version
         id: get-version
@@ -80,7 +80,7 @@ jobs:
       build-args: ${{ matrix.args }}
       sign-binaries: true
       asset-prefix: "orxa"
-      upload-artifacts: false  # tauri-action uploads directly to release
+      upload-artifacts: false # tauri-action uploads directly to release
       release-id: ${{ needs.create-release.outputs.release-id }}
     secrets: inherit
 

@@ -1,57 +1,37 @@
-# GPU Acceleration Guide
+# GPU Acceleration
 
-Orxa supports GPU acceleration for transcription, which can significantly improve performance. This guide provides detailed information on how to set up and configure GPU acceleration for your system.
+Orxa uses local transcription engines and local summary/chat models. Acceleration depends on the model surface being used.
 
-## Supported Backends
+## Transcription
 
-Orxa uses the `whisper-rs` library, which supports several GPU acceleration backends:
+The Rust app supports Whisper through `whisper-rs` and Parakeet through ONNX Runtime.
 
-*   **CUDA:** For NVIDIA GPUs.
-*   **Metal:** For Apple Silicon and modern Intel-based Macs.
-*   **Core ML:** An additional acceleration layer for Apple Silicon.
-*   **Vulkan:** A cross-platform solution for modern AMD and Intel GPUs.
-*   **OpenBLAS:** A CPU-based optimization that can provide a significant speed-up over standard CPU processing.
+Whisper acceleration features are declared in `frontend/src-tauri/Cargo.toml`:
 
-## Automatic GPU Detection
+- `metal` for Apple Metal
+- `coreml` for Apple Core ML
+- `cuda` for NVIDIA CUDA
+- `vulkan` for Vulkan-capable GPUs
+- `hipblas` for AMD ROCm
+- `openblas` for optimized CPU builds
 
-The build scripts (`dev-gpu.sh`, `build-gpu.sh`) are designed to automatically detect your GPU and enable the appropriate feature flag during the build process. The detection is handled by the `scripts/auto-detect-gpu.js` script.
+macOS builds enable Metal and Core ML through the macOS target dependency. Other platforms can opt into the matching feature at build time.
 
-Here's the detection priority:
-
-1.  **CUDA (NVIDIA)**
-2.  **Metal (Apple)**
-3.  **Vulkan (AMD/Intel)**
-4.  **OpenBLAS (CPU)**
-
-If no GPU is detected, the application will fall back to CPU-only processing.
-
-## Manual Configuration
-
-If you want to manually configure the GPU acceleration backend, you can do so by enabling the corresponding feature flag in the `frontend/src-tauri/Cargo.toml` file.
-
-For example, to enable CUDA, you would modify the `[features]` section as follows:
-
-```toml
-[features]
-default = ["cuda"]
-
-# ... other features
-
-cuda = ["whisper-rs/cuda"]
+```bash
+cd frontend
+pnpm tauri:build:cuda
+pnpm tauri:build:vulkan
+pnpm tauri:build:openblas
 ```
 
-Then, you would build the application using the standard `pnpm tauri:build` command.
+The helper script `frontend/scripts/tauri-auto.js` delegates to Tauri while preserving the existing feature-specific scripts in `frontend/package.json`.
 
-## Platform-Specific Instructions
+## Local Summary And Chat Models
 
-### Linux
+Summary and chat models run through the local model manager and `llama-helper` sidecar when a built-in local model is selected. Larger models retain more meeting detail but need more memory. See [MODELS.md](MODELS.md).
 
-For detailed instructions on setting up GPU acceleration on Linux, please refer to the [Linux build instructions](BUILDING.md#--building-on-linux).
+## Platform Notes
 
-### macOS
+macOS is the primary supported target for Orxa's current product experience because Calendar access, menu-bar behavior, system audio capture, and app packaging are macOS-first.
 
-On macOS, Metal GPU acceleration is enabled by default. No additional configuration is required.
-
-### Windows
-
-To enable GPU acceleration on Windows, you will need to install the appropriate toolkit for your GPU (e.g., the CUDA Toolkit for NVIDIA GPUs) and then build the application with the corresponding feature flag enabled.
+Linux and Windows build scripts remain available for packaging work, but some system-audio and Calendar behavior is platform-specific.

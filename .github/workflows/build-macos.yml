@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       build-type:
-        description: 'Build type'
+        description: "Build type"
         required: true
         type: choice
         options:
@@ -12,12 +12,12 @@ on:
           - release
         default: release
       sign-build:
-        description: 'Sign the build'
+        description: "Sign the build"
         required: true
         type: boolean
         default: true
       upload-artifacts:
-        description: 'Upload build artifacts'
+        description: "Upload build artifacts"
         required: true
         type: boolean
         default: true
@@ -75,7 +75,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: "20"
 
       - name: Get pnpm store directory
         shell: bash

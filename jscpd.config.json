@@ -1,0 +1,28 @@
+{
+  "minTokens": 180,
+  "minLines": 12,
+  "threshold": 0,
+  "reporters": ["console"],
+  "ignore": [
+    "**/node_modules/**",
+    "**/.next/**",
+    "**/out/**",
+    "**/target/**",
+    "**/coverage/**",
+    "**/.venv/**",
+    "**/.jscpd-report/**",
+    "**/Cargo.lock",
+    "**/pnpm-lock.yaml",
+    "**/*.png",
+    "**/*.jpg",
+    "**/*.jpeg",
+    "**/*.gif",
+    "**/*.icns",
+    "**/*.ico",
+    "**/*.mp4",
+    "**/*.wav",
+    "frontend/src-tauri/binaries/**",
+    "backend/whisper-custom/**"
+  ],
+  "format": ["typescript", "javascript", "rust", "python", "markdown", "yaml", "json"]
+}
