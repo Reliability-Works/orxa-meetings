@@ -5,6 +5,10 @@
 # dependencies
 /node_modules
 **/models
+!frontend/src/components/models/
+!frontend/src/components/models/**
+!frontend/src-tauri/src/summary/summary_engine/models/
+!frontend/src-tauri/src/summary/summary_engine/models/**
 /.pnp
 .pnp.*
 .yarn/*

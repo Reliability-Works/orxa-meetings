@@ -17,6 +17,10 @@ package-lock.json
 transcripts/
 chroma/
 models/
+!src/components/models/
+!src/components/models/**
+!src-tauri/src/summary/summary_engine/models/
+!src-tauri/src/summary/summary_engine/models/**
 whisper.cpp/
 whisper-server*
 whisper-server-package/
