@@ -461,6 +461,38 @@ jobs:
           echo "CERT_ID=$CERT_ID" >> $GITHUB_ENV
           echo "Certificate imported: $CERT_ID"
 
+      - name: Write App Store Connect API key
+        if: contains(inputs.platform, 'macos') && inputs.sign-binaries
+        env:
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+        shell: bash
+        run: |
+          if [[ -z "${APPLE_API_KEY_P8:-}" ]]; then
+            echo "APPLE_API_KEY_P8 not configured; falling back to Apple ID notarization credentials."
+            exit 0
+          fi
+
+          mkdir -p "$RUNNER_TEMP/apple-api-key"
+          KEY_PATH="$RUNNER_TEMP/apple-api-key/AuthKey_${APPLE_API_KEY}.p8"
+          printf '%s' "$APPLE_API_KEY_P8" > "$KEY_PATH"
+          chmod 600 "$KEY_PATH"
+          echo "APPLE_API_KEY_PATH=$KEY_PATH" >> "$GITHUB_ENV"
+          echo "App Store Connect API key written for notarization."
+
+      - name: Normalize Apple notarization password
+        if: contains(inputs.platform, 'macos') && inputs.sign-binaries
+        env:
+          APPLE_PASSWORD_SECRET: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_ID_PASSWORD_SECRET: ${{ secrets.APPLE_ID_PASSWORD }}
+        shell: bash
+        run: |
+          if [[ -n "${APPLE_PASSWORD_SECRET:-}" ]]; then
+            echo "APPLE_PASSWORD=$APPLE_PASSWORD_SECRET" >> "$GITHUB_ENV"
+          elif [[ -n "${APPLE_ID_PASSWORD_SECRET:-}" ]]; then
+            echo "APPLE_PASSWORD=$APPLE_ID_PASSWORD_SECRET" >> "$GITHUB_ENV"
+          fi
+
       - name: Configure build acceleration
         if: contains(inputs.platform, 'macos')
         run: |
@@ -573,8 +605,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           APPLE_SIGNING_IDENTITY: ${{ env.CERT_ID }}

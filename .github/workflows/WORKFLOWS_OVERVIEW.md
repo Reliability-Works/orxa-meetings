@@ -323,10 +323,15 @@ All workflows require these secrets to be configured:
 
 - `APPLE_CERTIFICATE` - Developer ID certificate (base64)
 - `APPLE_CERTIFICATE_PASSWORD` - Certificate password
-- `APPLE_ID` - Apple ID email
-- `APPLE_PASSWORD` - App-specific password
-- `APPLE_TEAM_ID` - Team ID
 - `KEYCHAIN_PASSWORD` - Temporary keychain password
+- App Store Connect API key notarization:
+  - `APPLE_API_ISSUER`
+  - `APPLE_API_KEY`
+  - `APPLE_API_KEY_P8`
+- Or Apple ID notarization:
+  - `APPLE_ID`
+  - `APPLE_PASSWORD` or `APPLE_ID_PASSWORD`
+  - `APPLE_TEAM_ID`
 
 ### Windows Signing (DigiCert)
 

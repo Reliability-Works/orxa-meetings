@@ -29,13 +29,21 @@ These produce `.sig` files and allow the app to trust updater artifacts listed i
 
 Apple macOS distribution signing:
 
-- Apple Developer ID certificate
-- certificate password/keychain secrets
-- Apple API key/issuer/team details for notarization
+- `APPLE_CERTIFICATE`: base64 exported Developer ID Application `.p12`
+- `APPLE_CERTIFICATE_PASSWORD`: `.p12` export password
+- `KEYCHAIN_PASSWORD`: temporary CI keychain password
+- either App Store Connect API key notarization:
+  - `APPLE_API_ISSUER`
+  - `APPLE_API_KEY`
+  - `APPLE_API_KEY_P8`: contents of the downloaded `.p8` private key
+- or Apple ID notarization:
+  - `APPLE_ID`
+  - `APPLE_PASSWORD` or `APPLE_ID_PASSWORD`
+  - `APPLE_TEAM_ID`
 
 These sign and notarize the macOS app so Gatekeeper accepts it.
 
-An Apple `.p8` key cannot replace the Tauri updater private key. The `.p8` key is for Apple APIs; the Tauri key signs update payloads.
+An Apple `.p8` key cannot replace the Developer ID certificate or the Tauri updater private key. The `.p8` key authenticates notarization; the Developer ID certificate signs the app bundle; the Tauri key signs update payloads.
 
 ## Release Workflow
 
@@ -46,6 +54,8 @@ The release workflow is:
 ```
 
 It creates a draft GitHub release, builds macOS and Windows artifacts, uploads installers and updater archives, and publishes `latest.json`.
+
+The macOS release leg runs a signing preflight before the draft release is created. If any Apple signing or notarization secret is missing, the workflow fails early instead of publishing an app that Gatekeeper will reject.
 
 Run a manual release from GitHub Actions, or push a version tag:
 
