@@ -173,6 +173,24 @@ impl InputDeviceKind {
             }
         }
 
+        const BUILT_IN_DEVICE_PATTERNS: &[&str] = &[
+            "built-in microphone",
+            "built in microphone",
+            "internal microphone",
+            "macbook pro microphone",
+            "macbook air microphone",
+        ];
+
+        for pattern in BUILT_IN_DEVICE_PATTERNS {
+            if name_lower.contains(pattern) {
+                info!(
+                    "🔌 Built-in audio device detected: '{}' (pattern: '{}') - treating as Wired",
+                    device_name, pattern
+                );
+                return Some(InputDeviceKind::Wired);
+            }
+        }
+
         // Check for virtual audio devices (treat as wired)
         const VIRTUAL_DEVICE_PATTERNS: &[&str] =
             &["blackhole", "vb-audio", "virtual", "loopback", "monitor"];
