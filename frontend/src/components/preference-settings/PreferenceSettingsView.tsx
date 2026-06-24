@@ -3,7 +3,6 @@
 import type { ReactNode } from "react";
 import { Bot, Calendar, Check, Clock, Copy, FolderOpen, Server, ShieldCheck } from "lucide-react";
 
-import AnalyticsConsentSwitch from "../AnalyticsConsentSwitch";
 import { Switch } from "../ui/switch";
 import {
   CalendarAutoStartPreferences,
@@ -41,7 +40,6 @@ export function PreferenceSettingsView(props: PreferenceSettingsViewProps) {
       <GeneralSettingsSection {...props} />
       <AgentAccessSection {...props} />
       <StorageSection storageLocations={props.storageLocations} onOpenFolder={props.onOpenFolder} />
-      <UsageAnalyticsSection />
     </div>
   );
 }
@@ -346,16 +344,5 @@ function FolderButton({
       <FolderOpen className="h-4 w-4" />
       {children}
     </button>
-  );
-}
-
-function UsageAnalyticsSection() {
-  return (
-    <section>
-      <h2 className="mb-3 text-[15px] font-semibold text-gray-950">Usage analytics</h2>
-      <div className="rounded-xl border border-gray-200 bg-white p-5">
-        <AnalyticsConsentSwitch />
-      </div>
-    </section>
   );
 }

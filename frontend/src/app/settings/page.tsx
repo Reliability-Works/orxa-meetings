@@ -7,6 +7,7 @@ import {
   FolderSearch,
   MessageSquareText,
   Mic,
+  RefreshCcw,
   SearchIcon,
   Settings2,
   SparkleIcon,
@@ -21,6 +22,7 @@ import { BetaSettings } from "@/components/BetaSettings";
 import { PlaybackSettings } from "@/components/PlaybackSettings";
 import { ChatAgentSettings } from "@/components/ChatAgentSettings";
 import { AgentSourcesSettings } from "@/components/AgentSourcesSettings";
+import { UpdateSettings } from "@/components/UpdateSettings";
 import { useConfig } from "@/contexts/ConfigContext";
 
 const SETTINGS_ITEMS = [
@@ -28,7 +30,7 @@ const SETTINGS_ITEMS = [
     value: "general",
     label: "General",
     icon: Settings2,
-    keywords: "preferences privacy analytics language",
+    keywords: "preferences privacy language",
   },
   {
     value: "recording",
@@ -61,6 +63,12 @@ const SETTINGS_ITEMS = [
     icon: FolderSearch,
     keywords: "codex claude cursor sessions memories chronicles history context",
   },
+  {
+    value: "updates",
+    label: "Updates",
+    icon: RefreshCcw,
+    keywords: "version update release download install",
+  },
   { value: "beta", label: "Beta", icon: FlaskConical, keywords: "experimental features preview" },
 ] as const;
 
@@ -70,6 +78,7 @@ const SETTINGS_GROUPS: { title: string; values: SettingsTab[] }[] = [
   { title: "Personal", values: ["general", "recording"] },
   { title: "Models", values: ["Transcriptionmodels", "summaryModels", "chat", "playback"] },
   { title: "Context", values: ["agentSources"] },
+  { title: "App", values: ["updates"] },
   { title: "Advanced", values: ["beta"] },
 ];
 
@@ -134,6 +143,8 @@ export default function SettingsPage() {
         return <PlaybackSettings />;
       case "agentSources":
         return <AgentSourcesSettings />;
+      case "updates":
+        return <UpdateSettings />;
       case "beta":
         return <BetaSettings />;
       default:
