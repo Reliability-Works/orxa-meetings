@@ -1,10 +1,11 @@
-use crate::api::{MeetingDetails, MeetingTranscript, TranscriptTrimResult, TranscriptTrimSegment};
+use crate::api::{MeetingDetails, MeetingTranscript, TranscriptDeleteResult, TranscriptTrimResult};
 use crate::database::models::{MeetingModel, Transcript};
 use chrono::Utc;
 use sqlx::{Connection, Error as SqlxError, SqlitePool};
 use tracing::{error, info};
 
 mod delete;
+mod trim;
 
 use delete::delete_meeting_with_transaction;
 
@@ -175,16 +176,7 @@ impl MeetingsRepository {
         meeting_id: &str,
         cutoff_seconds: f64,
     ) -> Result<TranscriptTrimResult, SqlxError> {
-        validate_trim_input(meeting_id, cutoff_seconds)?;
-
-        let mut conn = pool.acquire().await?;
-        let mut transaction = conn.begin().await?;
-
-        let result =
-            build_trim_result(&mut transaction, meeting_id, cutoff_seconds, false, false).await;
-
-        transaction.rollback().await?;
-        result
+        trim::preview_trim_transcript(pool, meeting_id, cutoff_seconds).await
     }
 
     pub async fn trim_transcript_after(
@@ -192,68 +184,23 @@ impl MeetingsRepository {
         meeting_id: &str,
         cutoff_seconds: f64,
     ) -> Result<TranscriptTrimResult, SqlxError> {
-        validate_trim_input(meeting_id, cutoff_seconds)?;
+        trim::trim_transcript_after(pool, meeting_id, cutoff_seconds).await
+    }
 
-        let mut conn = pool.acquire().await?;
-        let mut transaction = conn.begin().await?;
+    pub async fn trim_transcript_from_segment(
+        pool: &SqlitePool,
+        meeting_id: &str,
+        transcript_id: &str,
+    ) -> Result<TranscriptTrimResult, SqlxError> {
+        trim::trim_transcript_from_segment(pool, meeting_id, transcript_id).await
+    }
 
-        let preview =
-            build_trim_result(&mut transaction, meeting_id, cutoff_seconds, false, false).await?;
-
-        if preview.deleted_count == 0 {
-            transaction.rollback().await?;
-            return Ok(TranscriptTrimResult {
-                applied: true,
-                ..preview
-            });
-        }
-
-        let deleted = sqlx::query(
-            "DELETE FROM transcripts
-             WHERE meeting_id = ?
-               AND audio_start_time IS NOT NULL
-               AND audio_start_time > ?",
-        )
-        .bind(meeting_id)
-        .bind(cutoff_seconds)
-        .execute(&mut *transaction)
-        .await?
-        .rows_affected() as i64;
-
-        let summary_deleted = sqlx::query("DELETE FROM summary_processes WHERE meeting_id = ?")
-            .bind(meeting_id)
-            .execute(&mut *transaction)
-            .await?
-            .rows_affected()
-            > 0;
-
-        // transcript_chunks are whole-transcript summary cache rows without per-segment timing.
-        // Clear them after a successful trim so no older summary path can reuse stale content.
-        sqlx::query("DELETE FROM transcript_chunks WHERE meeting_id = ?")
-            .bind(meeting_id)
-            .execute(&mut *transaction)
-            .await?;
-
-        let now = Utc::now();
-        sqlx::query("UPDATE meetings SET updated_at = ? WHERE id = ?")
-            .bind(now)
-            .bind(meeting_id)
-            .execute(&mut *transaction)
-            .await?;
-
-        let mut result = build_trim_result(
-            &mut transaction,
-            meeting_id,
-            cutoff_seconds,
-            true,
-            summary_deleted,
-        )
-        .await?;
-        result.deleted_count = deleted;
-        result.remaining_count = result.total_count;
-
-        transaction.commit().await?;
-        Ok(result)
+    pub async fn delete_transcript_segment(
+        pool: &SqlitePool,
+        meeting_id: &str,
+        transcript_id: &str,
+    ) -> Result<TranscriptDeleteResult, SqlxError> {
+        trim::delete_transcript_segment(pool, meeting_id, transcript_id).await
     }
 
     pub async fn update_meeting_title(
@@ -319,145 +266,4 @@ impl MeetingsRepository {
         transaction.commit().await?;
         Ok(true)
     }
-}
-
-fn validate_trim_input(meeting_id: &str, cutoff_seconds: f64) -> Result<(), SqlxError> {
-    if meeting_id.trim().is_empty() {
-        return Err(SqlxError::Protocol(
-            "meeting_id cannot be empty".to_string(),
-        ));
-    }
-
-    if !cutoff_seconds.is_finite() || cutoff_seconds < 0.0 {
-        return Err(SqlxError::Protocol(
-            "cutoff_seconds must be a finite non-negative number".to_string(),
-        ));
-    }
-
-    Ok(())
-}
-
-async fn build_trim_result(
-    transaction: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
-    meeting_id: &str,
-    cutoff_seconds: f64,
-    applied: bool,
-    summary_invalidated: bool,
-) -> Result<TranscriptTrimResult, SqlxError> {
-    let meeting_exists: Option<(i64,)> = sqlx::query_as("SELECT 1 FROM meetings WHERE id = ?")
-        .bind(meeting_id)
-        .fetch_optional(&mut **transaction)
-        .await?;
-
-    if meeting_exists.is_none() {
-        return Err(SqlxError::RowNotFound);
-    }
-
-    let total_count: (i64,) =
-        sqlx::query_as("SELECT COUNT(*) FROM transcripts WHERE meeting_id = ?")
-            .bind(meeting_id)
-            .fetch_one(&mut **transaction)
-            .await?;
-
-    let removable_count: (i64,) = sqlx::query_as(
-        "SELECT COUNT(*)
-         FROM transcripts
-         WHERE meeting_id = ?
-           AND audio_start_time IS NOT NULL
-           AND audio_start_time > ?",
-    )
-    .bind(meeting_id)
-    .bind(cutoff_seconds)
-    .fetch_one(&mut **transaction)
-    .await?;
-
-    let has_summary: (i64,) =
-        sqlx::query_as("SELECT COUNT(*) FROM summary_processes WHERE meeting_id = ?")
-            .bind(meeting_id)
-            .fetch_one(&mut **transaction)
-            .await?;
-
-    let last_kept_segment = fetch_trim_segment(
-        transaction,
-        "SELECT id, transcript, timestamp, audio_start_time, audio_end_time
-         FROM transcripts
-         WHERE meeting_id = ?
-           AND audio_start_time IS NOT NULL
-           AND audio_start_time <= ?
-         ORDER BY audio_start_time DESC
-         LIMIT 1",
-        meeting_id,
-        cutoff_seconds,
-    )
-    .await?;
-
-    let first_removed_segment = fetch_trim_segment(
-        transaction,
-        "SELECT id, transcript, timestamp, audio_start_time, audio_end_time
-         FROM transcripts
-         WHERE meeting_id = ?
-           AND audio_start_time IS NOT NULL
-           AND audio_start_time > ?
-         ORDER BY audio_start_time ASC
-         LIMIT 1",
-        meeting_id,
-        cutoff_seconds,
-    )
-    .await?;
-
-    let last_removed_segment = fetch_trim_segment(
-        transaction,
-        "SELECT id, transcript, timestamp, audio_start_time, audio_end_time
-         FROM transcripts
-         WHERE meeting_id = ?
-           AND audio_start_time IS NOT NULL
-           AND audio_start_time > ?
-         ORDER BY audio_start_time DESC
-         LIMIT 1",
-        meeting_id,
-        cutoff_seconds,
-    )
-    .await?;
-
-    Ok(TranscriptTrimResult {
-        meeting_id: meeting_id.to_string(),
-        cutoff_seconds,
-        deleted_count: removable_count.0,
-        remaining_count: total_count.0 - removable_count.0,
-        total_count: total_count.0,
-        summary_invalidated: if applied {
-            summary_invalidated
-        } else {
-            has_summary.0 > 0 && removable_count.0 > 0
-        },
-        last_kept_segment,
-        first_removed_segment,
-        last_removed_segment,
-        applied,
-    })
-}
-
-async fn fetch_trim_segment(
-    transaction: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
-    query: &str,
-    meeting_id: &str,
-    cutoff_seconds: f64,
-) -> Result<Option<TranscriptTrimSegment>, SqlxError> {
-    type TrimSegmentRow = (String, String, String, Option<f64>, Option<f64>);
-
-    let row: Option<TrimSegmentRow> = sqlx::query_as(query)
-        .bind(meeting_id)
-        .bind(cutoff_seconds)
-        .fetch_optional(&mut **transaction)
-        .await?;
-
-    Ok(row.map(
-        |(id, text, timestamp, audio_start_time, audio_end_time)| TranscriptTrimSegment {
-            id,
-            text,
-            timestamp,
-            audio_start_time,
-            audio_end_time,
-        },
-    ))
 }

@@ -9,6 +9,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import { RecordingStatusBar } from "./RecordingStatusBar";
 import { motion, AnimatePresence } from "framer-motion";
 import { TranscriptSegmentData } from "@/types";
+import { TranscriptTimestampMenu } from "./TranscriptTimestampMenu";
 
 export interface VirtualizedTranscriptViewProps {
   /** Transcript segments to display */
@@ -34,21 +35,12 @@ export interface VirtualizedTranscriptViewProps {
   totalCount?: number;
   loadedCount?: number;
   onLoadMore?: () => void;
+  onRemoveSegment?: (segment: TranscriptSegmentData) => void;
+  onTrimFromSegment?: (segment: TranscriptSegmentData) => void;
 }
 
 // Threshold for enabling virtualization (below this, use simple rendering)
 const VIRTUALIZATION_THRESHOLD = 10;
-
-// Helper function to format seconds as recording-relative time [MM:SS]
-function formatRecordingTime(seconds: number | undefined): string {
-  if (seconds === undefined) return "[--:--]";
-
-  const totalSeconds = Math.floor(seconds);
-  const minutes = Math.floor(totalSeconds / 60);
-  const secs = totalSeconds % 60;
-
-  return `[${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}]`;
-}
 
 // Helper function to remove filler words and repetitions
 function cleanStopWords(text: string): string {
@@ -76,6 +68,8 @@ const TranscriptSegment = memo(function TranscriptSegment({
   confidence,
   isStreaming,
   showConfidence,
+  onRemoveSegment,
+  onTrimFromSegment,
 }: {
   id: string;
   timestamp: number;
@@ -84,17 +78,24 @@ const TranscriptSegment = memo(function TranscriptSegment({
   confidence?: number;
   isStreaming: boolean;
   showConfidence: boolean;
+  onRemoveSegment?: (segment: TranscriptSegmentData) => void;
+  onTrimFromSegment?: (segment: TranscriptSegmentData) => void;
 }) {
   const displayText = cleanStopWords(text) || (text.trim() === "" ? "[Silence]" : text);
   const speakerLabel = formatSpeakerLabel(speaker);
+  const segment = { id, timestamp, text, speaker, confidence };
 
   return (
     <div id={`segment-${id}`} className="mb-3">
       <div className="flex items-start gap-2">
         <Tooltip>
-          <TooltipTrigger>
-            <span className="text-xs text-gray-400 mt-1 flex-shrink-0 min-w-[50px]">
-              {formatRecordingTime(timestamp)}
+          <TooltipTrigger asChild>
+            <span>
+              <TranscriptTimestampMenu
+                segment={segment}
+                onRemoveSegment={onRemoveSegment}
+                onTrimFromSegment={onTrimFromSegment}
+              />
             </span>
           </TooltipTrigger>
           <TooltipContent>
@@ -208,6 +209,8 @@ function VirtualizedSegmentsList({
   streamingSegmentId,
   getDisplayText,
   showConfidence,
+  onRemoveSegment,
+  onTrimFromSegment,
 }: any) {
   return (
     <div style={{ height: virtualizer.getTotalSize(), width: "100%", position: "relative" }}>
@@ -236,6 +239,8 @@ function VirtualizedSegmentsList({
               confidence={segment.confidence}
               isStreaming={isStreaming}
               showConfidence={showConfidence}
+              onRemoveSegment={onRemoveSegment}
+              onTrimFromSegment={onTrimFromSegment}
             />
           </div>
         );
@@ -244,7 +249,14 @@ function VirtualizedSegmentsList({
   );
 }
 
-function SimpleSegmentsList({ segments, streamingSegmentId, getDisplayText, showConfidence }: any) {
+function SimpleSegmentsList({
+  segments,
+  streamingSegmentId,
+  getDisplayText,
+  showConfidence,
+  onRemoveSegment,
+  onTrimFromSegment,
+}: any) {
   return (
     <div className="space-y-1">
       {segments.map((segment: TranscriptSegmentData) => {
@@ -265,6 +277,8 @@ function SimpleSegmentsList({ segments, streamingSegmentId, getDisplayText, show
               confidence={segment.confidence}
               isStreaming={isStreaming}
               showConfidence={showConfidence}
+              onRemoveSegment={onRemoveSegment}
+              onTrimFromSegment={onTrimFromSegment}
             />
           </motion.div>
         );
@@ -287,6 +301,8 @@ export const VirtualizedTranscriptView: React.FC<VirtualizedTranscriptViewProps>
   totalCount = 0,
   loadedCount = 0,
   onLoadMore,
+  onRemoveSegment,
+  onTrimFromSegment,
 }) => {
   // Create scroll ref first - shared between virtualizer and auto-scroll hook
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -409,6 +425,8 @@ export const VirtualizedTranscriptView: React.FC<VirtualizedTranscriptViewProps>
               streamingSegmentId={streamingSegmentId}
               getDisplayText={getDisplayText}
               showConfidence={showConfidence}
+              onRemoveSegment={onRemoveSegment}
+              onTrimFromSegment={onTrimFromSegment}
             />
             <LoadMoreIndicator
               hasMore={hasMore}
@@ -434,6 +452,8 @@ export const VirtualizedTranscriptView: React.FC<VirtualizedTranscriptViewProps>
               streamingSegmentId={streamingSegmentId}
               getDisplayText={getDisplayText}
               showConfidence={showConfidence}
+              onRemoveSegment={onRemoveSegment}
+              onTrimFromSegment={onTrimFromSegment}
             />
             <LoadMoreIndicator
               hasMore={hasMore}

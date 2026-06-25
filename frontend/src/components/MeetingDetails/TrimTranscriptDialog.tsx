@@ -14,6 +14,7 @@ import {
 } from "../ui/dialog";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
+import { formatRecordingTime, parseCutoffSeconds } from "@/lib/transcriptTime";
 
 interface TrimTranscriptDialogProps {
   open: boolean;
@@ -41,45 +42,6 @@ interface TrimResult {
   first_removed_segment?: TrimSegment;
   last_removed_segment?: TrimSegment;
   applied: boolean;
-}
-
-function parseCutoffSeconds(value: string): number | null {
-  const trimmed = value.trim();
-  if (!trimmed) return null;
-
-  if (/^\d+(\.\d+)?$/.test(trimmed)) {
-    return Number(trimmed);
-  }
-
-  const parts = trimmed.split(":");
-  if (parts.length < 2 || parts.length > 3) return null;
-
-  const parsed = parts.map((part) => Number(part));
-  if (parsed.some((part) => !Number.isFinite(part) || part < 0)) return null;
-
-  const [hours, minutes, seconds] = parsed.length === 3 ? parsed : [0, parsed[0], parsed[1]];
-
-  if (minutes >= 60 || seconds >= 60) return null;
-  return hours * 3600 + minutes * 60 + seconds;
-}
-
-function formatRecordingTime(seconds?: number) {
-  if (seconds === undefined || seconds === null || !Number.isFinite(seconds)) {
-    return "--:--";
-  }
-
-  const totalSeconds = Math.floor(seconds);
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const remainingSeconds = totalSeconds % 60;
-
-  if (hours > 0) {
-    return `${hours}:${minutes.toString().padStart(2, "0")}:${remainingSeconds
-      .toString()
-      .padStart(2, "0")}`;
-  }
-
-  return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
 }
 
 function SegmentPreview({ label, segment }: { label: string; segment?: TrimSegment }) {
@@ -127,7 +89,7 @@ export function TrimTranscriptDialog({
 
   const handlePreview = async () => {
     if (cutoffSeconds === null) {
-      setError("Enter a cutoff like 17:52, 1:02:30, or 1072 seconds.");
+      setError("Enter a cutoff like 111:42, 1:51:42, or 6702 seconds.");
       return;
     }
 
@@ -194,7 +156,7 @@ export function TrimTranscriptDialog({
                 id="trim-cutoff"
                 value={cutoffInput}
                 onChange={(event) => setCutoffInput(event.target.value)}
-                placeholder="17:52"
+                placeholder="111:42"
                 disabled={isPreviewing || isApplying}
               />
               <Button

@@ -179,6 +179,15 @@ pub struct TranscriptTrimResult {
     pub applied: bool,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TranscriptDeleteResult {
+    pub meeting_id: String,
+    pub transcript_id: String,
+    pub deleted_count: i64,
+    pub remaining_count: i64,
+    pub summary_invalidated: bool,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SaveMeetingTitleRequest {
     pub meeting_id: String,

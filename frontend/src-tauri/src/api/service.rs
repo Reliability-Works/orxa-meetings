@@ -228,6 +228,42 @@ pub async fn api_trim_meeting_transcript<R: Runtime>(
 }
 
 #[tauri::command]
+pub async fn api_trim_meeting_transcript_from_segment<R: Runtime>(
+    app: AppHandle<R>,
+    meeting_id: String,
+    transcript_id: String,
+    confirm: bool,
+    state: tauri::State<'_, AppState>,
+) -> Result<TranscriptTrimResult, String> {
+    transcripts::api_trim_meeting_transcript_from_segment(
+        app,
+        meeting_id,
+        transcript_id,
+        confirm,
+        state,
+    )
+    .await
+}
+
+#[tauri::command]
+pub async fn api_delete_meeting_transcript_segment<R: Runtime>(
+    app: AppHandle<R>,
+    meeting_id: String,
+    transcript_id: String,
+    confirm: bool,
+    state: tauri::State<'_, AppState>,
+) -> Result<TranscriptDeleteResult, String> {
+    transcripts::api_delete_meeting_transcript_segment(
+        app,
+        meeting_id,
+        transcript_id,
+        confirm,
+        state,
+    )
+    .await
+}
+
+#[tauri::command]
 pub async fn api_save_meeting_title<R: Runtime>(
     app: AppHandle<R>,
     state: tauri::State<'_, AppState>,

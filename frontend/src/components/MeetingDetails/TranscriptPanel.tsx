@@ -3,7 +3,10 @@
 import { Transcript, TranscriptSegmentData } from "@/types";
 import { VirtualizedTranscriptView } from "@/components/VirtualizedTranscriptView";
 import { TranscriptButtonGroup } from "./TranscriptButtonGroup";
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import { toast } from "sonner";
+import { formatRecordingTime } from "@/lib/transcriptTime";
 
 interface TranscriptPanelProps {
   transcripts: Transcript[];
@@ -68,6 +71,68 @@ export function TranscriptPanel({
     ? (totalCount ?? convertedSegments.length)
     : transcripts?.length || 0;
 
+  const handleRemoveSegment = useCallback(
+    async (segment: TranscriptSegmentData) => {
+      if (!meetingId) return;
+
+      const timestamp = `[${formatRecordingTime(segment.timestamp)}]`;
+      const confirmed = window.confirm(
+        `Remove the transcript segment at ${timestamp}? The current summary will be cleared.`,
+      );
+      if (!confirmed) return;
+
+      try {
+        const result = await invoke<{ deleted_count: number }>(
+          "api_delete_meeting_transcript_segment",
+          {
+            meetingId,
+            transcriptId: segment.id,
+            confirm: true,
+          },
+        );
+        toast.success(
+          result.deleted_count === 1 ? "Removed transcript segment." : "No transcript was removed.",
+        );
+        await onRefetchTranscripts?.();
+      } catch (error) {
+        console.error("Failed to remove transcript segment:", error);
+        toast.error("Could not remove transcript segment.");
+      }
+    },
+    [meetingId, onRefetchTranscripts],
+  );
+
+  const handleTrimFromSegment = useCallback(
+    async (segment: TranscriptSegmentData) => {
+      if (!meetingId) return;
+
+      const timestamp = `[${formatRecordingTime(segment.timestamp)}]`;
+      const confirmed = window.confirm(
+        `Remove ${timestamp} and every transcript segment below it? The current summary will be cleared.`,
+      );
+      if (!confirmed) return;
+
+      try {
+        const result = await invoke<{ deleted_count: number }>(
+          "api_trim_meeting_transcript_from_segment",
+          {
+            meetingId,
+            transcriptId: segment.id,
+            confirm: true,
+          },
+        );
+        toast.success(
+          `Removed ${result.deleted_count} transcript segment${result.deleted_count === 1 ? "" : "s"}.`,
+        );
+        await onRefetchTranscripts?.();
+      } catch (error) {
+        console.error("Failed to trim transcript from segment:", error);
+        toast.error("Could not trim transcript from this timestamp.");
+      }
+    },
+    [meetingId, onRefetchTranscripts],
+  );
+
   return (
     <div className="hidden md:flex min-w-0 flex-1 border-r border-gray-200 bg-white flex-col relative">
       <div className="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-gray-200 px-3">
@@ -101,6 +166,8 @@ export function TranscriptPanel({
           totalCount={totalCount}
           loadedCount={loadedCount}
           onLoadMore={onLoadMore}
+          onRemoveSegment={meetingId ? handleRemoveSegment : undefined}
+          onTrimFromSegment={meetingId ? handleTrimFromSegment : undefined}
         />
       </div>
 

@@ -21,6 +21,8 @@
 # testing
 /coverage
 /frontend/coverage
+/.coverage
+**/__pycache__/
 /.jscpd-report
 /.venv
 /dist

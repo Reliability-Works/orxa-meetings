@@ -143,11 +143,12 @@ def parse_cutoff_time(value: str) -> float:
     if len(numbers) == 2:
         hours = 0.0
         minutes, seconds = numbers
+        if seconds >= 60:
+            raise McpServerError("cutoff_time seconds must be less than 60")
     else:
         hours, minutes, seconds = numbers
-
-    if minutes >= 60 or seconds >= 60:
-        raise McpServerError("cutoff_time minutes and seconds must be less than 60")
+        if minutes >= 60 or seconds >= 60:
+            raise McpServerError("cutoff_time minutes and seconds must be less than 60")
 
     return hours * 3600 + minutes * 60 + seconds
 

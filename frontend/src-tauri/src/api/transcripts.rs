@@ -2,8 +2,8 @@ use log::{debug as log_debug, error as log_error, info as log_info};
 use tauri::{AppHandle, Runtime};
 
 use super::types::{
-    MeetingTranscript, PaginatedTranscriptsResponse, TranscriptSearchResult, TranscriptSegment,
-    TranscriptTrimResult,
+    MeetingTranscript, PaginatedTranscriptsResponse, TranscriptDeleteResult,
+    TranscriptSearchResult, TranscriptSegment, TranscriptTrimResult,
 };
 use crate::{
     database::repositories::{meeting::MeetingsRepository, transcript::TranscriptsRepository},
@@ -148,6 +148,70 @@ pub(super) async fn api_trim_meeting_transcript<R: Runtime>(
                 e
             );
             format!("Failed to trim transcript: {}", e)
+        })
+}
+
+pub(super) async fn api_trim_meeting_transcript_from_segment<R: Runtime>(
+    _app: AppHandle<R>,
+    meeting_id: String,
+    transcript_id: String,
+    confirm: bool,
+    state: tauri::State<'_, AppState>,
+) -> Result<TranscriptTrimResult, String> {
+    log_info!(
+        "api_trim_meeting_transcript_from_segment called for meeting_id: {}, transcript_id: {}, confirm: {}",
+        meeting_id,
+        transcript_id,
+        confirm
+    );
+
+    if !confirm {
+        return Err("Transcript trim requires confirm=true.".to_string());
+    }
+
+    let pool = state.db_manager.pool();
+    MeetingsRepository::trim_transcript_from_segment(pool, &meeting_id, &transcript_id)
+        .await
+        .map_err(|e| {
+            log_error!(
+                "Failed to trim transcript from segment {} for meeting {}: {}",
+                transcript_id,
+                meeting_id,
+                e
+            );
+            format!("Failed to trim transcript: {}", e)
+        })
+}
+
+pub(super) async fn api_delete_meeting_transcript_segment<R: Runtime>(
+    _app: AppHandle<R>,
+    meeting_id: String,
+    transcript_id: String,
+    confirm: bool,
+    state: tauri::State<'_, AppState>,
+) -> Result<TranscriptDeleteResult, String> {
+    log_info!(
+        "api_delete_meeting_transcript_segment called for meeting_id: {}, transcript_id: {}, confirm: {}",
+        meeting_id,
+        transcript_id,
+        confirm
+    );
+
+    if !confirm {
+        return Err("Transcript deletion requires confirm=true.".to_string());
+    }
+
+    let pool = state.db_manager.pool();
+    MeetingsRepository::delete_transcript_segment(pool, &meeting_id, &transcript_id)
+        .await
+        .map_err(|e| {
+            log_error!(
+                "Failed to delete transcript segment {} for meeting {}: {}",
+                transcript_id,
+                meeting_id,
+                e
+            );
+            format!("Failed to delete transcript segment: {}", e)
         })
 }
 

@@ -67,6 +67,7 @@ class OrxaMcpCoreTest(OrxaMcpTestCase):
             orxa_mcp.clamp_limit("many", 10, 20)
 
         self.assertEqual(orxa_mcp.parse_cutoff_seconds({"cutoff_time": "01:02:03"}), 3723)
+        self.assertEqual(orxa_mcp.parse_cutoff_seconds({"cutoff_time": "111:42"}), 6702)
         self.assertEqual(orxa_mcp.parse_cutoff_seconds({"cutoff_time": "12.5"}), 12.5)
         invalid_args = [
             {},
@@ -77,6 +78,7 @@ class OrxaMcpCoreTest(OrxaMcpTestCase):
             {"cutoff_time": "1:nope"},
             {"cutoff_time": "-1:00"},
             {"cutoff_time": "01:99"},
+            {"cutoff_time": "1:61:42"},
         ]
         for args in invalid_args:
             with self.subTest(args=args), self.assertRaises(orxa_mcp.McpServerError):
